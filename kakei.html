@@ -1,0 +1,98 @@
+<!DOCTYPE html><html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>家計精算</title>
+<style>
+body{font-family:sans-serif;margin:0;background:#fafafa}
+header{position:sticky;top:0;background:#fff;padding:12px;border-bottom:1px solid #ddd}
+.result{font-weight:bold;margin-top:6px}
+main{padding:10px}
+.row{display:grid;grid-template-columns:40px 80px 1fr 80px 40px;gap:6px;align-items:center;margin:6px 0}
+input[type=number]{width:100%;padding:6px}
+input[type=text]{width:100%;padding:6px}
+button{padding:8px 10px;margin:4px}
+.big{font-size:1.2em;color:green;font-weight:bold}
+</style>
+</head>
+<body>
+<header>
+<div>🏠 家計精算</div>
+<div>⚖️ <span id="ratioLabel">👨夫70% / 👩妻30%</span></div>
+<input type="range" min="0" max="100" value="70" id="ratio" style="width:100%" />
+<div class="result" id="sharedTotal"></div>
+<div class="result" id="sharedResult"></div>
+<div class="result" id="transferTotal"></div>
+<div class="result" id="transferResult"></div>
+<div class="big" id="finalResult"></div>
+<div>
+<button onclick="importJSON()">📂読込</button>
+<button onclick="exportJSON()">💾保存</button>
+<button onclick="clearAll()">🧹クリア</button>
+</div>
+</header>
+<main><div></div><div></div>
+</div>
+<div style="text-align:center;margin:10px 0"><button onclick="addRow()">➕ 行追加</button></div>
+<div id="list"></div>
+</main>
+<input type="file" id="fileInput" style="display:none" />
+<script>
+let items=[];
+const list=document.getElementById('list');
+const ratioSlider=document.getElementById('ratio');
+ratioSlider.oninput=update;
+function addRow(data={type:'shared',h:0,w:0,name:''}){
+ items.push(data);
+ render();
+}
+function removeRow(i){items.splice(i,1);render();}
+function toggleType(i){items[i].type=items[i].type==='shared'?'transfer':'shared';render();}
+function render(){
+ list.innerHTML='';
+ items.forEach((it,i)=>{
+ const div=document.createElement('div');div.className='row';
+ const flag=document.createElement('button');flag.textContent=it.type==='shared'?'🏠':'🔁';flag.onclick=()=>toggleType(i);
+ const h=document.createElement('input');h.type='number';h.placeholder='👨 金額';h.value=it.h||'';h.oninput=e=>{it.h=Number(e.target.value)||0;update();};
+ const name=document.createElement('input');name.type='text';name.placeholder='📝 内容(任意)';name.value=it.name;name.oninput=e=>{it.name=e.target.value};
+ const w=document.createElement('input');w.type='number';w.placeholder='👩 金額';w.value=it.w||'';w.oninput=e=>{it.w=Number(e.target.value)||0;update();};
+ const del=document.createElement('button');del.textContent='🗑';del.onclick=()=>removeRow(i);
+ div.append(flag,h,name,w,del);
+ list.appendChild(div);
+ });
+ update();
+}
+function update(){
+ const r=ratioSlider.value/100;
+ document.getElementById('ratioLabel').textContent=`夫${ratioSlider.value}% / 妻${100-ratioSlider.value}%`;
+ let sharedH=0,sharedW=0,transH=0,transW=0;
+ items.forEach(it=>{
+ if(it.type==='shared'){sharedH+=it.h;sharedW+=it.w;}else{transH+=it.h;transW+=it.w;}
+ });
+ const total=sharedH+sharedW;
+ const shouldH=total*r; const shouldW=total*(1-r);
+ const diffShared=(sharedW-shouldW)-(sharedH-shouldH);
+ const diffTransfer=transH-transW;
+ const final=diffShared+diffTransfer;
+ document.getElementById('sharedTotal').textContent=`🧾家計合計: ${format(total)}`;
+ document.getElementById('sharedResult').textContent=`🧾家計差額: ${diffText(diffShared)}`;
+ document.getElementById('transferTotal').textContent=`💸立替合計: ${format(transH+transW)}`;
+ document.getElementById('transferResult').textContent=`💸立替差額: ${diffText(diffTransfer)}`;
+ document.getElementById('finalResult').textContent=final>0?`👩→👨 ${format(final)}`:final<0?`👨→👩 ${format(-final)}`:'±0';
+}
+function diffText(n){return n>0?`👩が多め ${format(n)}`:n<0?`👨が多め ${format(-n)}`:'差なし';}
+function format(n){return '¥'+Math.round(n).toLocaleString();}
+function exportJSON(){
+ const data={version:1,ratio:ratioSlider.value/100,items};
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='kakei.json';a.click();
+}
+function importJSON(){document.getElementById('fileInput').click();}
+document.getElementById('fileInput').onchange=e=>{
+ const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=()=>{const d=JSON.parse(reader.result);ratioSlider.value=d.ratio*100;items=d.items||[];render();};reader.readAsText(f);
+};
+function clearAll(){if(confirm('全削除しますか？')){items=[];render();}}
+addRow();
+</script>
+</body>
+</html>
