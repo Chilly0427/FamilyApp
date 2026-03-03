@@ -9,15 +9,21 @@ body{font-family:sans-serif;margin:0;background:#fafafa;color:#333}
 header{position:sticky;top:0;background:#fff;padding:16px;border-bottom:1px solid #ddd;box-shadow:0 2px 4px rgba(0,0,0,0.05);z-index:10}
 .result{font-size:0.9em;margin-top:4px;color:#666}
 main{padding:10px;padding-bottom:100px}
-.row{display:grid;grid-template-columns:44px 1fr 1.5fr 1fr 44px;gap:8px;align-items:center;margin:8px 0;background:#fff;padding:8px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
-input[type=number]{width:100%;padding:8px 4px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box}
-input[type=text]{width:100%;padding:8px 4px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box}
+.row{display:grid;grid-template-columns:24px 30px 60px 1fr 1fr;gap:4px;align-items:center;margin:8px 0;background:#fff;padding:10px 6px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+.row-second{grid-column: 1 / -1; display:flex; gap:6px; margin-top:6px; padding-left: 28px;}
+input[type=number], input[type=text], input[type=date]{width:100%;padding:8px 4px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;font-size:16px;}
 button{padding:8px;border:none;border-radius:4px;cursor:pointer;background:#eee}
 button:hover{background:#ddd}
-.btn-add{background:#4caf50;color:#fff;font-weight:bold;padding:10px 20px;border-radius:20px}
-.big{font-size:1.4em;color:#2e7d32;font-weight:bold;margin:10px 0;padding:10px;background:#e8f5e9;border-radius:8px;text-align:center}
-.type-btn{font-size:1.2em}
-.del-btn{color:#d32f2f}
+.btn-add{background:#4caf50;color:#fff;font-weight:bold;padding:12px 24px;border-radius:24px;font-size:1.1em;box-shadow:0 2px 4px rgba(0,0,0,0.2);}
+.big{font-size:1.3em;color:#2e7d32;font-weight:bold;margin:10px 0;padding:12px;background:#e8f5e9;border-radius:8px;text-align:center;line-height:1.5;}
+.type-btn{font-size:0.85em;padding:4px 2px;white-space:nowrap;font-weight:bold;}
+.del-btn{color:#d32f2f;padding:4px 8px;font-size:1.2em;}
+.legend{font-size:0.8em;color:#666;background:#eee;padding:8px;border-radius:4px;margin-bottom:10px;}
+.drag-handle{color:#bbb; cursor:grab; text-align:center; font-size:1.2em;}
+.blocked-input{background-color:#ccc !important; opacity:1 !important; color:transparent !important;}
+.blocked-input::placeholder{color:transparent !important;}
+.clear-btn{position:absolute; right:4px; top:50%; transform:translateY(-50%); cursor:pointer; color:#777; font-size:14px; font-weight:bold; background:#e0e0e0; border-radius:50%; width:18px; height:18px; display:flex; align-items:center; justify-content:center; z-index:2;}
+.clear-btn:hover{background:#d0d0d0;}
 </style>
 </head>
 <body style="display: none;">
@@ -25,45 +31,513 @@ button:hover{background:#ddd}
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
   import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+  import { getFirestore, collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
   import { firebaseConfig, ALLOWED_EMAILS } from "./firebase-config.js";
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
+  const db = getFirestore(app);
 
+  let currentUserId = null;
+  
   onAuthStateChanged(auth, (user) => {
     if (user && ALLOWED_EMAILS.includes(user.email)) {
-      // 認証OKなら画面を表示
       document.body.style.display = 'block';
+      currentUserId = user.uid;
+      initApp();
     } else {
-      // 未ログイン or 許可されていない場合はトップに戻す
       if (user) {
-        signOut(auth).then(() => {
-          window.location.href = "index.html";
-        });
+        signOut(auth).then(() => { window.location.href = "index.html"; });
       } else {
         window.location.href = "index.html";
       }
     }
   });
+
+  let items = [];
+  const list = document.getElementById('list');
+  const ratioSlider = document.getElementById('ratio');
+  const ratioLabel = document.getElementById('ratioLabel');
+  
+  let updateTimeoutMap = {};
+
+  function initApp() {
+    Sortable.create(list, {
+      handle: '.drag-handle',
+      animation: 150,
+      filter: '.settled',
+      onEnd: function (evt) {
+        const newIndex = evt.newIndex;
+        const oldIndex = evt.oldIndex;
+        if (newIndex === oldIndex) return;
+        
+        const draggedItem = items.splice(oldIndex, 1)[0];
+        items.splice(newIndex, 0, draggedItem);
+        
+        items.forEach((item, index) => {
+          item.order = index + 1;
+          updateItem(item.id, 'order', item.order);
+        });
+      }
+    });
+
+    ratioSlider.oninput = update;
+
+    const settingsRef = doc(db, "kakei_settings", "main");
+    onSnapshot(settingsRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.ratio !== undefined) {
+          ratioSlider.value = data.ratio;
+          updateUIOnly(); 
+        }
+      }
+    });
+
+    const itemsRef = collection(db, "kakei_items");
+    onSnapshot(itemsRef, (querySnapshot) => {
+      const activeElementId = document.activeElement ? document.activeElement.id : null;
+      items = [];
+      querySnapshot.forEach((doc) => {
+        items.push({ id: doc.id, ...doc.data() });
+      });
+      // order または createdAt でソート
+      items.sort((a, b) => {
+        const orderA = a.order !== undefined ? a.order : (a.createdAt?.toMillis() || 0);
+        const orderB = b.order !== undefined ? b.order : (b.createdAt?.toMillis() || 0);
+        return orderA - orderB;
+      });
+      render(activeElementId);
+    });
+
+    window.addRow = async () => {
+      const newDocRef = doc(collection(db, "kakei_items"));
+      const today = new Date();
+      // JST Date String YYYY-MM-DD
+      const jstDate = new Date(today.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0,10);
+      let maxOrder = 0;
+      if (items.length > 0) {
+        maxOrder = Math.max(...items.map(i => i.order || 0));
+      }
+      
+      await setDoc(newDocRef, {
+        type: 'shared',
+        date: jstDate,
+        h: 0,
+        w: 0,
+        name: '',
+        order: maxOrder + 1,
+        isSettled: false,
+        createdAt: serverTimestamp()
+      });
+    };
+
+    window.removeRow = async (id) => {
+      await deleteDoc(doc(db, "kakei_items", id));
+    };
+
+    window.toggleType = async (id, currentType) => {
+      const newType = currentType === 'shared' ? 'transfer' : 'shared';
+      await updateDoc(doc(db, "kakei_items", id), { type: newType });
+    };
+
+    window.toggleSettled = async (id, currentStatus) => {
+      await updateDoc(doc(db, "kakei_items", id), { isSettled: !currentStatus });
+    };
+
+    window.updateItem = async (id, field, value) => {
+      await updateDoc(doc(db, "kakei_items", id), { [field]: value });
+    };
+    
+    // 入力時のデータをリロードしても消えないように0.5秒のデバウンスで保存する処理
+    window.debouncedUpdateItem = (id, field, value) => {
+      const key = `${id}_${field}`;
+      if (updateTimeoutMap[key]) clearTimeout(updateTimeoutMap[key]);
+      updateTimeoutMap[key] = setTimeout(() => {
+        updateItem(id, field, value);
+      }, 500); 
+    }
+
+    window.toggleAllSettled = async () => {
+      const unsettledItems = items.filter(it => !it.isSettled);
+      if (unsettledItems.length > 0) {
+        if (confirm('まだ精算済になっていない項目を、すべて「精算済」にしますか？')) {
+          for (const it of unsettledItems) {
+            await updateDoc(doc(db, "kakei_items", it.id), { isSettled: true });
+          }
+        }
+      } else {
+        const settledItems = items.filter(it => it.isSettled);
+        if (settledItems.length > 0) {
+          if (confirm('すべての「精算済」を解除して未精算に戻しますか？')) {
+            for (const it of settledItems) {
+              await updateDoc(doc(db, "kakei_items", it.id), { isSettled: false });
+            }
+          }
+        }
+      }
+    };
+
+    window.clearSettled = async () => {
+      if (confirm('「精算済」の項目を一括で削除しますか？')) {
+        const settledItems = items.filter(it => it.isSettled);
+        for (const it of settledItems) {
+          await deleteDoc(doc(db, "kakei_items", it.id));
+        }
+      }
+    };
+
+    ratioSlider.addEventListener('change', async (e) => {
+      const settingsRef = doc(db, "kakei_settings", "main");
+      await setDoc(settingsRef, { ratio: Number(e.target.value) }, { merge: true });
+    });
+  }
+
+  function render(activeElementId = null) {
+    list.innerHTML = '';
+    items.forEach((it) => {
+      const div = document.createElement('div');
+      div.className = 'row';
+      if (it.isSettled) {
+        div.className += ' settled';
+        div.style.opacity = '0.5';
+        div.style.backgroundColor = '#f0f0f0';
+      }
+
+      const handle = document.createElement('div');
+      handle.className = 'drag-handle';
+      handle.textContent = '☰';
+      if (it.isSettled) handle.style.cursor = 'default';
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = it.isSettled;
+      cb.title = "精算完了";
+      cb.style.transform = 'scale(1.5)';
+      cb.onchange = () => toggleSettled(it.id, it.isSettled);
+
+      const flag = document.createElement('button');
+      flag.className = 'type-btn';
+      flag.textContent = it.type === 'shared' ? '🏠 家計' : '💸 立替';
+      flag.disabled = it.isSettled;
+      flag.onclick = () => toggleType(it.id, it.type);
+
+      const hWrapper = document.createElement('div');
+      hWrapper.style.position = 'relative';
+      hWrapper.style.width = '100%';
+
+      const hId = `h_${it.id}`;
+      const h = document.createElement('input');
+      h.id = hId;
+      h.type = 'number';
+      h.placeholder = '👨夫支払い分';
+      h.value = it.h || '';
+      h.disabled = it.isSettled || (it.w > 0);
+      if (it.w > 0 && !it.isSettled) h.classList.add('blocked-input');
+
+      const hClear = document.createElement('span');
+      hClear.innerHTML = '&times;';
+      hClear.className = 'clear-btn';
+      hClear.style.display = (!it.isSettled && it.h > 0) ? 'flex' : 'none';
+
+      const wWrapper = document.createElement('div');
+      wWrapper.style.position = 'relative';
+      wWrapper.style.width = '100%';
+
+      const wId = `w_${it.id}`;
+      const w = document.createElement('input');
+      w.id = wId;
+      w.type = 'number';
+      w.placeholder = '👩妻支払い分';
+      w.value = it.w || '';
+      w.disabled = it.isSettled || (it.h > 0);
+      if (it.h > 0 && !it.isSettled) w.classList.add('blocked-input');
+
+      const wClear = document.createElement('span');
+      wClear.innerHTML = '&times;';
+      wClear.className = 'clear-btn';
+      wClear.style.display = (!it.isSettled && it.w > 0) ? 'flex' : 'none';
+
+      h.oninput = e => { 
+        it.h = Number(e.target.value) || 0; 
+        w.disabled = it.isSettled || (it.h > 0);
+        if (it.h > 0 && !it.isSettled) w.classList.add('blocked-input');
+        else w.classList.remove('blocked-input');
+        
+        hClear.style.display = (!it.isSettled && it.h > 0) ? 'flex' : 'none';
+
+        updateUIOnly(); 
+        debouncedUpdateItem(it.id, 'h', it.h);
+      };
+
+      hClear.onclick = () => {
+        if(it.isSettled) return;
+        h.value = '';
+        h.dispatchEvent(new Event('input'));
+      };
+
+      w.oninput = e => { 
+        it.w = Number(e.target.value) || 0; 
+        h.disabled = it.isSettled || (it.w > 0);
+        if (it.w > 0 && !it.isSettled) h.classList.add('blocked-input');
+        else h.classList.remove('blocked-input');
+
+        wClear.style.display = (!it.isSettled && it.w > 0) ? 'flex' : 'none';
+
+        updateUIOnly(); 
+        debouncedUpdateItem(it.id, 'w', it.w);
+      };
+
+      wClear.onclick = () => {
+        if(it.isSettled) return;
+        w.value = '';
+        w.dispatchEvent(new Event('input'));
+      };
+
+      hWrapper.append(h, hClear);
+      wWrapper.append(w, wClear);
+
+      const dEl = document.createElement('input');
+      dEl.type = 'date';
+      dEl.value = it.date || '';
+      dEl.disabled = it.isSettled;
+      dEl.style.width = '130px'; 
+      dEl.style.flex = 'none';
+      dEl.onchange = e => { updateItem(it.id, 'date', e.target.value); };
+
+      const nameId = `name_${it.id}`;
+      const name = document.createElement('input');
+      name.id = nameId;
+      name.type = 'text';
+      name.placeholder = '📝 内容';
+      name.value = it.name || '';
+      name.disabled = it.isSettled;
+      name.style.flex = "1";
+      name.onchange = e => { updateItem(it.id, 'name', e.target.value); };
+
+      const del = document.createElement('button');
+      del.className = 'del-btn';
+      del.textContent = '🗑';
+      del.onclick = () => removeRow(it.id);
+
+      div.append(handle, cb, flag, hWrapper, wWrapper);
+      
+      const secondRow = document.createElement('div');
+      secondRow.className = 'row-second';
+      secondRow.append(dEl, name, del);
+      div.appendChild(secondRow);
+
+      list.appendChild(div);
+    });
+    updateUIOnly();
+
+    if (activeElementId) {
+      const el = document.getElementById(activeElementId);
+      if (el) el.focus();
+    }
+  }
+
+  function update() {
+    updateUIOnly();
+  }
+
+  function updateUIOnly() {
+    const r = ratioSlider.value / 100;
+    const wifeRatio = 1 - r;
+    
+    ratioLabel.textContent = `👨夫${ratioSlider.value}% / 👩妻${Math.round(wifeRatio * 100)}%`;
+
+    let sharedH = 0, sharedW = 0, transH = 0, transW = 0;
+    
+    items.forEach(it => {
+      if (it.isSettled) return;
+      if (it.type === 'shared') {
+        sharedH += it.h;
+        sharedW += it.w;
+      } else {
+        transH += it.h;
+        transW += it.w;
+      }
+    });
+
+    const totalShared = sharedH + sharedW;
+    const diffShared = (totalShared * wifeRatio) - sharedW;
+    const diffTransfer = transH - transW;
+    const final = diffShared + diffTransfer;
+    
+    const finalEl = document.getElementById('finalResult');
+    if (final > 0) {
+      finalEl.innerHTML = `<span style="font-size:0.8em; color:#666;">今月の最終精算額</span><br>👩 妻 が 👨 夫 に<br><span style="font-size:1.5em; color:#d32f2f;">${format(final)} 払う</span>`;
+      finalEl.style.backgroundColor = '#ffebee';
+    } else if (final < 0) {
+      finalEl.innerHTML = `<span style="font-size:0.8em; color:#666;">今月の最終精算額</span><br>👨 夫 が 👩 妻 に<br><span style="font-size:1.5em; color:#1976d2;">${format(-final)} 払う</span>`;
+      finalEl.style.backgroundColor = '#e3f2fd';
+    } else {
+      finalEl.innerHTML = `<span style="font-size:0.8em; color:#666;">今月の最終精算額</span><br>±0 全員平等です`;
+      finalEl.style.backgroundColor = '#e8f5e9';
+    }
+
+    const toggleAllBtn = document.getElementById('toggleAllBtn');
+    if (toggleAllBtn) {
+      const unsettledExists = items.some(it => !it.isSettled);
+      if (unsettledExists || items.length === 0) {
+        toggleAllBtn.innerHTML = '✅ 全て「済」にする';
+        toggleAllBtn.style.color = '#1976d2';
+      } else {
+        toggleAllBtn.innerHTML = '🔄 全て「未」に戻す';
+        toggleAllBtn.style.color = '#ff9800';
+      }
+    }
+  }
+
+  function format(n) {
+    return '¥' + Math.round(n).toLocaleString();
+  }
+
+  window.exportJSON = () => {
+    // 現在の精算額を計算
+    const r = ratioSlider.value / 100;
+    const wifeRatio = 1 - r;
+    let sharedH = 0, sharedW = 0, transH = 0, transW = 0;
+    
+    items.forEach(it => {
+      if (it.isSettled) return;
+      if (it.type === 'shared') {
+        sharedH += it.h;
+        sharedW += it.w;
+      } else {
+        transH += it.h;
+        transW += it.w;
+      }
+    });
+
+    const totalShared = sharedH + sharedW;
+    const diffShared = (totalShared * wifeRatio) - sharedW;
+    const diffTransfer = transH - transW;
+    const final = diffShared + diffTransfer;
+    
+    let settlementResult = "";
+    if (final > 0) {
+      settlementResult = `妻が夫に ${Math.round(final)} 円支払う`;
+    } else if (final < 0) {
+      settlementResult = `夫が妻に ${Math.round(-final)} 円支払う`;
+    } else {
+      settlementResult = "精算なし（±0）";
+    }
+
+    const exportData = items.map(it => ({
+      id: it.id,
+      date: it.date || "",
+      type: it.type || "shared",
+      name: it.name || "",
+      h: it.h || 0,
+      w: it.w || 0,
+      isSettled: it.isSettled || false,
+      order: it.order || 0
+    }));
+
+    const jsonData = {
+      version: 2,
+      ratio: ratioSlider.value,
+      settlement_result: settlementResult,
+      settlement_amount: Math.round(final),
+      items: exportData
+    };
+
+    const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `kakei_backup_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+  };
+
+  window.exportImage = () => {
+    // 画面の一番上に戻してから全体をキャプチャする
+    window.scrollTo(0, 0);
+    html2canvas(document.body).then(canvas => {
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL("image/png");
+      a.download = `kakei_screenshot_${new Date().toISOString().slice(0,10)}.png`;
+      a.click();
+    });
+  };
+
+  window.importJSON = () => {
+    document.getElementById('fileInput').click();
+  };
+
+  window.handleFileImport = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const d = JSON.parse(reader.result);
+        if (!d.items || !Array.isArray(d.items)) {
+          alert('フォーマットが違います');
+          return;
+        }
+
+        if (confirm('現在のクラウド上のデータは削除され、インポートしたデータで上書きされます。よろしいですか？')) {
+          for (const it of items) {
+            await deleteDoc(doc(db, "kakei_items", it.id));
+          }
+          
+          const settingsRef = doc(db, "kakei_settings", "main");
+          await setDoc(settingsRef, { ratio: Number(d.ratio || 70) }, { merge: true });
+
+          for (const it of d.items) {
+            const newDocRef = doc(collection(db, "kakei_items"));
+            await setDoc(newDocRef, {
+              type: it.type || 'shared',
+              date: it.date || "",
+              h: Number(it.h) || 0,
+              w: Number(it.w) || 0,
+              name: it.name || "",
+              order: Number(it.order) || 0,
+              isSettled: it.isSettled || false,
+              createdAt: serverTimestamp()
+            });
+          }
+          
+          alert('インポートが完了しました。');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('ファイルの読み込みに失敗しました');
+      }
+      e.target.value = '';
+    };
+    reader.readAsText(f);
+  };
 </script>
 
 <header>
-  <div>🏠 <strong>家計精算ツール</strong></div>
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <div>🏠 <strong>家計精算ツール</strong></div>
+    <div style="font-size:0.85em; color:#666;">自動保存✅</div>
+  </div>
+  
+  <div class="legend" style="margin-top:10px;">
+    <strong>【使い方・凡例】</strong><br>
+    🏠 <strong>家計</strong>：下のスライダーの割合で負担する生活費など<br>
+    💸 <strong>立替</strong>：相手の個人の買い物を全額立て替えた時など<br>
+    ☰ <strong>並替</strong>：左端のマークごと長押しで上下に移動可能<br>
+  </div>
+
   <div style="margin-top:10px">⚖️ <span id="ratioLabel">夫70% / 妻30%</span></div>
   <input type="range" min="0" max="100" value="70" id="ratio" style="width:100%;margin:10px 0" />
   
-  <div class="result" id="sharedTotal">🧾家計合計: ¥0</div>
-  <div class="result" id="sharedResult">🧾家計調整: 差なし</div>
-  <div class="result" id="transferResult">💸立替差額: 差なし</div>
+  <div class="big" id="finalResult">計算中...</div>
   
-  <div class="big" id="finalResult">±0</div>
-  
-  <div style="display:flex;justify-content:space-between;margin-top:10px">
-    <div>
-      <button onclick="importJSON()">📂読込</button>
-      <button onclick="exportJSON()">💾保存</button>
+  <div style="display:flex;justify-content:space-between;margin-top:10px; flex-wrap:wrap; gap:8px;">
+    <button id="toggleAllBtn" onclick="toggleAllSettled()" style="color:#1976d2;">✅ 全て「済」にする</button>
+    <div style="display:flex; gap:6px;">
+      <button onclick="importJSON()">📂 読込</button>
+      <button onclick="exportJSON()">💾 保存</button>
+      <button onclick="exportImage()">📷 スクショ</button>
+      <button onclick="clearSettled()" style="color:#d32f2f">🗑 「済」を削除</button>
     </div>
-    <button onclick="clearAll()" style="color:#d32f2f">🧹クリア</button>
   </div>
 </header>
 
@@ -74,168 +548,9 @@ button:hover{background:#ddd}
   </div>
 </main>
 
-<input type="file" id="fileInput" style="display:none" />
+<input type="file" id="fileInput" accept=".json" style="display:none" onchange="handleFileImport(event)" />
 
-<script>
-let items = [];
-const list = document.getElementById('list');
-const ratioSlider = document.getElementById('ratio');
-
-ratioSlider.oninput = update;
-
-function addRow(data = {type:'shared', h:0, w:0, name:''}) {
-  items.push(data);
-  render();
-}
-
-function removeRow(i) {
-  items.splice(i, 1);
-  render();
-}
-
-function toggleType(i) {
-  items[i].type = items[i].type === 'shared' ? 'transfer' : 'shared';
-  render();
-}
-
-function render() {
-  list.innerHTML = '';
-  items.forEach((it, i) => {
-    const div = document.createElement('div');
-    div.className = 'row';
-
-    // 種別ボタン (家計:🏠 / 立替:🔁)
-    const flag = document.createElement('button');
-    flag.className = 'type-btn';
-    flag.textContent = it.type === 'shared' ? '🏠' : '🔁';
-    flag.title = it.type === 'shared' ? '家計(比率計算)' : '立替(全額貸借)';
-    flag.onclick = () => toggleType(i);
-
-    // 夫の支払い
-    const h = document.createElement('input');
-    h.type = 'number';
-    h.placeholder = '👨夫払';
-    h.value = it.h || '';
-    h.oninput = e => { it.h = Number(e.target.value) || 0; update(); };
-
-    // 内容
-    const name = document.createElement('input');
-    name.type = 'text';
-    name.placeholder = '📝 内容';
-    name.value = it.name || '';
-    name.oninput = e => { it.name = e.target.value; };
-
-    // 妻の支払い
-    const w = document.createElement('input');
-    w.type = 'number';
-    w.placeholder = '👩妻払';
-    w.value = it.w || '';
-    w.oninput = e => { it.w = Number(e.target.value) || 0; update(); };
-
-    // 削除ボタン
-    const del = document.createElement('button');
-    del.className = 'del-btn';
-    del.textContent = '🗑';
-    del.onclick = () => removeRow(i);
-
-    div.append(flag, h, name, w, del);
-    list.appendChild(div);
-  });
-  update();
-}
-
-function update() {
-  const r = ratioSlider.value / 100; // 夫の負担率
-  const wifeRatio = 1 - r;          // 妻の負担率
-  
-  document.getElementById('ratioLabel').textContent = `👨夫${ratioSlider.value}% / 👩妻${Math.round(wifeRatio * 100)}%`;
-
-  let sharedH = 0, sharedW = 0, transH = 0, transW = 0;
-  
-  items.forEach(it => {
-    if (it.type === 'shared') {
-      sharedH += it.h;
-      sharedW += it.w;
-    } else {
-      transH += it.h;
-      transW += it.w;
-    }
-  });
-
-  const totalShared = sharedH + sharedW;
-
-  // 理論上の妻の負担額から、実際に妻が払った分を引く（プラスなら妻の不足）
-  const diffShared = (totalShared * wifeRatio) - sharedW;
-  
-  // 夫が払った相手(妻)の私物 - 妻が払った相手(夫)の私物
-  const diffTransfer = transH - transW;
-
-  // 合計の精算額 (正なら妻→夫、負なら夫→妻)
-  const final = diffShared + diffTransfer;
-
-  document.getElementById('sharedTotal').textContent = `🧾家計合計: ${format(totalShared)}`;
-  document.getElementById('sharedResult').textContent = `🧾家計調整: ${diffText(diffShared)}`;
-  document.getElementById('transferResult').textContent = `💸立替差額: ${diffText(diffTransfer)}`;
-  
-  const finalEl = document.getElementById('finalResult');
-  if (final > 0) {
-    finalEl.textContent = `👩 → 👨 ${format(final)}`;
-  } else if (final < 0) {
-    finalEl.textContent = `👨 → 👩 ${format(-final)}`;
-  } else {
-    finalEl.textContent = '±0 平等です';
-  }
-}
-
-function diffText(n) {
-  if (Math.abs(n) < 1) return '差なし';
-  return n > 0 ? `👩が ${format(n)} 不足` : `👨が ${format(-n)} 不足`;
-}
-
-function format(n) {
-  return '¥' + Math.round(n).toLocaleString();
-}
-
-function exportJSON() {
-  const data = { version: 1, ratio: ratioSlider.value / 100, items };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `kakei_${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-}
-
-function importJSON() {
-  document.getElementById('fileInput').click();
-}
-
-document.getElementById('fileInput').onchange = e => {
-  const f = e.target.files[0];
-  if (!f) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const d = JSON.parse(reader.result);
-      ratioSlider.value = (d.ratio || 0.7) * 100;
-      items = d.items || [];
-      render();
-    } catch (err) {
-      alert('ファイルの読み込みに失敗しました');
-    }
-  };
-  reader.readAsText(f);
-};
-
-function clearAll() {
-  if (confirm('すべての入力を削除しますか？')) {
-    items = [];
-    render();
-  }
-}
-
-// 初期行を追加
-addRow();
-
-</script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </body>
 </html>
