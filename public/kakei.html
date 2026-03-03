@@ -20,7 +20,32 @@ button:hover{background:#ddd}
 .del-btn{color:#d32f2f}
 </style>
 </head>
-<body>
+<body style="display: none;">
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+  import { firebaseConfig, ALLOWED_EMAILS } from "./firebase-config.js";
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  onAuthStateChanged(auth, (user) => {
+    if (user && ALLOWED_EMAILS.includes(user.email)) {
+      // 認証OKなら画面を表示
+      document.body.style.display = 'block';
+    } else {
+      // 未ログイン or 許可されていない場合はトップに戻す
+      if (user) {
+        signOut(auth).then(() => {
+          window.location.href = "index.html";
+        });
+      } else {
+        window.location.href = "index.html";
+      }
+    }
+  });
+</script>
 
 <header>
   <div>🏠 <strong>家計精算ツール</strong></div>

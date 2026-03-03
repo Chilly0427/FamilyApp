@@ -14,15 +14,73 @@ main{padding:14px;display:grid;gap:12px}
 </style>
 </head>
 <body>
-<header>📱 マイツール</header>
-<main><a class="card" href="kakei.html">
-  <div class="title">🏠 家計精算</div>
-  <div class="desc">夫婦の支払いを割合で自動計算</div>
-</a><!-- 追加したいアプリはこの下にコピーして増やす --><!--
-<a class="card" href="app2.html">
-  <div class="title">📝 メモアプリ</div>
-  <div class="desc">説明文</div>
-</a>
---></main>
+  <div id="login-screen" style="display: none; padding: 40px 20px; text-align: center;">
+    <h2>🏠 家族専用アプリ</h2>
+    <p>Googleアカウントでログインしてください</p>
+    <button id="login-btn" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">Googleでログイン</button>
+    <p id="auth-error-msg" style="color: red; margin-top: 15px;"></p>
+  </div>
+
+  <div id="main-content" style="display: none;">
+    <header style="display: flex; justify-content: space-between; align-items: center;">
+      <span>📱 マイツール</span>
+      <button id="logout-btn" style="padding: 4px 8px; cursor: pointer;">ログアウト</button>
+    </header>
+    <main><a class="card" href="kakei.html">
+      <div class="title">🏠 家計精算</div>
+      <div class="desc">夫婦の支払いを割合で自動計算</div>
+    </a><!-- 追加したいアプリはこの下にコピーして増やす --><!--
+    <a class="card" href="app2.html">
+      <div class="title">📝 メモアプリ</div>
+      <div class="desc">説明文</div>
+    </a>
+    --></main>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+    import { firebaseConfig, ALLOWED_EMAILS } from "./firebase-config.js";
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+
+    const loginScreen = document.getElementById('login-screen');
+    const mainContent = document.getElementById('main-content');
+    const loginBtn = document.getElementById('login-btn');
+    const logoutBtn = document.getElementById('logout-btn');
+    const errorMsg = document.getElementById('auth-error-msg');
+
+    loginBtn.addEventListener('click', () => {
+      errorMsg.textContent = "";
+      signInWithPopup(auth, provider).catch(error => {
+        console.error("ログインエラー:", error);
+        errorMsg.textContent = "ログインに失敗しました。";
+      });
+    });
+
+    logoutBtn.addEventListener('click', () => {
+      signOut(auth);
+    });
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        if (ALLOWED_EMAILS.includes(user.email)) {
+          loginScreen.style.display = 'none';
+          mainContent.style.display = 'block';
+        } else {
+          signOut(auth).then(() => {
+            loginScreen.style.display = 'block';
+            mainContent.style.display = 'none';
+            errorMsg.textContent = "このアカウントにはアクセス権限がありません。";
+          });
+        }
+      } else {
+        loginScreen.style.display = 'block';
+        mainContent.style.display = 'none';
+      }
+    });
+  </script>
 </body>
 </html>
