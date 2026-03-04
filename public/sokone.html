@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>🛒 底値帳 - FamilyApp</title>
+<style>
+body{font-family:sans-serif;margin:0;background:#fafafa;color:#333}
+header{position:sticky;top:0;background:#fff;padding:16px;border-bottom:1px solid #ddd;box-shadow:0 2px 4px rgba(0,0,0,0.05);z-index:10; display:flex; justify-content:space-between; align-items:center;}
+header h1 {margin:0; font-size:1.2em; color:#333;}
+header a {text-decoration:none; color:#1976d2; font-weight:bold; padding:8px; background:#e3f2fd; border-radius:8px;}
+main{padding:10px;padding-bottom:100px}
+
+/* ----- 新しいグループ化表示用のスタイル ----- */
+.group-container { background:#fff; border-radius:12px; margin:14px 0; box-shadow:0 2px 6px rgba(0,0,0,0.1); overflow:hidden; }
+.group-header { display:flex; align-items:center; padding:16px; background:#e8f5e9; cursor:pointer; user-select:none; }
+.group-title-area { flex:1; }
+.group-title { margin:0 0 6px 0; font-size:1.2em; color:#2e7d32; }
+.best-price-row { font-size:0.95em; color:#333; font-weight:bold; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px; }
+.expand-icon { font-size:1.2em; color:#2e7d32; padding:0 8px; }
+.group-content { padding:8px 12px; background:#fafafa; border-top:1px solid #c8e6c9;}
+
+/* サブアイテムのスタイル */
+.row{display:flex;flex-direction:column;gap:8px;margin:8px 0;background:#fff;padding:12px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.05);position:relative;}
+.row-top{display:flex; gap:8px; align-items:center;}
+.row-middle{display:flex; gap:8px; align-items:center;}
+.row-bottom{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+.row-calc{font-weight:bold; color:#e65100; font-size:1.0em;}
+
+input[type=number], input[type=text]{width:100%;padding:10px 8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;font-size:16px;background:#fafafa;}
+input[type=number]:focus, input[type=text]:focus{background:#fff; border-color:#1976d2; outline:none;}
+button{padding:10px;border:none;border-radius:6px;cursor:pointer;background:#eee;font-size:16px;}
+button:hover{background:#ddd}
+
+.btn-add{background:#4caf50;color:#fff;font-weight:bold;padding:14px 28px;border-radius:24px;font-size:1.1em;box-shadow:0 3px 6px rgba(0,0,0,0.2); width:100%; max-width:300px;}
+.btn-add-small { font-size:1em; width:100%; border:none; background:#81c784; color:#fff; font-weight:bold; padding:10px; border-radius:8px; margin-top:8px; box-shadow:0 1px 3px rgba(0,0,0,0.2); cursor:pointer; }
+.del-btn{color:#d32f2f; background:transparent; padding:0; font-size:1.2em;}
+.drag-handle{color:#bbb; cursor:grab; text-align:center; font-size:1.4em; padding-right:8px;}
+
+.toggle-btn {flex:1; padding:8px; border:1px solid #ccc; background:#fff; color:#666; font-weight:bold; transition:all 0.2s;}
+.toggle-btn.active {background:#1976d2; color:#fff; border-color:#1976d2;}
+
+.checkbox-label {display:flex; align-items:center; gap:4px; font-size:0.9em; color:#555; background:#fff3e0; border-radius:6px; padding:8px 12px; white-space:nowrap;}
+.checkbox-label input {width:18px; height:18px;}
+
+.date-label {font-size:0.8em; color:#888; position:absolute; top:12px; right:40px;}
+.unit-price {background:#fff4e5; border-radius:6px; padding:8px; text-align:center; width:100%; border:1px dashed #ffb74d;}
+</style>
+</head>
+<body style="display: none;">
+
+<header>
+  <h1>🛒 底値帳</h1>
+  <a href="index.html">🏠 トップへ</a>
+</header>
+
+<main>
+  <div style="font-size:0.85em; color:#666; margin-bottom:12px; background:#fff; padding:10px; border-radius:8px;">
+    💡 <strong>使い方</strong>：「➕ 新しい商品グループ」から登録を始めます。<br>
+    商品ごとに最安値が自動でランキング表示され、タップで折りたためます。左端の「☰」長押しで並び替え！
+  </div>
+
+  <div id="list"></div>
+  <div style="text-align:center;margin:30px 0">
+    <button class="btn-add" onclick="addRow()">➕ 新しい商品グループ</button>
+  </div>
+</main>
+
+<datalist id="store-list"></datalist>
+<datalist id="unit-list"></datalist>
+<datalist id="item-list"></datalist>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+  import { getFirestore, collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+  import { firebaseConfig, ALLOWED_EMAILS } from "./firebase-config.js";
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  let items = [];
+  let sortableInst = null;
+  const listEl = document.getElementById("list");
+  let expandedGroups = {}; // グループの開閉状態を保持（キーはitemName）
+
+  // Datalist sets for auto-complete
+  const storesSet = new Set();
+  const unitsSet = new Set();
+  const itemsSet = new Set();
+
+  onAuthStateChanged(auth, (user) => {
+    if (user && ALLOWED_EMAILS.includes(user.email)) {
+      document.body.style.display = 'block';
+      loadData();
+    } else {
+      window.location.href = "index.html"; // Redirect to login if unauthorized
+    }
+  });
+
+  function loadData() {
+    const colRef = collection(db, "sokone_items");
+    onSnapshot(colRef, (snapshot) => {
+      items = [];
+      storesSet.clear();
+      unitsSet.clear();
+      itemsSet.clear();
+
+      snapshot.forEach(d => {
+        const data = d.data();
+        items.push({ id: d.id, ...data });
+        
+        if(data.storeName) storesSet.add(data.storeName);
+        if(data.unit) unitsSet.add(data.unit);
+        if(data.itemName) itemsSet.add(data.itemName);
+      });
+
+      updateDatalists();
+      renderList();
+    });
+  }
+
+  function updateDatalists() {
+    const storeDatalist = document.getElementById("store-list");
+    const unitDatalist = document.getElementById("unit-list");
+    const itemDatalist = document.getElementById("item-list");
+    
+    storeDatalist.innerHTML = Array.from(storesSet).map(s => `<option value="${s}">`).join('');
+    unitDatalist.innerHTML = Array.from(unitsSet).map(u => `<option value="${u}">`).join('');
+    itemDatalist.innerHTML = Array.from(itemsSet).map(i => `<option value="${i}">`).join('');
+  }
+
+  function renderList() {
+    listEl.innerHTML = "";
+    
+    // itemName ごとにグループ化する
+    const groups = {};
+    items.forEach(it => {
+      const name = it.itemName || "未分類の商品";
+      if (!groups[name]) groups[name] = [];
+      
+      // ソート用の比較単価計算
+      const isTaxInc = it.isTaxIncluded !== false;
+      const qty = parseFloat(it.quantity) || 1;
+      const price = parseFloat(it.price) || 0;
+      let unitPrice = 0;
+      if (price > 0 && qty > 0) {
+        const calcPrice = isTaxInc ? price : price * 1.08;
+        unitPrice = calcPrice / qty;
+      }
+      
+      groups[name].push({ ...it, unitPrice });
+    });
+
+    // グループ全体の並び順（orderフィールドに依存）を計算してソート
+    const sortedGroupNames = Object.keys(groups).sort((a, b) => {
+      const aMinOrder = Math.min(...groups[a].map(i => i.order || 0));
+      const bMinOrder = Math.min(...groups[b].map(i => i.order || 0));
+      return aMinOrder - bMinOrder;
+    });
+
+    sortedGroupNames.forEach(groupName => {
+      const groupItems = groups[groupName];
+      
+      // グループ内のアイテムは「値引きフラグ」と「単価」の複合で安い順にソートする
+      groupItems.sort((a, b) => {
+        if(a.unitPrice === 0) return 1;
+        if(b.unitPrice === 0) return -1;
+        
+        // 通常品と値引き品を分ける場合はここにロジックを追加できます。
+        // 今回は単純に単価の安い順とします
+        return a.unitPrice - b.unitPrice;
+      });
+      
+      // ソート用の代表アイテム（ドラッグ＆ドロップ時に引き継ぐIDを持たせる）
+      const repItem = groupItems.reduce((min, cur) => (cur.order || 0) < (min.order || 0) ? cur : min, groupItems[0]);
+
+      const groupDiv = document.createElement("div");
+      groupDiv.className = "group-container";
+      groupDiv.dataset.id = repItem.id; // required for Sortable at top level
+
+      const isExpanded = !!expandedGroups[groupName];
+      
+      let rankingHtml = "";
+      if(groupItems.length > 0 && groupItems[0].unitPrice > 0) {
+        const best = groupItems[0];
+        const dateStr = best.updatedAt && best.updatedAt.toDate ? `${best.updatedAt.toDate().getMonth()+1}/${best.updatedAt.toDate().getDate()}` : "";
+        const unitPriceStr = (Math.round(best.unitPrice * 10) / 10).toFixed(1);
+        rankingHtml = `
+          <div class="best-price-row">
+            👑 1位: ${best.storeName || '店名未入力'} 
+            <strong style="color:#d32f2f; font-size:1.1em;">${unitPriceStr}円</strong>/1${best.unit || '個'}
+            <span style="color:#888; font-size:0.8em;">(${dateStr})</span>
+          </div>
+        `;
+      } else {
+        rankingHtml = `<div class="best-price-row" style="color:#888;">価格データがありません</div>`;
+      }
+
+      groupDiv.innerHTML = `
+        <div class="group-header">
+          <div class="drag-handle">☰</div>
+          <div class="group-title-area" onclick="toggleGroup('${groupName}')">
+            <h2 class="group-title">${groupName}</h2>
+            ${rankingHtml}
+          </div>
+          <div class="expand-icon" onclick="toggleGroup('${groupName}')">${isExpanded ? '▲' : '▼'}</div>
+        </div>
+        <div class="group-content" style="display: ${isExpanded ? 'block' : 'none'};">
+          <div class="items-list"></div>
+          <button class="btn-add-small" onclick="addItemToGroup('${groupName}')">➕ サブ価格情報を追加</button>
+        </div>
+      `;
+
+      const itemsListEl = groupDiv.querySelector('.items-list');
+
+      groupItems.forEach((it, index) => {
+        const isTaxInc = it.isTaxIncluded !== false;
+        const unitPriceStr = it.unitPrice > 0 ? (Math.round(it.unitPrice * 10) / 10) : "---";
+        const unitDisplay = it.unit || "個";
+
+        let dateStr = "";
+        if (it.updatedAt && it.updatedAt.toDate) {
+          const d = it.updatedAt.toDate();
+          dateStr = `${d.getMonth()+1}/${d.getDate()}`;
+        }
+        
+        let rankBadge = "";
+        if(it.unitPrice > 0) {
+           if(index === 0) rankBadge = "👑 1位";
+           else if (index === 1) rankBadge = "🥈 2位";
+           else if (index === 2) rankBadge = "🥉 3位";
+           else rankBadge = `${index+1}位`;
+        }
+
+        const div = document.createElement("div");
+        div.className = "row";
+        div.innerHTML = `
+          <div class="row-top" style="padding-bottom:4px; border-bottom:1px solid #eee;">
+            <span style="font-weight:bold; color:#f57c00; font-size:0.9em; min-width:48px;">${rankBadge}</span>
+            <input type="text" placeholder="商品名(変更で別グループへ移動)" value="${it.itemName || ''}" list="item-list" onchange="updateItem('${it.id}', 'itemName', this.value)" style="flex:1; padding:6px; font-size:0.9em;">
+            <button class="del-btn" onclick="deleteItem('${it.id}')">✖</button>
+          </div>
+          ${dateStr ? `<div class="date-label" style="top:10px;">🗓 ${dateStr}</div>` : ''}
+
+          <div class="row-middle" style="margin-top:8px;">
+            <input type="text" placeholder="店名 (例: オーケー)" value="${it.storeName || ''}" list="store-list" onchange="updateItem('${it.id}', 'storeName', this.value)" style="flex:1;">
+            <label class="checkbox-label" style="${it.isDiscounted ? 'background:#ffebee; color:#d84315;' : ''}">
+              <input type="checkbox" onchange="updateItem('${it.id}', 'isDiscounted', this.checked)" ${it.isDiscounted ? 'checked' : ''}>
+              値引品
+            </label>
+          </div>
+
+          <div class="row-bottom">
+            <div style="display:flex; align-items:center; gap:4px; flex:2; min-width:140px;">
+              <input type="number" placeholder="価格" value="${it.price || ''}" pattern="[0-9]*" inputmode="numeric" onchange="updateItem('${it.id}', 'price', parseFloat(this.value))" style="text-align:right;">
+              <span>円</span>
+            </div>
+            <div style="display:flex; flex:1; min-width:120px;">
+              <button class="toggle-btn ${!isTaxInc ? '' : 'active'} " onclick="updateItem('${it.id}', 'isTaxIncluded', true)" style="border-radius:6px 0 0 6px;">税込</button>
+              <button class="toggle-btn ${!isTaxInc ? 'active' : ''} " onclick="updateItem('${it.id}', 'isTaxIncluded', false)" style="border-radius:0 6px 6px 0;">税抜</button>
+            </div>
+          </div>
+
+          <div class="row-bottom" style="margin-top:4px;">
+            <div style="display:flex; align-items:center; gap:4px; flex:1;">
+              容量: <input type="number" step="0.1" value="${it.quantity || 1}" onblur="updateItem('${it.id}', 'quantity', parseFloat(this.value))" style="width:70px; text-align:right;">
+              <input type="text" value="${it.unit || ''}" placeholder="単位" list="unit-list" onchange="updateItem('${it.id}', 'unit', this.value)" style="width:60px;">
+            </div>
+          </div>
+
+          <div class="row-calc">
+            <div class="unit-price">
+              ✨単価: <strong>${unitPriceStr}</strong> 円 / 1${unitDisplay}
+            </div>
+          </div>
+        `;
+        itemsListEl.appendChild(div);
+      });
+
+      listEl.appendChild(groupDiv);
+    });
+
+    initSortable();
+  }
+
+  // アコーディオンを開閉する関数
+  window.toggleGroup = (groupName) => {
+    expandedGroups[groupName] = !expandedGroups[groupName];
+    renderList();
+  };
+
+  // 一番外側の「新しい商品を登録」
+  window.addRow = async () => {
+    const newId = Date.now().toString() + Math.floor(Math.random()*1000);
+    const newOrder = items.length > 0 ? Math.max(...items.map(i => i.order || 0)) + 1000 : 1000;
+    
+    const newItem = {
+      order: newOrder,
+      itemName: "",
+      storeName: "",
+      price: null,
+      quantity: 1,
+      unit: "個",
+      isTaxIncluded: true,
+      isDiscounted: false,
+      updatedAt: serverTimestamp()
+    };
+    await setDoc(doc(db, "sokone_items", newId), newItem);
+    expandedGroups["未分類の商品"] = true; // 新規用グループを自動で開く
+    expandedGroups[""] = true; 
+  };
+
+  // 各グループ内の「サブ価格を登録」
+  window.addItemToGroup = async (groupName) => {
+    const groupItems = items.filter(i => (i.itemName || "未分類の商品") === groupName);
+    const repItem = groupItems[0]; 
+    
+    const newId = Date.now().toString() + Math.floor(Math.random()*1000);
+    const baseOrder = repItem ? (repItem.order || 0) : 1000;
+    
+    const newItem = {
+      order: baseOrder + groupItems.length + 1, // 同じグループ内で少しだけ後ろへ
+      itemName: groupName === "未分類の商品" ? "" : groupName,
+      storeName: "",
+      price: null,
+      quantity: repItem ? repItem.quantity : 1, // 容量や単位を前回から引き継ぐ
+      unit: repItem ? repItem.unit : "個",
+      isTaxIncluded: true,
+      isDiscounted: false,
+      updatedAt: serverTimestamp()
+    };
+    await setDoc(doc(db, "sokone_items", newId), newItem);
+  };
+
+  window.updateItem = async (id, field, value) => {
+    if (value === undefined || Number.isNaN(value)) return;
+
+    const updateData = { [field]: value };
+    if (field === 'price' || field === 'storeName' || field === 'quantity' || field === 'isDiscounted' || field === 'isTaxIncluded') {
+      updateData.updatedAt = serverTimestamp();
+    }
+    await updateDoc(doc(db, "sokone_items", id), updateData);
+  };
+
+  window.deleteItem = async (id) => {
+    if(confirm("この底値データを削除しますか？")){
+      await deleteDoc(doc(db, "sokone_items", id));
+    }
+  };
+
+  // ドラッグ＆ドロップの適用 (グループ単位)
+  function initSortable() {
+    if(sortableInst) sortableInst.destroy();
+    sortableInst = Sortable.create(listEl, {
+      handle: ".drag-handle",
+      animation: 150,
+      onEnd: async (evt) => {
+        const groupEls = Array.from(listEl.children);
+        
+        // 親（グループ）が移動した場合、そのグループに属するすべての子アイテムのorderを一斉に上書きする
+        groupEls.forEach((el, index) => {
+          const repId = el.dataset.id;
+          const targetItem = items.find(i => i.id === repId);
+          if(!targetItem) return;
+          
+          const groupName = targetItem.itemName || "";
+          const newOrder = (index + 1) * 1000; // グループ間に十分な間隔を取る
+          
+          items.filter(i => (i.itemName || "") === groupName).forEach((item, subIdx) => {
+            updateDoc(doc(db, "sokone_items", item.id), { order: newOrder + subIdx });
+          });
+        });
+      }
+    });
+  }
+</script>
+</body>
+</html>
