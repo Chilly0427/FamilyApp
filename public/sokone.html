@@ -5,46 +5,57 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>🛒 底値帳 - FamilyApp</title>
 <style>
-body{font-family:sans-serif;margin:0;background:#fafafa;color:#333}
-header{position:sticky;top:0;background:#fff;padding:16px;border-bottom:1px solid #ddd;box-shadow:0 2px 4px rgba(0,0,0,0.05);z-index:10; display:flex; justify-content:space-between; align-items:center;}
-header h1 {margin:0; font-size:1.2em; color:#333;}
-header a {text-decoration:none; color:#1976d2; font-weight:bold; padding:8px; background:#e3f2fd; border-radius:8px;}
-main{padding:10px;padding-bottom:100px}
+body{font-family:'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;margin:0;background:#f5f6f8;color:#333}
+header{position:sticky;top:0;background:#fff;padding:16px 20px;border-bottom:1px solid #e0e0e0;box-shadow:0 2px 8px rgba(0,0,0,0.05);z-index:10; display:flex; justify-content:space-between; align-items:center;}
+header h1 {margin:0; font-size:1.25em; color:#2c3e50;}
+header a {text-decoration:none; color:#1976d2; font-weight:bold; padding:8px 12px; background:#e3f2fd; border-radius:8px; transition:0.2s;}
+header a:active {background:#bbdefb;}
+main{padding:12px;padding-bottom:120px;max-width:600px;margin:0 auto;}
 
-/* ----- 新しいグループ化表示用のスタイル ----- */
-.group-container { background:#fff; border-radius:12px; margin:14px 0; box-shadow:0 2px 6px rgba(0,0,0,0.1); overflow:hidden; }
-.group-header { display:flex; align-items:center; padding:16px; background:#e8f5e9; cursor:pointer; user-select:none; }
+.help-text {font-size:0.85em; color:#546e7a; margin-bottom:16px; background:#fff; padding:12px; border-radius:10px; border:1px solid #cfd8dc; box-shadow:0 2px 4px rgba(0,0,0,0.02);}
+
+/* ----- グループ化表示 ----- */
+.group-container { background:#fff; border-radius:12px; margin:16px 0; border:1px solid #e0e0e0; box-shadow:0 4px 10px rgba(0,0,0,0.04); overflow:hidden; }
+.group-header { display:flex; align-items:center; padding:12px 16px; background:#f1f8e9; cursor:pointer; user-select:none; transition:0.2s; }
+.group-header:active { background:#e8f5e9; }
 .group-title-area { flex:1; }
-.group-title { margin:0 0 6px 0; font-size:1.2em; color:#2e7d32; }
-.best-price-row { font-size:0.95em; color:#333; font-weight:bold; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px; }
-.expand-icon { font-size:1.2em; color:#2e7d32; padding:0 8px; }
-.group-content { padding:8px 12px; background:#fafafa; border-top:1px solid #c8e6c9;}
+
+.best-price-row { font-size:0.95em; color:#333; font-weight:bold; display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; margin-top:4px; }
+.expand-icon { font-size:1.2em; color:#7cb342; padding:0 8px; font-weight:bold; }
+.group-content { padding:12px; background:#fafafa; border-top:1px solid #e8f5e9;}
 
 /* サブアイテムのスタイル */
-.row{display:flex;flex-direction:column;gap:8px;margin:8px 0;background:#fff;padding:12px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.05);position:relative;}
-.row-top{display:flex; gap:8px; align-items:center;}
-.row-middle{display:flex; gap:8px; align-items:center;}
-.row-bottom{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
-.row-calc{font-weight:bold; color:#e65100; font-size:1.0em;}
+.row{display:flex;flex-direction:column;gap:10px;margin:0 0 12px 0;background:#fff;padding:14px;border-radius:10px;border:1px solid #e0e0e0;box-shadow:0 2px 6px rgba(0,0,0,0.03);position:relative;}
+.row-top{display:flex; gap:8px; align-items:center; justify-content:space-between; padding-bottom:10px; border-bottom:1px dashed #eee;}
+.row-middle{display:flex; gap:10px; align-items:center; margin-top:4px;}
+.row-bottom{display:flex; gap:10px; align-items:center;}
+.row-calc{font-weight:bold; color:#e65100; font-size:1.05em; margin-top:4px;}
 
-input[type=number], input[type=text]{width:100%;padding:10px 8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;font-size:16px;background:#fafafa;}
-input[type=number]:focus, input[type=text]:focus{background:#fff; border-color:#1976d2; outline:none;}
-button{padding:10px;border:none;border-radius:6px;cursor:pointer;background:#eee;font-size:16px;}
-button:hover{background:#ddd}
+input[type=number], input[type=text], input[type=date]{width:100%;padding:10px 12px;border:1px solid #cfd8dc;border-radius:8px;box-sizing:border-box;font-size:16px;background:#fff;transition:all 0.2s ease; color:#333;}
+input[type=number]:focus, input[type=text]:focus, input[type=date]:focus{border-color:#4caf50; outline:none; box-shadow:0 0 0 3px rgba(76,175,80,0.15);}
 
-.btn-add{background:#4caf50;color:#fff;font-weight:bold;padding:14px 28px;border-radius:24px;font-size:1.1em;box-shadow:0 3px 6px rgba(0,0,0,0.2); width:100%; max-width:300px;}
-.btn-add-small { font-size:1em; width:100%; border:none; background:#81c784; color:#fff; font-weight:bold; padding:10px; border-radius:8px; margin-top:8px; box-shadow:0 1px 3px rgba(0,0,0,0.2); cursor:pointer; }
-.del-btn{color:#d32f2f; background:transparent; padding:0; font-size:1.2em;}
-.drag-handle{color:#bbb; cursor:grab; text-align:center; font-size:1.4em; padding-right:8px;}
+button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px; -webkit-tap-highlight-color: transparent;}
 
-.toggle-btn {flex:1; padding:8px; border:1px solid #ccc; background:#fff; color:#666; font-weight:bold; transition:all 0.2s;}
+.btn-add{background:#4caf50;color:#fff;font-weight:bold;padding:16px 28px;border-radius:30px;font-size:1.1em;box-shadow:0 4px 12px rgba(76,175,80,0.3); width:100%; transition:all 0.2s ease;}
+.btn-add:active {background:#388e3c; transform:scale(0.98); box-shadow:0 2px 6px rgba(76,175,80,0.3);}
+@media(hover: hover) { .btn-add:hover { background:#43a047; } }
+
+.btn-add-small { font-size:1em; width:100%; border:2px dashed #a5d6a7; background:#f1f8e9; color:#2e7d32; font-weight:bold; padding:12px; border-radius:10px; margin-top:4px; transition:all 0.2s ease;}
+.btn-add-small:active { background:#e8f5e9; transform:scale(0.98); }
+
+.del-btn{color:#d32f2f; background:#ffebee; padding:6px 12px; font-size:0.9em; border-radius:6px; font-weight:bold; transition:all 0.2s;}
+.del-btn:active{background:#ffcdd2;}
+
+.drag-handle{color:#b0bec5; cursor:grab; text-align:center; font-size:1.4em; padding-right:12px;}
+
+.toggle-btn {flex:1; padding:10px; border:1px solid #cfd8dc; background:#fff; color:#78909c; font-weight:bold; transition:all 0.2s; border-radius:8px;}
 .toggle-btn.active {background:#1976d2; color:#fff; border-color:#1976d2;}
 
-.checkbox-label {display:flex; align-items:center; gap:4px; font-size:0.9em; color:#555; background:#fff3e0; border-radius:6px; padding:8px 12px; white-space:nowrap;}
-.checkbox-label input {width:18px; height:18px;}
+.checkbox-label {display:flex; align-items:center; gap:6px; font-size:0.95em; color:#78909c; background:#fff; border:1px solid #cfd8dc; border-radius:8px; padding:10px 14px; white-space:nowrap; font-weight:bold; transition:all 0.2s;}
+.checkbox-label.is-discount { background:#fff3e0; border-color:#ffcc80; color:#e65100; }
+.checkbox-label input {width:20px; height:20px; accent-color:#f57c00;}
 
-.date-label {font-size:0.8em; color:#888; position:absolute; top:12px; right:40px;}
-.unit-price {background:#fff4e5; border-radius:6px; padding:8px; text-align:center; width:100%; border:1px dashed #ffb74d;}
+.unit-price {background:#fff8e1; border-radius:8px; padding:10px; text-align:center; width:100%; border:1px dashed #ffb74d;}
 </style>
 </head>
 <body style="display: none;">
@@ -55,7 +66,7 @@ button:hover{background:#ddd}
 </header>
 
 <main>
-  <div style="font-size:0.85em; color:#666; margin-bottom:12px; background:#fff; padding:10px; border-radius:8px;">
+  <div class="help-text">
     💡 <strong>使い方</strong>：「➕ 新しい商品グループ」から登録を始めます。<br>
     商品ごとに最安値が自動でランキング表示され、タップで折りたためます。左端の「☰」長押しで並び替え！
   </div>
@@ -211,9 +222,9 @@ button:hover{background:#ddd}
         <div class="group-header">
           <div class="drag-handle">☰</div>
           <div class="group-title-area" onclick="toggleGroup('${groupName}')">
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-              <input type="text" value="${(groupName === '未分類の商品' || groupName.startsWith('未設定_')) ? '' : groupName}" placeholder="商品名を入力..." list="item-list" onclick="event.stopPropagation()" onchange="updateGroupName('${groupName}', this.value)" style="flex:1; font-size:1.1em; padding:4px 8px; font-weight:bold; color:#2e7d32; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;">
-              <button class="del-btn" style="background:#ffebee; border-radius:4px; padding:4px 8px; font-size:0.9em; box-shadow:0 1px 2px rgba(0,0,0,0.1);" onclick="event.stopPropagation(); deleteGroup('${groupName}')">🗑</button>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+              <input type="text" value="${(groupName === '未分類の商品' || groupName.startsWith('未設定_')) ? '' : groupName}" placeholder="商品名を入力..." list="item-list" onclick="event.stopPropagation()" onchange="updateGroupName('${groupName}', this.value)" style="flex:1; font-size:1.2em; padding:8px 12px; font-weight:bold; color:#2e7d32; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+              <button class="del-btn" style="padding:10px 12px; font-size:1.1em;" onclick="event.stopPropagation(); deleteGroup('${groupName}')">🗑</button>
             </div>
             ${rankingHtml}
           </div>
@@ -252,37 +263,37 @@ button:hover{background:#ddd}
         const div = document.createElement("div");
         div.className = "row";
         div.innerHTML = `
-          <div class="row-top" style="padding-bottom:4px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span style="font-weight:bold; color:#f57c00; font-size:0.9em; min-width:48px;">${rankBadge}</span>
-              <input type="date" value="${dateVal}" onchange="updateItem('${it.id}', 'recordedDate', this.value)" style="padding:4px; font-size:0.9em; border:1px solid #ccc; border-radius:4px; color:#555; max-width:140px;">
+          <div class="row-top">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-weight:bold; color:#f57c00; font-size:1.0em; min-width:54px;">${rankBadge}</span>
+              <input type="date" value="${dateVal}" onchange="updateItem('${it.id}', 'recordedDate', this.value)" style="max-width:160px;">
             </div>
-            <button class="del-btn" onclick="deleteItem('${it.id}')">✖</button>
+            <button class="del-btn" style="padding:8px; font-size:1em;" onclick="deleteItem('${it.id}')">✖</button>
           </div>
 
           <div class="row-middle" style="margin-top:8px;">
             <input type="text" placeholder="店名 (例: オーケー)" value="${it.storeName || ''}" list="store-list" onchange="updateItem('${it.id}', 'storeName', this.value)" style="flex:1;">
-            <label class="checkbox-label" style="${it.isDiscounted ? 'background:#ffebee; color:#d84315;' : ''}">
+            <label class="checkbox-label ${it.isDiscounted ? 'is-discount' : ''}">
               <input type="checkbox" onchange="updateItem('${it.id}', 'isDiscounted', this.checked)" ${it.isDiscounted ? 'checked' : ''}>
               値引品
             </label>
           </div>
 
           <div class="row-bottom">
-            <div style="display:flex; align-items:center; gap:4px; flex:2; min-width:140px;">
-              <input type="number" placeholder="価格" value="${it.price || ''}" pattern="[0-9]*" inputmode="numeric" onchange="updateItem('${it.id}', 'price', parseFloat(this.value))" style="text-align:right;">
-              <span>円</span>
+            <div style="display:flex; align-items:center; gap:6px; flex:2; min-width:140px;">
+              <input type="number" placeholder="価格" value="${it.price || ''}" pattern="[0-9]*" inputmode="numeric" onchange="updateItem('${it.id}', 'price', parseFloat(this.value))" style="text-align:right; font-weight:bold; color:#d32f2f; font-size:1.1em;">
+              <span style="font-weight:bold; color:#666;">円</span>
             </div>
-            <div style="display:flex; flex:1; min-width:120px;">
-              <button class="toggle-btn ${!isTaxInc ? '' : 'active'} " onclick="updateItem('${it.id}', 'isTaxIncluded', true)" style="border-radius:6px 0 0 6px;">税込</button>
-              <button class="toggle-btn ${!isTaxInc ? 'active' : ''} " onclick="updateItem('${it.id}', 'isTaxIncluded', false)" style="border-radius:0 6px 6px 0;">税抜</button>
+            <div style="display:flex; flex:1; min-width:140px;">
+              <button class="toggle-btn ${!isTaxInc ? '' : 'active'} " onclick="updateItem('${it.id}', 'isTaxIncluded', true)" style="border-radius:8px 0 0 8px; border-right:none; padding:10px 4px;">税込</button>
+              <button class="toggle-btn ${!isTaxInc ? 'active' : ''} " onclick="updateItem('${it.id}', 'isTaxIncluded', false)" style="border-radius:0 8px 8px 0; border-left:none; padding:10px 4px;">税抜</button>
             </div>
           </div>
 
-          <div class="row-bottom" style="margin-top:4px;">
-            <div style="display:flex; align-items:center; gap:4px; flex:1;">
-              容量: <input type="number" step="0.1" value="${it.quantity || 1}" onblur="updateItem('${it.id}', 'quantity', parseFloat(this.value))" style="width:70px; text-align:right;">
-              <input type="text" value="${it.unit || ''}" placeholder="単位" list="unit-list" onchange="updateItem('${it.id}', 'unit', this.value)" style="width:60px;">
+          <div class="row-bottom" style="margin-top:8px;">
+            <div style="display:flex; align-items:center; gap:8px; flex:1;">
+              <span style="color:#666; font-weight:bold;">容量:</span> <input type="number" step="0.1" value="${it.quantity || 1}" onblur="updateItem('${it.id}', 'quantity', parseFloat(this.value))" style="width:80px; text-align:right;">
+              <input type="text" value="${it.unit || ''}" placeholder="単位" list="unit-list" onchange="updateItem('${it.id}', 'unit', this.value)" style="width:70px;">
             </div>
           </div>
 
