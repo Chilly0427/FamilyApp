@@ -212,7 +212,7 @@ button:hover{background:#ddd}
           <div class="drag-handle">☰</div>
           <div class="group-title-area" onclick="toggleGroup('${groupName}')">
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-              <input type="text" value="${groupName === '未分類の商品' ? '' : groupName}" placeholder="商品名を入力..." list="item-list" onclick="event.stopPropagation()" onchange="updateGroupName('${groupName}', this.value)" style="flex:1; font-size:1.1em; padding:4px 8px; font-weight:bold; color:#2e7d32; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;">
+              <input type="text" value="${(groupName === '未分類の商品' || groupName.startsWith('未設定_')) ? '' : groupName}" placeholder="商品名を入力..." list="item-list" onclick="event.stopPropagation()" onchange="updateGroupName('${groupName}', this.value)" style="flex:1; font-size:1.1em; padding:4px 8px; font-weight:bold; color:#2e7d32; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;">
               <button class="del-btn" style="background:#ffebee; border-radius:4px; padding:4px 8px; font-size:0.9em; box-shadow:0 1px 2px rgba(0,0,0,0.1);" onclick="event.stopPropagation(); deleteGroup('${groupName}')">🗑</button>
             </div>
             ${rankingHtml}
@@ -340,9 +340,11 @@ button:hover{background:#ddd}
     const mm = String(dObj.getMonth() + 1).padStart(2, '0');
     const dd = String(dObj.getDate()).padStart(2, '0');
     
+    const tmpName = "未設定_" + Math.floor(Math.random()*10000);
+    
     const newItem = {
       order: newOrder,
-      itemName: "",
+      itemName: tmpName,
       storeName: "",
       price: null,
       quantity: 1,
@@ -354,7 +356,7 @@ button:hover{background:#ddd}
     };
     
     // 事前にアコーディオンを開く設定にしておく
-    expandedGroups["未分類の商品"] = true; 
+    expandedGroups[tmpName] = true; 
     
     await setDoc(doc(db, "sokone_items", newId), newItem);
   };
