@@ -60,3 +60,9 @@ h1 {
     margin-top: 20px;
 }
 
+.history-row { opacity: 0.6; background-color: var(--color-bg); } .history-row .rank-badge { color: var(--color-text-mut); font-size: 0.8rem; }
+.history-row { opacity: 0.6; background-color: var(--color-bg); } .history-row .rank-badge { color: var(--color-text-mut); font-size: 0.8rem; }
+.history-row { opacity: 0.6; background-color: var(--color-bg); } .history-row .rank-badge { color: var(--color-text-mut); font-size: 0.8rem; }
+.row:focus-within { background-color: var(--color-bg); border-color: var(--color-primary); box-shadow: 0 4px 12px rgba(0,0,0,0.15); transform: scale(1.02); z-index: 10; position: relative; transition: all 0.2s ease; }
+.row:focus-within { background-color: var(--color-bg); border: 2px solid var(--color-primary); }
+.row:focus-within { background-color: var(--color-bg); border: 2px solid var(--color-primary); }

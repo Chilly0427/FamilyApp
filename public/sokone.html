@@ -176,16 +176,106 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
     sortedGroupNames.forEach(groupName => {
       const groupItems = groups[groupName];
       
-      // グループ内のアイテムは「値引きフラグ」と「単価」の複合で安い順にソートする
-      groupItems.sort((a, b) => {
-        if(a.unitPrice === 0) return 1;
-        if(b.unitPrice === 0) return -1;
+      // -- 各レコードの内部日付(YYYY-MM-DD)を決定 --
+      groupItems.forEach(it => {
+        if (it.recordedDate) {
+          it._dateVal = it.recordedDate;
+        } else {
+          const dObj = (it.updatedAt && it.updatedAt.toDate) ? it.updatedAt.toDate() : new Date();
+          const yyyy = dObj.getFullYear();
+          const mm = String(dObj.getMonth() + 1).padStart(2, '0');
+          const dd = String(dObj.getDate()).padStart(2, '0');
+          it._dateVal = `${yyyy}-${mm}-${dd}`;
+        }
+      });
+
+      // -- 店舗ごとの「最新日付」と「最新日付のうち最安の単価」を特定 --
+      const storeLatestDates = {};
+      const storeBestCurrentPrice = {};
+      
+      // まず店舗ごとの最新日付を見つける
+      groupItems.forEach(it => {
+        const store = it.storeName || "未入力";
+        if (!storeLatestDates[store] || it._dateVal > storeLatestDates[store]) {
+          storeLatestDates[store] = it._dateVal;
+        }
+      });
+
+      // 各アイテムが「その店舗の最新データか」を判定し、最新ならその店舗の最安基準を更新
+      groupItems.forEach(it => {
+        const store = it.storeName || "未入力";
+        it._isLatestForStore = (it._dateVal === storeLatestDates[store]);
         
-        // 通常品と値引き品を分ける場合はここにロジックを追加できます。
-        // 今回は単純に単価の安い順とします
-        return a.unitPrice - b.unitPrice;
+        if (it._isLatestForStore && it.unitPrice > 0) {
+          if (!storeBestCurrentPrice[store] || it.unitPrice < storeBestCurrentPrice[store]) {
+            storeBestCurrentPrice[store] = it.unitPrice;
+          }
+        }
+      });
+
+      // undefinedを回避（単価0=未入力は後ろに回すための大きな値）
+      Object.keys(storeLatestDates).forEach(st => {
+        if (!storeBestCurrentPrice[st]) storeBestCurrentPrice[st] = 9999999;
+      });
+
+      // -- ソート --
+      // 1. 金額未入力は常に最下部
+      // 2. 最新価格を先頭に、過去価格を後ろに配置
+      // 3. 最新価格同士は単価の安い順
+      // 4. 過去価格同士は日付の新しい順（降順）
+      groupItems.sort((a, b) => {
+        const aNoPrice = !a.unitPrice || a.unitPrice === 0;
+        const bNoPrice = !b.unitPrice || b.unitPrice === 0;
+        
+        if (!aNoPrice && bNoPrice) return -1;
+        if (aNoPrice && !bNoPrice) return 1;
+
+        if (a._isLatestForStore && !b._isLatestForStore) return -1;
+        if (!a._isLatestForStore && b._isLatestForStore) return 1;
+
+        if (a._isLatestForStore && b._isLatestForStore) {
+          // 最新価格同士
+          const valA = a.unitPrice || 9999999;
+          const valB = b.unitPrice || 9999999;
+          if (valA === valB) {
+            const stA = a.storeName || "未入力";
+            const stB = b.storeName || "未入力";
+            return stA.localeCompare(stB);
+          }
+          return valA - valB;
+        } else {
+          // 過去価格同士
+          if (a._dateVal !== b._dateVal) {
+            return b._dateVal.localeCompare(a._dateVal);
+          }
+          // 日付も同じなら店舗名
+          const stA = a.storeName || "未入力";
+          const stB = b.storeName || "未入力";
+          return stA.localeCompare(stB);
+        }
       });
       
+      // ランキング順位付け (各店舗の「最新日付」エントリだけで順位をつける)
+      let currentRank = 1;
+      let lastPriceForRank = -1;
+      let actualRank = 1;
+      groupItems.forEach(it => {
+        if (it._isLatestForStore && it.unitPrice > 0) {
+          if (lastPriceForRank === -1) {
+            it._rank = actualRank;
+          } else if (it.unitPrice > lastPriceForRank) {
+            actualRank = currentRank;
+            it._rank = actualRank;
+          } else {
+            it._rank = actualRank; // 同率
+          }
+          currentRank++;
+          lastPriceForRank = it.unitPrice;
+        } else {
+          it._rank = 0;
+        }
+      });
+
       // ソート用の代表アイテム（ドラッグ＆ドロップ時に引き継ぐIDを持たせる）
       const repItem = groupItems.reduce((min, cur) => (cur.order || 0) < (min.order || 0) ? cur : min, groupItems[0]);
       const groupUnit = repItem.unit || "個";
@@ -254,12 +344,19 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
           dateVal = `${yyyy}-${mm}-${dd}`;
         }
         
+        // ランキングバッジまたは履歴バッジの表示
         let rankBadge = "";
-        if(it.unitPrice > 0) {
-           if(index === 0) rankBadge = "👑 1位";
-           else if (index === 1) rankBadge = "🥈 2位";
-           else if (index === 2) rankBadge = "🥉 3位";
-           else rankBadge = `${index+1}位`;
+        let rowClass = "list-row";
+
+        if (it._isLatestForStore) {
+          if (it._rank === 1) rankBadge = "👑 1位";
+          else if (it._rank === 2) rankBadge = "🥈 2位";
+          else if (it._rank === 3) rankBadge = "🥉 3位";
+          else if (it._rank > 0) rankBadge = `${it._rank}位`;
+        } else {
+          // 古い履歴の場合はグレーアウト等のクラスを付与し、履歴として示す
+          rankBadge = "🕒 過去価格";
+          rowClass += " history-row";
         }
 
         const div = document.createElement("div");
@@ -268,22 +365,18 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
           <div class="row-top">
             <div style="display:flex; align-items:center; gap:10px;">
               <span style="font-weight:bold; color:#f57c00; font-size:1.0em; min-width:54px;">${rankBadge}</span>
-              <input type="date" value="${dateVal}" onchange="updateItem('${it.id}', 'recordedDate', this.value)" style="max-width:160px;">
+              <input type="date" value="${dateVal}" onblur="updateItem('${it.id}', 'recordedDate', this.value)" style="max-width:160px;">
             </div>
             <button class="del-btn" style="padding:8px; font-size:1em;" onclick="deleteItem('${it.id}')">✖</button>
           </div>
 
           <div class="row-middle" style="margin-top:8px;">
-            <input type="text" placeholder="店名 (例: オーケー)" value="${it.storeName || ''}" list="store-list" onchange="updateItem('${it.id}', 'storeName', this.value)" style="flex:1;">
-            <label class="checkbox-label ${it.isDiscounted ? 'is-discount' : ''}">
-              <input type="checkbox" onchange="updateItem('${it.id}', 'isDiscounted', this.checked)" ${it.isDiscounted ? 'checked' : ''}>
-              値引品
-            </label>
+            <input type="text" placeholder="店名 (例: コストコ)" value="${it.storeName || ''}" list="store-list" onblur="updateItem('${it.id}', 'storeName', this.value)" style="flex:1;">
           </div>
 
           <div class="row-bottom">
             <div style="display:flex; align-items:center; gap:6px; flex:2; min-width:140px;">
-              <input type="number" placeholder="価格" value="${it.price || ''}" pattern="[0-9]*" inputmode="numeric" onchange="updateItem('${it.id}', 'price', parseFloat(this.value))" style="text-align:right; font-weight:bold; color:#d32f2f; font-size:1.1em;">
+              <input type="number" placeholder="価格" value="${it.price || ''}" pattern="[0-9]*" inputmode="numeric" onblur="updateItem('${it.id}', 'price', this.value === '' ? null : parseFloat(this.value))" style="text-align:right; font-weight:bold; color:#d32f2f; font-size:1.1em;">
               <span style="font-weight:bold; color:#666;">円</span>
             </div>
             <div style="display:flex; flex:1; min-width:140px;">
@@ -294,7 +387,7 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
 
           <div class="row-bottom" style="margin-top:8px;">
             <div style="display:flex; align-items:center; gap:8px; flex:1;">
-              <span style="color:#666; font-weight:bold;">容量:</span> <input type="number" step="0.1" value="${it.quantity || 1}" onblur="updateItem('${it.id}', 'quantity', parseFloat(this.value))" style="width:100px; text-align:right;">
+              <span style="color:#666; font-weight:bold;">容量:</span> <input type="number" step="0.1" value="${it.quantity || 1}" onblur="updateItem('${it.id}', 'quantity', this.value === '' ? null : parseFloat(this.value))" style="width:100px; text-align:right;">
               <span style="font-weight:bold; color:#78909c; font-size:1.1em; padding-left:4px;">${groupUnit}</span>
             </div>
           </div>
@@ -370,10 +463,10 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
       itemName: tmpName,
       storeName: "",
       price: null,
-      quantity: 1,
+      quantity: "",
       unit: "個",
       isTaxIncluded: true,
-      isDiscounted: false,
+
       recordedDate: `${yyyy}-${mm}-${dd}`,
       updatedAt: serverTimestamp()
     };
@@ -403,10 +496,9 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
       itemName: groupName === "未分類の商品" ? "" : groupName,
       storeName: "",
       price: null,
-      quantity: repItem ? repItem.quantity : 1, // 容量や単位を前回から引き継ぐ
+      quantity: "", // 容量や単位は前回から引き継がない
       unit: repItem ? repItem.unit : "個",
       isTaxIncluded: true,
-      isDiscounted: false,
       recordedDate: `${yyyy}-${mm}-${dd}`,
       updatedAt: serverTimestamp()
     };
@@ -417,7 +509,7 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
     if (value === undefined || Number.isNaN(value)) return;
 
     const updateData = { [field]: value };
-    if (field === 'price' || field === 'storeName' || field === 'quantity' || field === 'isDiscounted' || field === 'isTaxIncluded') {
+    if (field === 'price' || field === 'storeName' || field === 'quantity' || field === 'isTaxIncluded') {
       updateData.updatedAt = serverTimestamp();
     }
     await updateDoc(doc(db, "sokone_items", id), updateData);
