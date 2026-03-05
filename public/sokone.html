@@ -188,6 +188,7 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
       
       // ソート用の代表アイテム（ドラッグ＆ドロップ時に引き継ぐIDを持たせる）
       const repItem = groupItems.reduce((min, cur) => (cur.order || 0) < (min.order || 0) ? cur : min, groupItems[0]);
+      const groupUnit = repItem.unit || "個";
 
       const groupDiv = document.createElement("div");
       groupDiv.className = "group-container";
@@ -210,7 +211,7 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
         rankingHtml = `
           <div class="best-price-row">
             👑 1位: ${best.storeName || '店名未入力'} 
-            <strong style="color:#d32f2f; font-size:1.1em;">${unitPriceStr}円</strong>/1${best.unit || '個'}
+            <strong style="color:#d32f2f; font-size:1.1em;">${unitPriceStr}円</strong>/1${groupUnit}
             <span style="color:#888; font-size:0.8em;">(${bestDateStr})</span>
           </div>
         `;
@@ -223,7 +224,8 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
           <div class="drag-handle">☰</div>
           <div class="group-title-area" onclick="toggleGroup('${groupName}')">
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-              <input type="text" value="${(groupName === '未分類の商品' || groupName.startsWith('未設定_')) ? '' : groupName}" placeholder="商品名を入力..." list="item-list" onclick="event.stopPropagation()" onchange="updateGroupName('${groupName}', this.value)" style="flex:1; font-size:1.2em; padding:8px 12px; font-weight:bold; color:#2e7d32; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+              <input type="text" value="${(groupName === '未分類の商品' || groupName.startsWith('未設定_')) ? '' : groupName}" placeholder="商品名を入力..." list="item-list" onclick="event.stopPropagation()" onchange="updateGroupName('${groupName}', this.value)" style="flex:1; font-size:1.2em; padding:8px 12px; font-weight:bold; color:#2e7d32; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.05); min-width:120px;">
+              <input type="text" value="${groupUnit}" placeholder="単位" list="unit-list" onclick="event.stopPropagation()" onchange="updateGroupUnit('${groupName}', this.value)" style="width:70px; font-size:1.0em; padding:8px; border:1px solid #cfd8dc; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); text-align:center;">
               <button class="del-btn" style="padding:10px 12px; font-size:1.1em;" onclick="event.stopPropagation(); deleteGroup('${groupName}')">🗑</button>
             </div>
             ${rankingHtml}
@@ -292,14 +294,14 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
 
           <div class="row-bottom" style="margin-top:8px;">
             <div style="display:flex; align-items:center; gap:8px; flex:1;">
-              <span style="color:#666; font-weight:bold;">容量:</span> <input type="number" step="0.1" value="${it.quantity || 1}" onblur="updateItem('${it.id}', 'quantity', parseFloat(this.value))" style="width:80px; text-align:right;">
-              <input type="text" value="${it.unit || ''}" placeholder="単位" list="unit-list" onchange="updateItem('${it.id}', 'unit', this.value)" style="width:70px;">
+              <span style="color:#666; font-weight:bold;">容量:</span> <input type="number" step="0.1" value="${it.quantity || 1}" onblur="updateItem('${it.id}', 'quantity', parseFloat(this.value))" style="width:100px; text-align:right;">
+              <span style="font-weight:bold; color:#78909c; font-size:1.1em; padding-left:4px;">${groupUnit}</span>
             </div>
           </div>
 
           <div class="row-calc">
             <div class="unit-price">
-              ✨単価: <strong>${unitPriceStr}</strong> 円 / 1${unitDisplay}
+              ✨単価: <strong>${unitPriceStr}</strong> 円 / 1${groupUnit}
             </div>
           </div>
         `;
@@ -328,6 +330,16 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
     
     for (const it of targets) {
       await updateDoc(doc(db, "sokone_items", it.id), { itemName: newName, updatedAt: serverTimestamp() });
+    }
+  };
+
+  window.updateGroupUnit = async (groupName, newUnit) => {
+    if (!newUnit) return;
+    const isNew = groupName === "未分類の商品" ? "" : groupName;
+    const targets = items.filter(i => (i.itemName || "") === isNew);
+    
+    for (const it of targets) {
+      await updateDoc(doc(db, "sokone_items", it.id), { unit: newUnit, updatedAt: serverTimestamp() });
     }
   };
 
