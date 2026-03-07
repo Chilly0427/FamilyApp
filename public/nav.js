@@ -119,4 +119,19 @@ export function initGlobalNav(activePageName) {
       }
     });
   }
+
+  // iOS PWAでのリンク遷移不具合（無反応やSafariへの強制遷移）を防止
+  if (!window.__iosPwaLinkSetup) {
+    window.__iosPwaLinkSetup = true;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (isStandalone) {
+      document.addEventListener('click', (event) => {
+        const a = event.target.closest('a');
+        if (a && a.href && !a.hash && a.target !== '_blank') {
+          event.preventDefault();
+          window.location.href = a.href;
+        }
+      }, false);
+    }
+  }
 }
