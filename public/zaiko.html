@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>📦 在庫管理 - FamilyApp</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#1976d2">
+<style>
+body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif; margin: 0; background: #f5f6f8; color: #333; padding-bottom: 80px; }
+header { position: sticky; top: 0; background: #fff; padding: 16px 20px; border-bottom: 1px solid #e0e0e0; box-shadow: 0 2px 8px rgba(0,0,0,0.05); z-index: 10; display: flex; justify-content: space-between; align-items: center; }
+header h1 { margin: 0; font-size: 1.25em; color: #2c3e50; }
+.tabs { display: flex; background: #fff; border-bottom: 1px solid #ddd; }
+.tab { flex: 1; text-align: center; padding: 12px 0; font-size: 0.9em; font-weight: bold; color: #666; cursor: pointer; border-bottom: 3px solid transparent; }
+.tab.active { color: #1976d2; border-bottom: 3px solid #1976d2; }
+.tab-content { display: none; padding: 16px; }
+.tab-content.active { display: block; }
+.shop-section { margin-bottom: 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
+.shop-title { background: #f0f4f8; padding: 10px 16px; font-weight: bold; color: #333; border-bottom: 1px solid #e0e0e0; font-size: 1.1em; display: flex; align-items: center;}
+.shop-title span { margin-right: 8px; }
+.item-row { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #f0f0f0; }
+.item-row:last-child { border-bottom: none; }
+.item-name { flex: 1; font-size: 1em; }
+.item-row.done .item-name { text-decoration: line-through; color: #999; }
+.status-indicator { display: flex; align-items: center; cursor: pointer; user-select: none; width: 44px; justify-content: center; }
+.status-indicator span { font-size: 1.5em; }
+.btn-primary { background: #1976d2; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-size: 1em; font-weight: bold; cursor: pointer; display: block; width: 100%; text-align: center; margin-top: 16px; }
+.btn-danger { background: #d32f2f; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-size: 1em; font-weight: bold; cursor: pointer; }
+.input-group { margin-bottom: 16px; }
+.input-group label { display: block; font-size: 0.9em; color: #666; margin-bottom: 4px; }
+.input-group input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; box-sizing: border-box; }
+.checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.checkbox-item { background: #f0f0f0; padding: 8px 12px; border-radius: 20px; font-size: 0.9em; cursor: pointer; border: 1px solid transparent; }
+.checkbox-item.selected { background: #e3f2fd; color: #1976d2; border-color: #1976d2; font-weight: bold; }
+.list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 8px;}
+.delete-btn { color: #d32f2f; background: none; border: none; font-size: 1.2em; cursor: pointer; padding: 4px; }
+
+/* スマホでのタップハイライトを消す */
+* { -webkit-tap-highlight-color: transparent; }
+</style>
+</head>
+<body style="display: none;">
+
+<header>
+  <h1>📦 在庫管理</h1>
+  <div id="global-nav-placeholder"></div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-target="tab-list">📋 リスト</div>
+  <div class="tab" data-target="tab-inventory">📦 在庫全覧</div>
+  <div class="tab" data-target="tab-settings">⚙️ 設定</div>
+</div>
+
+<main>
+  <!-- リストタブ -->
+  <div id="tab-list" class="tab-content active">
+    <div id="list-container"></div>
+    <button id="btn-clear-done" class="btn-primary" style="display: none; margin-top: 20px;">完了済を削除</button>
+  </div>
+
+  <!-- 在庫タブ -->
+  <div id="tab-inventory" class="tab-content">
+    <div id="inventory-container"></div>
+  </div>
+
+  <!-- 設定タブ -->
+  <div id="tab-settings" class="tab-content">
+    <h3>✨ 新しいアイテムを登録</h3>
+    <div class="input-group">
+      <label>アイテム名</label>
+      <input type="text" id="new-item-name" placeholder="例: 牛乳">
+    </div>
+    <div class="input-group">
+      <label>ショップカテゴリ (複数選択可)</label>
+      <div id="shop-checkboxes" class="checkbox-group"></div>
+    </div>
+    <button id="btn-add-item" class="btn-primary" style="margin-bottom: 32px;">追加</button>
+
+    <h3>🛒 ショップカテゴリの管理</h3>
+    <div class="input-group" style="display: flex; gap: 8px;">
+      <input type="text" id="new-shop-name" placeholder="例: スーパー" style="flex: 1;">
+      <button id="btn-add-shop" class="btn-primary" style="width: auto; margin-top: 0; padding: 10px 16px;">追加</button>
+    </div>
+    <div id="shop-list-container" style="margin-top: 16px;"></div>
+  </div>
+</main>
+
+<script type="module">
+  import { initGlobalNav } from './nav.js?v=000308';
+  initGlobalNav('zaiko');
+
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+  import { getFirestore, collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, addDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+  import { firebaseConfig, ALLOWED_EMAILS } from "./firebase-config.js";
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  onAuthStateChanged(auth, (user) => {
+    if (user && ALLOWED_EMAILS.includes(user.email)) {
+      document.body.style.display = 'block';
+      initApp();
+    } else {
+      window.location.href = "index.html";
+    }
+  });
+
+  // State
+  let categories = [];
+  let items = [];
+
+  // DOM Elements
+  const tabTriggers = document.querySelectorAll('.tab');
+  const tabContents = document.querySelectorAll('.tab-content');
+  const listContainer = document.getElementById('list-container');
+  const inventoryContainer = document.getElementById('inventory-container');
+  const btnClearDone = document.getElementById('btn-clear-done');
+  const shopCheckboxes = document.getElementById('shop-checkboxes');
+  const shopListContainer = document.getElementById('shop-list-container');
+  
+  const newItemNameInput = document.getElementById('new-item-name');
+  const btnAddItem = document.getElementById('btn-add-item');
+  const newShopNameInput = document.getElementById('new-shop-name');
+  const btnAddShop = document.getElementById('btn-add-shop');
+
+  // Status mapping
+  // 0: たっぷり(🟢), 1: あと少し(🟡), 2: なし(🔴)
+  const STATUS_ICONS = { 0: '🟢', 1: '🟡', 2: '🔴' };
+  const NEXT_STATUS = { 0: 1, 1: 2, 2: 0 };
+
+  function initApp() {
+    // Tab logic
+    tabTriggers.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabTriggers.forEach(t => t.classList.remove('active'));
+        tabContents.forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.target).classList.add('active');
+      });
+    });
+
+    // Listen to firestore
+    const catsRef = collection(db, 'zaiko_categories');
+    const qCats = query(catsRef, orderBy('order', 'asc'));
+    onSnapshot(qCats, (snapshot) => {
+      categories = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderSettings();
+      renderInventory();
+      renderList();
+    });
+
+    const itemsRef = collection(db, 'zaiko_items');
+    onSnapshot(itemsRef, (snapshot) => {
+      items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderInventory();
+      renderList();
+    });
+
+    // Event listeners
+    btnAddShop.addEventListener('click', async () => {
+      const name = newShopNameInput.value.trim();
+      if (!name) return;
+      const order = categories.length > 0 ? Math.max(...categories.map(c => c.order || 0)) + 1 : 0;
+      await addDoc(collection(db, 'zaiko_categories'), { name, order });
+      newShopNameInput.value = '';
+    });
+
+    btnAddItem.addEventListener('click', async () => {
+      const name = newItemNameInput.value.trim();
+      if (!name) {
+         alert('アイテム名を入力してください');
+         return;
+      }
+      const selectedShops = Array.from(shopCheckboxes.querySelectorAll('.selected')).map(el => el.dataset.shopId);
+      if (selectedShops.length === 0) {
+         alert('ショップを選択してください');
+         return;
+      }
+      await addDoc(collection(db, 'zaiko_items'), {
+        name,
+        status: 0, // 0:たっぷり
+        shopIds: selectedShops,
+        isDone: false
+      });
+      newItemNameInput.value = '';
+      shopCheckboxes.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+      alert('追加しました！');
+    });
+
+    btnClearDone.addEventListener('click', async () => {
+      if(!confirm('取り消し線がついたアイテムを全て「たっぷり(🟢)」に戻しますか？')) return;
+      
+      const doneItems = items.filter(item => item.isDone && (item.status === 1 || item.status === 2));
+      for (const item of doneItems) {
+        await updateDoc(doc(db, 'zaiko_items', item.id), {
+          status: 0,
+          isDone: false
+        });
+      }
+    });
+
+    // Checkbox toggling delegation
+    shopCheckboxes.addEventListener('click', (e) => {
+      if(e.target.classList.contains('checkbox-item')) {
+        e.target.classList.toggle('selected');
+      }
+    });
+  }
+
+  window.toggleItemDone = async function(itemId, currentState) {
+    await updateDoc(doc(db, 'zaiko_items', itemId), {
+      isDone: !currentState
+    });
+  };
+
+  window.cycleItemStatus = async function(itemId, currentStatus) {
+    const next = NEXT_STATUS[currentStatus];
+    await updateDoc(doc(db, 'zaiko_items', itemId), {
+      status: next,
+      isDone: false // ステータスが変わったら完了状態解除
+    });
+  };
+
+  window.deleteItem = async function(itemId) {
+    if(confirm('このアイテムを削除しますか？')) {
+      await deleteDoc(doc(db, 'zaiko_items', itemId));
+    }
+  };
+
+  window.deleteCategory = async function(catId) {
+    if(confirm('このショップを削除しますか？紐づくアイテムは表示されなくなります。')) {
+      await deleteDoc(doc(db, 'zaiko_categories', catId));
+    }
+  };
+
+  function renderList() {
+    listContainer.innerHTML = '';
+    let hasDone = false;
+    
+    categories.forEach(cat => {
+      // 🟡か🔴のアイテムのみ
+      const catItems = items.filter(i => (i.status === 1 || i.status === 2) && i.shopIds && i.shopIds.includes(cat.id));
+      if(catItems.length === 0) return;
+
+      const shopSection = document.createElement('div');
+      shopSection.className = 'shop-section';
+      shopSection.innerHTML = `<div class="shop-title"><span>🛒</span> ${escapeHtml(cat.name)}</div>`;
+      
+      catItems.forEach(item => {
+        if(item.isDone) hasDone = true;
+        
+        const row = document.createElement('div');
+        row.className = \`item-row \${item.isDone ? 'done' : ''}\`;
+        
+        row.innerHTML = \`
+          <div class="item-name" onclick="toggleItemDone('\${item.id}', \${item.isDone})">
+            \${escapeHtml(item.name)}
+          </div>
+          <div class="status-indicator" onclick="cycleItemStatus('\${item.id}', \${item.status})">
+            <span>\${STATUS_ICONS[item.status]}</span>
+          </div>
+        \`;
+        shopSection.appendChild(row);
+      });
+      listContainer.appendChild(shopSection);
+    });
+
+    if(listContainer.innerHTML === '') {
+      listContainer.innerHTML = '<div style="text-align:center; color:#999; margin-top:40px;">買うべきものはありません 🎉</div>';
+    }
+
+    btnClearDone.style.display = hasDone ? 'block' : 'none';
+  }
+
+  function renderInventory() {
+    inventoryContainer.innerHTML = '';
+    
+    categories.forEach(cat => {
+      const catItems = items.filter(i => i.shopIds && i.shopIds.includes(cat.id));
+      if(catItems.length === 0) return;
+
+      const shopSection = document.createElement('div');
+      shopSection.className = 'shop-section';
+      shopSection.innerHTML = `<div class="shop-title"><span>🛒</span> ${escapeHtml(cat.name)}</div>`;
+      
+      catItems.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'item-row';
+        
+        row.innerHTML = \`
+          <div class="item-name">
+            \${escapeHtml(item.name)}
+          </div>
+          <div class="status-indicator" onclick="cycleItemStatus('\${item.id}', \${item.status})">
+            <span>\${STATUS_ICONS[item.status]}</span>
+          </div>
+        \`;
+        shopSection.appendChild(row);
+      });
+      inventoryContainer.appendChild(shopSection);
+    });
+
+    if(inventoryContainer.innerHTML === '') {
+      inventoryContainer.innerHTML = '<div style="text-align:center; color:#999; margin-top:40px;">カテゴリとアイテムを追加してください</div>';
+    }
+  }
+
+  function renderSettings() {
+    // Categories for new items checkbox
+    const currentSelections = Array.from(shopCheckboxes.querySelectorAll('.selected')).map(el => el.dataset.shopId);
+    shopCheckboxes.innerHTML = categories.map(cat => {
+      const isSelected = currentSelections.includes(cat.id) ? 'selected' : '';
+      return \`<div class="checkbox-item \${isSelected}" data-shop-id="\${cat.id}">\${escapeHtml(cat.name)}</div>\`;
+    }).join('');
+
+    // Categories list for management
+    shopListContainer.innerHTML = categories.map(cat => \`
+      <div class="list-item">
+        <span>\${escapeHtml(cat.name)}</span>
+        <button class="delete-btn" onclick="deleteCategory('\${cat.id}')">✖</button>
+      </div>
+    \`).join('');
+    
+    // Add Item management
+    const allItemsDiv = document.createElement('div');
+    allItemsDiv.style.marginTop = '32px';
+    allItemsDiv.innerHTML = '<h3>📦 アイテムの管理</h3>';
+    items.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'list-item';
+      row.innerHTML = \`
+        <span>\${escapeHtml(item.name)}</span>
+        <button class="delete-btn" onclick="deleteItem('\${item.id}')">削除</button>
+      \`;
+      allItemsDiv.appendChild(row);
+    });
+    
+    // ensure we don't append indefinitely
+    const oldAll = document.getElementById('all-items-admin');
+    if(oldAll) oldAll.remove();
+    allItemsDiv.id = 'all-items-admin';
+    shopListContainer.parentNode.appendChild(allItemsDiv);
+  }
+
+  function escapeHtml(str) {
+    if(!str) return '';
+    return str.replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+</script>
+</body>
+</html>

@@ -1,9 +1,10 @@
-const CACHE_NAME = 'familyapp-cache-v2';
+const CACHE_NAME = 'familyapp-cache-v3';
 const urlsToCache = [
   '/',
   '/index.html',
   '/kakei.html',
   '/sokone.html',
+  '/zaiko.html',
   '/nav.js',
   '/icon-192.png',
   '/icon-512.png'

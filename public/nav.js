@@ -76,6 +76,7 @@ export function initGlobalNav(activePageName) {
         <a href="index.html" class="${activePageName === 'index' ? 'active' : ''}">🏠 トップ ${activePageName === 'index' ? '📌' : ''}</a>
         <a href="kakei.html" class="${activePageName === 'kakei' ? 'active' : ''}">💰 家計精算 ${activePageName === 'kakei' ? '📌' : ''}</a>
         <a href="sokone.html" class="${activePageName === 'sokone' ? 'active' : ''}">🛒 底値帳 ${activePageName === 'sokone' ? '📌' : ''}</a>
+        <a href="zaiko.html" class="${activePageName === 'zaiko' ? 'active' : ''}">📦 在庫管理 ${activePageName === 'zaiko' ? '📌' : ''}</a>
         <button id="nav-logout-btn" class="menu-item" style="color:#d32f2f !important;">🚪 ログアウト</button>
       </div>
     </div>
