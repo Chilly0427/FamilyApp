@@ -3,6 +3,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>マイHTMLアプリ集</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#1976d2">
 <style>
 body{font-family:sans-serif;margin:0;background:#f5f5f5}
 header{padding:16px;background:#ffffff;border-bottom:1px solid #ddd;font-weight:bold}
@@ -22,10 +25,14 @@ main{padding:14px;display:grid;gap:12px}
   </div>
 
   <div id="main-content" style="display: none;">
-    <header style="display: flex; justify-content: space-between; align-items: center;">
+    <header style="display: flex; justify-content: space-between; align-items: center; position:relative;">
       <span>📱 マイツール</span>
-      <button id="logout-btn" style="padding: 4px 8px; cursor: pointer;">ログアウト</button>
+      <div id="global-nav-placeholder"></div>
     </header>
+    <script type="module">
+      import { initGlobalNav } from './nav.js?v=1772884138';
+      initGlobalNav('index');
+    </script>
     <main><a class="card" href="kakei.html">
       <div class="title">🏠 家計精算</div>
       <div class="desc">夫婦の支払いを割合で自動計算</div>
@@ -43,7 +50,7 @@ main{padding:14px;display:grid;gap:12px}
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+    import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut, browserLocalPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
     import { firebaseConfig, ALLOWED_EMAILS } from "./firebase-config.js";
 
     const app = initializeApp(firebaseConfig);
@@ -53,19 +60,16 @@ main{padding:14px;display:grid;gap:12px}
     const loginScreen = document.getElementById('login-screen');
     const mainContent = document.getElementById('main-content');
     const loginBtn = document.getElementById('login-btn');
-    const logoutBtn = document.getElementById('logout-btn');
     const errorMsg = document.getElementById('auth-error-msg');
 
-    loginBtn.addEventListener('click', () => {
-      errorMsg.textContent = "";
-      signInWithPopup(auth, provider).catch(error => {
-        console.error("ログインエラー:", error);
-        errorMsg.textContent = "ログインに失敗しました。";
-      });
-    });
-
-    logoutBtn.addEventListener('click', () => {
-      signOut(auth);
+    // リダイレクトのフォールバック用（リダイレクトを使用した場合のみ発火）
+    getRedirectResult(auth).then((result) => {
+      if (result) {
+        errorMsg.textContent = "認証成功、読み込み中...";
+      }
+    }).catch((error) => {
+      console.error("ログインエラー:", error);
+      errorMsg.textContent = "ログインに失敗しました。(" + error.message + ")";
     });
 
     onAuthStateChanged(auth, (user) => {
@@ -83,8 +87,34 @@ main{padding:14px;display:grid;gap:12px}
       } else {
         loginScreen.style.display = 'block';
         mainContent.style.display = 'none';
+        // ログインしていない場合だけPWA判定のメッセージを少し残す手もある
       }
     });
+
+    loginBtn.addEventListener('click', async () => {
+      errorMsg.textContent = "認証を開始しています...";
+      try {
+        await setPersistence(auth, browserLocalPersistence);
+        await signInWithPopup(auth, provider);
+      } catch (err) {
+        console.error("Signup error:", err);
+        if (err.code === 'auth/popup-blocked') {
+          errorMsg.textContent = "ポップアップがブロックされました。設定等を確認してください。";
+        } else if (err.code !== 'auth/popup-closed-by-user') {
+          errorMsg.textContent = "エラーが発生しました: " + err.message;
+        } else {
+          errorMsg.textContent = "";
+        }
+      }
+    });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch((err) => {
+          console.log('SW registration failed: ', err);
+        });
+      });
+    }
   </script>
 </body>
 </html>

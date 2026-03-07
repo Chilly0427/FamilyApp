@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>🛒 底値帳 - FamilyApp</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#1976d2">
 <style>
 body{font-family:'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;margin:0;background:#f5f6f8;color:#333}
 header{position:sticky;top:0;background:#fff;padding:16px 20px;border-bottom:1px solid #e0e0e0;box-shadow:0 2px 8px rgba(0,0,0,0.05);z-index:10; display:flex; justify-content:space-between; align-items:center;}
@@ -55,25 +58,55 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
 .checkbox-label.is-discount { background:#fff3e0; border-color:#ffcc80; color:#e65100; }
 .checkbox-label input {width:20px; height:20px; accent-color:#f57c00;}
 
-.unit-price {background:#fff8e1; border-radius:8px; padding:10px; text-align:center; width:100%; border:1px dashed #ffb74d;}
+.unit-price {background:#fff8e1; border-radius:8px; padding:10px; text-align:center; width:100%; box-sizing:border-box; border:1px dashed #ffb74d;}
+
+.history-row { opacity: 0.65; background: #fafafa; border-color: #eee; }
+.history-row .rank-badge { color: #aaa; font-size: 0.85em; font-weight: normal; }
+.row:focus-within {
+  background: #f1f8e9;
+  border: 2px solid #4caf50;
+  box-shadow: 0 4px 12px rgba(76,175,80,0.2);
+  transform: scale(1.02);
+  z-index: 10;
+}
 </style>
 </head>
 <body style="display: none;">
 
-<header>
+<header style="position:relative; display:flex; justify-content:space-between; align-items:center;">
   <h1>🛒 底値帳</h1>
-  <a href="index.html">🏠 トップへ</a>
+  <div id="global-nav-placeholder"></div>
 </header>
 
+<script type="module">
+  import { initGlobalNav } from './nav.js?v=1772884138';
+  initGlobalNav('sokone');
+</script>
+
 <main>
-  <div class="help-text">
-    💡 <strong>使い方</strong>：「➕ 新しい商品グループ」から登録を始めます。<br>
-    商品ごとに最安値が自動でランキング表示され、タップで折りたためます。左端の「☰」長押しで並び替え！
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; gap:8px;">
+    <div class="help-text" style="flex:1; margin:0;">
+      💡 <strong>使い方</strong>：「➕ 新しい商品グループ」から登録。<br>
+      各グループ内の最安値が王冠で表示されます。
+    </div>
+    <select id="sortModeSelect" onchange="setSortMode(this.value)" style="padding:8px; border-radius:8px; border:1px solid #cfd8dc; background:#fff; font-weight:bold; color:#2e7d32; outline:none;">
+      <option value="manual">☰ 手動並べ替え</option>
+      <option value="name">🔤 名前順(自動)</option>
+      <option value="recent">🕒 更新順(自動)</option>
+    </select>
   </div>
 
   <div id="list"></div>
   <div style="text-align:center;margin:30px 0">
     <button class="btn-add" onclick="addRow()">➕ 新しい商品グループ</button>
+  </div>
+
+  <!-- データ管理 -->
+  <div style="text-align:center;margin:40px 0 20px; padding-top:20px; border-top: 1px dashed #cfd8dc;">
+    <p style="font-size:12px;color:#888;margin-bottom:10px;">📉 データ管理</p>
+    <button onclick="exportData()" style="padding:6px 12px; font-size:12px; border-radius:4px; border:1px solid #ccc; background:#f9f9f9; cursor:pointer; margin-right:10px;">エクスポート (JSON)</button>
+    <button onclick="document.getElementById('importFile').click()" style="padding:6px 12px; font-size:12px; border-radius:4px; border:1px solid #ccc; background:#f9f9f9; cursor:pointer;">インポート (JSON)</button>
+    <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
   </div>
 </main>
 
@@ -97,6 +130,27 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
   let sortableInst = null;
   const listEl = document.getElementById("list");
   let expandedGroups = {}; // グループの開閉状態を保持（キーはitemName）
+  let addingDrafts = {}; // グループごとの登録モード(下書き)状態
+
+  // 入力フォーカス中の不用意な再描画を防ぐ
+  let isTyping = false;
+  let hasPendingSnapshot = false;
+
+  document.addEventListener('focusin', e => {
+    if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') isTyping = true;
+  });
+  document.addEventListener('focusout', e => {
+    setTimeout(() => {
+      const activeEl = document.activeElement;
+      if(!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) {
+        isTyping = false;
+        if(hasPendingSnapshot) {
+          hasPendingSnapshot = false;
+          renderList();
+        }
+      }
+    }, 100);
+  });
 
   // Datalist sets for auto-complete
   const storesSet = new Set();
@@ -120,6 +174,9 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
       unitsSet.clear();
       itemsSet.clear();
 
+      // よく使う単位の候補をあらかじめセットしておく
+      ["g", "ml", "個", "本", "枚", "パック", "匹", "玉"].forEach(u => unitsSet.add(u));
+
       snapshot.forEach(d => {
         const data = d.data();
         items.push({ id: d.id, ...data });
@@ -130,7 +187,11 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
       });
 
       updateDatalists();
-      renderList();
+      if (!isTyping) {
+        renderList();
+      } else {
+        hasPendingSnapshot = true;
+      }
     });
   }
 
@@ -166,11 +227,38 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
       groups[name].push({ ...it, unitPrice });
     });
 
-    // グループ全体の並び順（orderフィールドに依存）を計算してソート
+    // グループ全体の並び順を計算してソート
+    let sortMode = localStorage.getItem('sokone_sort_mode') || 'manual';
+    const sortSelect = document.getElementById('sortModeSelect');
+    if (sortSelect) sortSelect.value = sortMode;
+
     const sortedGroupNames = Object.keys(groups).sort((a, b) => {
-      const aMinOrder = Math.min(...groups[a].map(i => i.order || 0));
-      const bMinOrder = Math.min(...groups[b].map(i => i.order || 0));
-      return aMinOrder - bMinOrder;
+      // "未分類の商品" を一番最後に回す
+      const nameA = (a === "未分類の商品" || a.startsWith("未設定_")) ? "んんん" : a;
+      const nameB = (b === "未分類の商品" || b.startsWith("未設定_")) ? "んんん" : b;
+      
+      if (sortMode === 'name') {
+        return nameA.localeCompare(nameB);
+      } else if (sortMode === 'recent') {
+        const maxTimeA = Math.max(...groups[a].map(i => {
+           if (i.recordedDate) return new Date(i.recordedDate).getTime();
+           if (i.updatedAt && i.updatedAt.toDate) return i.updatedAt.toDate().getTime();
+           return 0;
+        }));
+        const maxTimeB = Math.max(...groups[b].map(i => {
+           if (i.recordedDate) return new Date(i.recordedDate).getTime();
+           if (i.updatedAt && i.updatedAt.toDate) return i.updatedAt.toDate().getTime();
+           return 0;
+        }));
+        // 時間が同じ(未更新など)なら名前順
+        if (maxTimeA === maxTimeB) return nameA.localeCompare(nameB);
+        return maxTimeB - maxTimeA; // 新しい順(降順)
+      } else {
+        // manual の場合
+        const aMinOrder = Math.min(...groups[a].map(i => i.order || 0));
+        const bMinOrder = Math.min(...groups[b].map(i => i.order || 0));
+        return aMinOrder - bMinOrder;
+      }
     });
 
     sortedGroupNames.forEach(groupName => {
@@ -278,7 +366,7 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
 
       // ソート用の代表アイテム（ドラッグ＆ドロップ時に引き継ぐIDを持たせる）
       const repItem = groupItems.reduce((min, cur) => (cur.order || 0) < (min.order || 0) ? cur : min, groupItems[0]);
-      const groupUnit = repItem.unit || "個";
+      const groupUnit = repItem.unit || "";
 
       const groupDiv = document.createElement("div");
       groupDiv.className = "group-container";
@@ -309,31 +397,37 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
         rankingHtml = `<div class="best-price-row" style="color:#888;">価格データがありません</div>`;
       }
 
+      const gnEsc = groupName.replace(/'/g, "\\'");
+      const realItems = groupItems.filter(it => (it.storeName && it.storeName.trim() !== "") || (it.price !== null && it.price !== "") || (it.quantity !== null && it.quantity !== ""));
+
       groupDiv.innerHTML = `
         <div class="group-header">
-          <div class="drag-handle">☰</div>
-          <div class="group-title-area" onclick="toggleGroup('${groupName}')">
+          <div class="drag-handle" style="display:${sortMode === 'manual' ? 'block' : 'none'}">☰</div>
+          <div class="group-title-area" onclick="toggleGroup('${gnEsc}')">
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-              <input type="text" value="${(groupName === '未分類の商品' || groupName.startsWith('未設定_')) ? '' : groupName}" placeholder="商品名を入力..." list="item-list" onclick="event.stopPropagation()" onchange="updateGroupName('${groupName}', this.value)" style="flex:1; font-size:1.2em; padding:8px 12px; font-weight:bold; color:#2e7d32; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.05); min-width:120px;">
-              <input type="text" value="${groupUnit}" placeholder="単位" list="unit-list" onclick="event.stopPropagation()" onchange="updateGroupUnit('${groupName}', this.value)" style="width:70px; font-size:1.0em; padding:8px; border:1px solid #cfd8dc; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); text-align:center;">
-              <button class="del-btn" style="padding:10px 12px; font-size:1.1em;" onclick="event.stopPropagation(); deleteGroup('${groupName}')">🗑</button>
+              <input type="text" value="${(groupName === '未分類の商品' || groupName.startsWith('未設定_')) ? '' : groupName}" placeholder="商品名を入力..." list="item-list" onclick="event.stopPropagation()" onblur="updateGroupName('${gnEsc}', this.value)" style="flex:1; font-size:1.2em; padding:8px 12px; font-weight:bold; color:#2e7d32; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.05); min-width:120px;">
+              <div style="font-size:0.95em; color:#78909c; font-weight:bold; white-space:nowrap;">(${realItems.length}件)</div>
+              <input type="text" value="${groupUnit}" placeholder="単位" list="unit-list" onclick="event.stopPropagation()" onblur="updateGroupUnit('${gnEsc}', this.value)" style="width:85px; font-size:1.0em; padding:8px; border:1px solid #cfd8dc; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); text-align:center;">
+              <button class="del-btn" style="padding:10px 12px; font-size:1.1em;" onclick="event.stopPropagation(); deleteGroup('${gnEsc}')">🗑</button>
             </div>
             ${rankingHtml}
           </div>
-          <div class="expand-icon" onclick="toggleGroup('${groupName}')">${isExpanded ? '▲' : '▼'}</div>
+          <div class="expand-icon" onclick="toggleGroup('${gnEsc}')">${isExpanded ? '▲' : '▼'}</div>
         </div>
         <div class="group-content" style="display: ${isExpanded ? 'block' : 'none'};">
           <div class="items-list"></div>
-          <button class="btn-add-small" onclick="addItemToGroup('${groupName}')">➕ サブ価格情報を追加</button>
+          <button class="btn-add-small" onclick="addItemToGroup('${gnEsc}')">➕ サブ価格情報を追加</button>
         </div>
       `;
 
       const itemsListEl = groupDiv.querySelector('.items-list');
 
       groupItems.forEach((it, index) => {
+        // 空のプレースホルダーアイテムは描画しない（グループ外枠のみ利用するため）
+        if (!it.storeName && (it.price === null || it.price === "") && (it.quantity === null || it.quantity === "")) return;
+
         const isTaxInc = it.isTaxIncluded !== false;
         const unitPriceStr = it.unitPrice > 0 ? (Math.round(it.unitPrice * 10) / 10) : "---";
-        const unitDisplay = it.unit || "個";
 
         let dateVal = it.recordedDate || "";
         if (!dateVal) {
@@ -401,6 +495,53 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
         itemsListEl.appendChild(div);
       });
 
+      // --- 下書きモード(新規追加時のフォーム)の表示 ---
+      if (addingDrafts[groupName]) {
+        const draft = addingDrafts[groupName];
+        const gnEsc = groupName.replace(/'/g, "\\'");
+        const isTaxInc = draft.isTaxIncluded;
+        const draftDiv = document.createElement("div");
+        draftDiv.className = "row";
+        draftDiv.style.border = "2px dashed #4caf50";
+        draftDiv.style.backgroundColor = "#f1f8e9";
+        draftDiv.innerHTML = `
+          <div class="row-top">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-weight:bold; color:#4caf50; font-size:1.0em; min-width:54px;">🆕 登録</span>
+              <input type="date" value="${draft.recordedDate}" onchange="updateDraft('${gnEsc}', 'recordedDate', this.value)" style="max-width:160px;">
+            </div>
+            <button class="del-btn" style="padding:8px; font-size:0.9em; background:#fff; border:1px solid #d32f2f;" onclick="cancelDraft('${gnEsc}')">キャンセル</button>
+          </div>
+
+          <div class="row-middle" style="margin-top:8px;">
+            <input type="text" placeholder="店名 (例: コストコ)" value="${draft.storeName}" list="store-list" oninput="updateDraft('${gnEsc}', 'storeName', this.value)" style="flex:1;">
+          </div>
+
+          <div class="row-bottom">
+            <div style="display:flex; align-items:center; gap:6px; flex:2; min-width:140px;">
+              <input type="number" placeholder="価格" value="${draft.price}" pattern="[0-9]*" inputmode="numeric" oninput="updateDraft('${gnEsc}', 'price', this.value)" style="text-align:right; font-weight:bold; color:#d32f2f; font-size:1.1em;">
+              <span style="font-weight:bold; color:#666;">円</span>
+            </div>
+            <div style="display:flex; flex:1; min-width:140px;">
+              <button class="toggle-btn ${!isTaxInc ? '' : 'active'} " onclick="toggleDraftTax('${gnEsc}', true)" style="border-radius:8px 0 0 8px; border-right:none; padding:10px 4px;">税込</button>
+              <button class="toggle-btn ${!isTaxInc ? 'active' : ''} " onclick="toggleDraftTax('${gnEsc}', false)" style="border-radius:0 8px 8px 0; border-left:none; padding:10px 4px;">税抜</button>
+            </div>
+          </div>
+
+          <div class="row-bottom" style="margin-top:8px;">
+            <div style="display:flex; align-items:center; gap:8px; flex:1;">
+              <span style="color:#666; font-weight:bold;">容量:</span> <input type="number" step="0.1" value="${draft.quantity}" oninput="updateDraft('${gnEsc}', 'quantity', this.value)" style="width:100px; text-align:right;">
+              <span style="font-weight:bold; color:#78909c; font-size:1.1em; padding-left:4px;">${groupUnit}</span>
+            </div>
+          </div>
+          
+          <div style="margin-top:12px; text-align:center;">
+             <button class="btn-add" style="padding:12px 30px; font-size:1.1em; width:80%;" onclick="saveDraft('${gnEsc}')">✅ 登録する</button>
+          </div>
+        `;
+        itemsListEl.appendChild(draftDiv);
+      }
+
       listEl.appendChild(groupDiv);
     });
 
@@ -464,7 +605,7 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
       storeName: "",
       price: null,
       quantity: "",
-      unit: "個",
+      unit: "",
       isTaxIncluded: true,
 
       recordedDate: `${yyyy}-${mm}-${dd}`,
@@ -478,30 +619,63 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
   };
 
   // 各グループ内の「サブ価格を登録」
-  window.addItemToGroup = async (groupName) => {
-    const groupItems = items.filter(i => (i.itemName || "未分類の商品") === groupName);
-    const repItem = groupItems[0]; 
-    
-    const newId = Date.now().toString() + Math.floor(Math.random()*1000);
-    const baseOrder = repItem ? (repItem.order || 0) : 1000;
-    
-    // 今日の日付文字列を生成
+  window.addItemToGroup = (groupName) => {
     const dObj = new Date();
     const yyyy = dObj.getFullYear();
     const mm = String(dObj.getMonth() + 1).padStart(2, '0');
     const dd = String(dObj.getDate()).padStart(2, '0');
     
-    const newItem = {
-      order: baseOrder + groupItems.length + 1, // 同じグループ内で少しだけ後ろへ
-      itemName: groupName === "未分類の商品" ? "" : groupName,
+    addingDrafts[groupName] = {
       storeName: "",
-      price: null,
-      quantity: "", // 容量や単位は前回から引き継がない
-      unit: repItem ? repItem.unit : "個",
+      price: "",
+      quantity: "", 
       isTaxIncluded: true,
-      recordedDate: `${yyyy}-${mm}-${dd}`,
+      recordedDate: `${yyyy}-${mm}-${dd}`
+    };
+    expandedGroups[groupName] = true;
+    renderList();
+  };
+
+  window.updateDraft = (groupName, field, value) => {
+    if (addingDrafts[groupName]) {
+      addingDrafts[groupName][field] = value;
+    }
+  };
+
+  window.toggleDraftTax = (groupName, isTaxInc) => {
+    if (addingDrafts[groupName]) {
+      addingDrafts[groupName].isTaxIncluded = isTaxInc;
+      renderList();
+    }
+  };
+
+  window.cancelDraft = (groupName) => {
+    delete addingDrafts[groupName];
+    renderList();
+  };
+
+  window.saveDraft = async (groupName) => {
+    const draft = addingDrafts[groupName];
+    if(!draft) return;
+    
+    const groupItems = items.filter(i => (i.itemName || "未分類の商品") === groupName);
+    const repItem = groupItems[0]; 
+    const baseOrder = repItem ? (repItem.order || 0) : 1000;
+    
+    const newId = Date.now().toString() + Math.floor(Math.random()*1000);
+    const newItem = {
+      order: baseOrder + groupItems.length + 1,
+      itemName: groupName === "未分類の商品" ? "" : groupName,
+      storeName: draft.storeName,
+      price: draft.price === "" ? null : parseFloat(draft.price),
+      quantity: draft.quantity === "" ? null : parseFloat(draft.quantity),
+      unit: repItem ? repItem.unit : "",
+      isTaxIncluded: draft.isTaxIncluded,
+      recordedDate: draft.recordedDate,
       updatedAt: serverTimestamp()
     };
+    
+    delete addingDrafts[groupName];
     await setDoc(doc(db, "sokone_items", newId), newItem);
   };
 
@@ -521,12 +695,23 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
     }
   };
 
+  window.setSortMode = (mode) => {
+    localStorage.setItem('sokone_sort_mode', mode);
+    renderList();
+  };
+
   // ドラッグ＆ドロップの適用 (グループ単位)
   function initSortable() {
     if(sortableInst) sortableInst.destroy();
+    
+    let sortMode = localStorage.getItem('sokone_sort_mode') || 'manual';
+    const sortSelect = document.getElementById('sortModeSelect');
+    if (sortSelect) sortMode = sortSelect.value;
+    
     sortableInst = Sortable.create(listEl, {
       handle: ".drag-handle",
       animation: 150,
+      disabled: sortMode !== 'manual',
       onEnd: async (evt) => {
         const groupEls = Array.from(listEl.children);
         
@@ -544,6 +729,75 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
           });
         });
       }
+    });
+  }
+
+  // -----------------------------------------
+  // JSON エクスポート / インポート処理
+  // -----------------------------------------
+  window.exportData = () => {
+    // id フィールドなどを適切に書き出してダウンロードさせる
+    try {
+      const exportJson = JSON.stringify(items, null, 2);
+      const blob = new Blob([exportJson], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sokone_data_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert("エクスポート中にエラーが発生しました。");
+    }
+  };
+
+  window.importData = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!confirm("インポートを開始しますか？既存の同名IDデータは上書きされ、新しいデータは追加されます。")) {
+      event.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const imported = JSON.parse(e.target.result);
+        if (!Array.isArray(imported)) {
+          alert("無効なデータ形式です。配列のJSONである必要があります。");
+          return;
+        }
+
+        let count = 0;
+        for (const item of imported) {
+          if (!item.id) continue;
+          const ref = doc(db, "sokone_items", item.id);
+          const saveItem = { ...item };
+          
+          // timestamp 型が壊れるのを防ぐために削除するか、サーバー時間に置き換える
+          delete saveItem.id; // docId として使っているので不要
+          saveItem.updatedAt = serverTimestamp();
+          
+          await setDoc(ref, saveItem, { merge: true });
+          count++;
+        }
+        alert(`${count}件のデータをインポートしました！`);
+        event.target.value = ""; // 入力リセット
+      } catch (err) {
+        console.error(err);
+        alert("エラーが発生しました: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch((err) => {
+        console.log('SW registration failed: ', err);
+      });
     });
   }
 </script>

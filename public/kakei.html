@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>家計精算アプリ</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#1976d2">
 <style>
 body{font-family:sans-serif;margin:0;background:#fafafa;color:#333}
 header{position:sticky;top:0;background:#fff;padding:16px;border-bottom:1px solid #ddd;box-shadow:0 2px 4px rgba(0,0,0,0.05);z-index:10}
@@ -258,7 +261,7 @@ button:hover{background:#ddd}
       wClear.className = 'clear-btn';
       wClear.style.display = (!it.isSettled && it.w > 0) ? 'flex' : 'none';
 
-      h.oninput = e => { 
+      h.onblur = e => { 
         it.h = Number(e.target.value) || 0; 
         w.disabled = it.isSettled || (it.h > 0);
         if (it.h > 0 && !it.isSettled) w.classList.add('blocked-input');
@@ -273,10 +276,10 @@ button:hover{background:#ddd}
       hClear.onclick = () => {
         if(it.isSettled) return;
         h.value = '';
-        h.dispatchEvent(new Event('input'));
+        h.dispatchEvent(new Event('blur'));
       };
 
-      w.oninput = e => { 
+      w.onblur = e => { 
         it.w = Number(e.target.value) || 0; 
         h.disabled = it.isSettled || (it.w > 0);
         if (it.w > 0 && !it.isSettled) h.classList.add('blocked-input');
@@ -291,7 +294,7 @@ button:hover{background:#ddd}
       wClear.onclick = () => {
         if(it.isSettled) return;
         w.value = '';
-        w.dispatchEvent(new Event('input'));
+        w.dispatchEvent(new Event('blur'));
       };
 
       hWrapper.append(h, hClear);
@@ -513,13 +516,14 @@ button:hover{background:#ddd}
 </script>
 
 <header>
-  <div style="display:flex; justify-content:space-between; align-items:center;">
+  <div style="display:flex; justify-content:space-between; align-items:center; position:relative;">
     <div>🏠 <strong>家計精算ツール</strong></div>
-    <div>
-      <span style="font-size:0.85em; color:#666;">自動保存✅ </span>
-      <a href="index.html" style="text-decoration:none; color:#1976d2; font-weight:bold; padding:4px 8px; background:#e3f2fd; border-radius:6px; font-size: 0.9em; margin-left: 8px;">🏠 トップへ</a>
-    </div>
+    <div id="global-nav-placeholder"></div>
   </div>
+  <script type="module">
+    import { initGlobalNav } from './nav.js?v=1772884138';
+    initGlobalNav('kakei');
+  </script>
   
   <div class="legend" style="margin-top:10px;">
     <strong>【使い方・凡例】</strong><br>
@@ -555,5 +559,14 @@ button:hover{background:#ddd}
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch((err) => {
+        console.log('SW registration failed: ', err);
+      });
+    });
+  }
+</script>
 </body>
 </html>
