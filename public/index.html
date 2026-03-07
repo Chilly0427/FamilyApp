@@ -91,15 +91,20 @@ main{padding:14px;display:grid;gap:12px}
       }
     });
 
+    // 永続化の設定はクリック外で事前に行う（クリックハンドラ内のawaitによるポップアップブロックを回避するため）
+    setPersistence(auth, browserLocalPersistence).catch(console.error);
+
     loginBtn.addEventListener('click', async () => {
-      errorMsg.textContent = "認証を開始しています...";
+      errorMsg.textContent = "認証を開いています...";
       try {
-        await setPersistence(auth, browserLocalPersistence);
+        // iOS等でのポップアップブロックを防ぐため、クリックイベント直後に直列で呼ぶ
         await signInWithPopup(auth, provider);
       } catch (err) {
         console.error("Signup error:", err);
         if (err.code === 'auth/popup-blocked') {
-          errorMsg.textContent = "ポップアップがブロックされました。設定等を確認してください。";
+          errorMsg.textContent = "ポップアップがブロックされました。Redirectで再試行します...";
+          // 自動でRedirectにフォールバックさせる
+          signInWithRedirect(auth, provider);
         } else if (err.code !== 'auth/popup-closed-by-user') {
           errorMsg.textContent = "エラーが発生しました: " + err.message;
         } else {
