@@ -1,102 +1,10 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>📦 在庫管理 - FamilyApp</title>
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-192.png">
-<meta name="theme-color" content="#1976d2">
-<style>
-body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif; margin: 0; background: #f5f6f8; color: #333; padding-bottom: 80px; }
-header { position: sticky; top: 0; background: #fff; padding: 16px 20px; border-bottom: 1px solid #e0e0e0; box-shadow: 0 2px 8px rgba(0,0,0,0.05); z-index: 10; display: flex; justify-content: space-between; align-items: center; }
-header h1 { margin: 0; font-size: 1.25em; color: #2c3e50; }
-.tabs { display: flex; background: #fff; border-bottom: 1px solid #ddd; }
-.tab { flex: 1; text-align: center; padding: 12px 0; font-size: 0.9em; font-weight: bold; color: #666; cursor: pointer; border-bottom: 3px solid transparent; }
-.tab.active { color: #1976d2; border-bottom: 3px solid #1976d2; }
-.tab-content { display: none; padding: 16px; }
-.tab-content.active { display: block; }
-.shop-section { margin-bottom: 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
-.shop-title { background: #f0f4f8; padding: 10px 16px; font-weight: bold; color: #333; border-bottom: 1px solid #e0e0e0; font-size: 1.1em; display: flex; align-items: center;}
-.shop-title span { margin-right: 8px; }
-.item-row { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #f0f0f0; }
-.item-row:last-child { border-bottom: none; }
-.item-name { flex: 1; font-size: 1em; }
-.item-row.done .item-name { text-decoration: line-through; color: #999; }
-.status-indicator { display: flex; align-items: center; cursor: pointer; user-select: none; width: 44px; justify-content: center; }
-.status-indicator span { font-size: 1.5em; }
-.btn-primary { background: #1976d2; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-size: 1em; font-weight: bold; cursor: pointer; display: block; width: 100%; text-align: center; margin-top: 16px; }
-.btn-danger { background: #d32f2f; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-size: 1em; font-weight: bold; cursor: pointer; }
-.input-group { margin-bottom: 16px; }
-.input-group label { display: block; font-size: 0.9em; color: #666; margin-bottom: 4px; }
-.input-group input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; box-sizing: border-box; }
-.checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; }
-.checkbox-item { background: #f0f0f0; padding: 8px 12px; border-radius: 20px; font-size: 0.9em; cursor: pointer; border: 1px solid transparent; }
-.checkbox-item.selected { background: #e3f2fd; color: #1976d2; border-color: #1976d2; font-weight: bold; }
-.list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 8px;}
-.delete-btn { color: #d32f2f; background: none; border: none; font-size: 1.2em; cursor: pointer; padding: 4px; }
-
-/* スマホでのタップハイライトを消す */
-* { -webkit-tap-highlight-color: transparent; }
-</style>
-</head>
-<body style="display: none;">
-
-<header>
-  <h1>📦 在庫管理</h1>
-  <div id="global-nav-placeholder"></div>
-</header>
-
-<div class="tabs">
-  <div class="tab active" data-target="tab-list">📋 リスト</div>
-  <div class="tab" data-target="tab-inventory">📦 在庫全覧</div>
-  <div class="tab" data-target="tab-settings">⚙️ 設定</div>
-</div>
-
-<main>
-  <!-- リストタブ -->
-  <div id="tab-list" class="tab-content active">
-    <div id="list-container"></div>
-    <button id="btn-clear-done" class="btn-primary" style="display: none; margin-top: 20px;">完了済を削除</button>
-  </div>
-
-  <!-- 在庫タブ -->
-  <div id="tab-inventory" class="tab-content">
-    <div id="inventory-container"></div>
-  </div>
-
-  <!-- 設定タブ -->
-  <div id="tab-settings" class="tab-content">
-    <h3>✨ 新しいアイテムを登録</h3>
-    <div class="input-group">
-      <label>アイテム名</label>
-      <input type="text" id="new-item-name" placeholder="例: 牛乳">
-    </div>
-    <div class="input-group">
-      <label>ショップカテゴリ (複数選択可)</label>
-      <div id="shop-checkboxes" class="checkbox-group"></div>
-    </div>
-    <button id="btn-add-item" class="btn-primary" style="margin-bottom: 32px;">追加</button>
-
-    <h3>🛒 ショップカテゴリの管理</h3>
-    <div class="input-group" style="display: flex; gap: 8px;">
-      <input type="text" id="new-shop-name" placeholder="例: スーパー" style="flex: 1;">
-      <button id="btn-add-shop" class="btn-primary" style="width: auto; margin-top: 0; padding: 10px 16px;">追加</button>
-    </div>
-    <div id="shop-list-container" style="margin-top: 16px;"></div>
-  </div>
-</main>
-
-<script type="module">
   import { initGlobalNav } from './nav.js?v=000309';
-  initGlobalNav('zaiko');
-</script>
-
-<script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
   import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
   import { getFirestore, collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, addDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
   import { firebaseConfig, ALLOWED_EMAILS } from "./firebase-config.js";
+
+  initGlobalNav('zaiko');
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
@@ -357,6 +265,3 @@ header h1 { margin: 0; font-size: 1.25em; color: #2c3e50; }
       .replace(/'/g, '&#039;');
   }
 
-</script>
-</body>
-</html>
