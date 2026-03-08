@@ -89,8 +89,6 @@ header h1 { margin: 0; font-size: 1.25em; color: #2c3e50; }
 
 <script type="module">
   import { initGlobalNav } from './nav.js?v=000309';
-  initGlobalNav('zaiko');
-
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
   import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
   import { getFirestore, collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, addDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
