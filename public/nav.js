@@ -1,66 +1,55 @@
 export function initGlobalNav(activePageName) {
+  // If we are on a page, save it as the last opened page
+  if (activePageName && activePageName !== 'index') {
+    localStorage.setItem('lastOpenedPage', activePageName + '.html');
+  }
+
   const css = `
-    .global-nav-container {
-      position: relative;
+    body {
+      padding-bottom: 70px !important;
     }
-    .hamburger-btn {
-      background: none;
-      border: none;
-      font-size: 1.8em;
-      cursor: pointer;
-      color: #333;
-      padding: 0;
-      line-height: 1;
-    }
-    .nav-menu {
-      display: none;
-      position: absolute;
+    .bottom-nav-container {
+      position: fixed;
+      bottom: 0;
+      left: 0;
       right: 0;
-      top: 40px;
-      background: #fff;
-      border: 1px solid #e0e0e0;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      border-radius: 8px;
+      height: 65px;
+      background: #ffffff;
+      border-top: 1px solid #e0e0e0;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
       z-index: 9999;
-      width: 180px;
-      text-align: left;
-      overflow: hidden;
-      font-weight: normal;
+      padding-bottom: env(safe-area-inset-bottom);
     }
-    .nav-menu a, .nav-menu button.menu-item {
-      display: block !important;
-      width: 100%;
-      text-align: left;
-      padding: 12px 16px !important;
-      text-decoration: none !important;
-      color: #333 !important;
-      border: none;
-      border-bottom: 1px solid #eee;
-      font-size: 1em !important;
-      font-weight: normal !important;
-      background: transparent !important;
-      border-radius: 0 !important;
-      margin: 0 !important;
-      cursor: pointer;
-      box-sizing: border-box;
-      font-family: inherit;
+    .nav-item {
+      text-decoration: none;
+      color: #757575;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      height: 100%;
+      font-size: 0.75em;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
     }
-    .nav-menu *:last-child {
-      border-bottom: none;
+    .nav-item .icon {
+      font-size: 24px;
+      margin-bottom: 4px;
+      transition: transform 0.2s;
     }
-    .nav-menu .active {
-      background: #f0f8ff !important;
-      font-weight: bold !important;
+    .nav-item.active {
+      color: #1976d2;
+      font-weight: bold;
     }
-    .nav-menu a:hover, .nav-menu button.menu-item:hover {
-      background: #f5f5f5 !important;
-    }
-    .nav-menu-right-aligned {
-      right: 0 !important;
+    .nav-item.active .icon {
+      transform: scale(1.1);
     }
   `;
 
-  // Inject CSS
   if (!document.getElementById('global-nav-style')) {
     const style = document.createElement('style');
     style.id = 'global-nav-style';
@@ -68,50 +57,50 @@ export function initGlobalNav(activePageName) {
     document.head.appendChild(style);
   }
 
-  // Create menu HTML
   const navHtml = `
-    <div class="global-nav-container">
-      <button id="hamburger-btn" class="hamburger-btn">☰</button>
-      <div id="nav-menu" class="nav-menu">
-        <a href="index.html" class="${activePageName === 'index' ? 'active' : ''}">🏠 トップ ${activePageName === 'index' ? '📌' : ''}</a>
-        <a href="kakei.html" class="${activePageName === 'kakei' ? 'active' : ''}">💰 家計精算 ${activePageName === 'kakei' ? '📌' : ''}</a>
-        <a href="sokone.html" class="${activePageName === 'sokone' ? 'active' : ''}">🛒 底値帳 ${activePageName === 'sokone' ? '📌' : ''}</a>
-        <a href="zaiko.html" class="${activePageName === 'zaiko' ? 'active' : ''}">📦 在庫管理 ${activePageName === 'zaiko' ? '📌' : ''}</a>
-        <button id="nav-logout-btn" class="menu-item" style="color:#d32f2f !important;">🚪 ログアウト</button>
+    <div class="bottom-nav-container">
+      <a href="kakei.html" class="nav-item ${activePageName === 'kakei' ? 'active' : ''}">
+        <span class="icon">💰</span>
+        <span>家計簿</span>
+      </a>
+      <a href="sokone.html" class="nav-item ${activePageName === 'sokone' ? 'active' : ''}">
+        <span class="icon">🏷️</span>
+        <span>底値帳</span>
+      </a>
+      <a href="kaimono.html" class="nav-item ${activePageName === 'kaimono' ? 'active' : ''}">
+        <span class="icon">🛒</span>
+        <span>買うもの</span>
+      </a>
+      <div id="nav-logout-btn" class="nav-item" style="cursor:pointer;">
+        <span class="icon" style="color:#d32f2f;">🚪</span>
+        <span>ログアウト</span>
       </div>
     </div>
   `;
 
-  // Identify placeholder
-  const placeholder = document.getElementById('global-nav-placeholder');
-  if (placeholder) {
-    placeholder.innerHTML = navHtml;
+  // Place it directly into body, ignoring global-nav-placeholder which was in <header>
+  if (!document.getElementById('bottom-nav-rendered')) {
+    const wrapper = document.createElement('div');
+    wrapper.id = 'bottom-nav-rendered';
+    wrapper.innerHTML = navHtml;
+    document.body.appendChild(wrapper);
   }
 
-  // Logic
-  const menu = document.getElementById('nav-menu');
-  const btn = document.getElementById('hamburger-btn');
+  // Remove old hamburger visual if present
+  const oldPlaceholder = document.getElementById('global-nav-placeholder');
+  if (oldPlaceholder) {
+    oldPlaceholder.style.display = 'none';
+  }
+
+  // Logic for logout
   const logoutBtn = document.getElementById('nav-logout-btn');
-
-  if (btn && menu) {
-    btn.addEventListener('click', () => {
-      menu.style.display = menu.style.display === 'none' || menu.style.display === '' ? 'block' : 'none';
-    });
-
-    document.addEventListener('click', (e) => {
-      if (menu.style.display === 'block' && !menu.contains(e.target) && !btn.contains(e.target)) {
-        menu.style.display = 'none';
-      }
-    });
-  }
-
-  // Attempt to load auth and trigger logout
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
       try {
         const { getAuth, signOut } = await import("https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js");
         const auth = getAuth();
         if (auth) {
+          localStorage.removeItem('lastOpenedPage');
           await signOut(auth);
           window.location.href = "index.html";
         }
@@ -121,7 +110,7 @@ export function initGlobalNav(activePageName) {
     });
   }
 
-  // iOS PWAでのリンク遷移不具合（無反応やSafariへの強制遷移）を防止
+  // iOS PWA support
   if (!window.__iosPwaLinkSetup) {
     window.__iosPwaLinkSetup = true;
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;

@@ -30,7 +30,7 @@ main{padding:14px;display:grid;gap:12px}
       <div id="global-nav-placeholder"></div>
     </header>
     <script type="module">
-      import { initGlobalNav } from './nav.js?v=000309';
+      import { initGlobalNav } from './nav.js?v=000310';
       initGlobalNav('index');
     </script>
     <main><a class="card" href="kakei.html">
@@ -38,11 +38,11 @@ main{padding:14px;display:grid;gap:12px}
       <div class="desc">夫婦の支払いを割合で自動計算</div>
     </a>
     <a class="card" href="sokone.html">
-      <div class="title">🛒 底値帳</div>
+      <div class="title">📉 底値メモ</div>
       <div class="desc">商品の最安値をまとめて管理</div>
     </a>
-    <a class="card" href="zaiko.html">
-      <div class="title">📦 在庫管理</div>
+    <a class="card" href="kaimono.html">
+      <div class="title">🛒 買い物メモ</div>
       <div class="desc">ストック確認と買い物リスト</div>
     </a>
     <!-- 追加したいアプリはこの下にコピーして増やす --><!--
@@ -81,7 +81,9 @@ main{padding:14px;display:grid;gap:12px}
       if (user) {
         if (ALLOWED_EMAILS.includes(user.email)) {
           loginScreen.style.display = 'none';
-          mainContent.style.display = 'block';
+          let target = localStorage.getItem('lastOpenedPage') || 'kakei.html';
+          if (target === 'zaiko.html') target = 'kaimono.html';
+          window.location.replace(target);
         } else {
           signOut(auth).then(() => {
             loginScreen.style.display = 'block';

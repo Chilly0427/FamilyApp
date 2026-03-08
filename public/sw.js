@@ -1,13 +1,16 @@
-const CACHE_NAME = 'familyapp-cache-v7';
+const CACHE_NAME = 'familyapp-cache-v20';
 const urlsToCache = [
   '/',
   '/index.html',
   '/kakei.html',
   '/sokone.html',
-  '/zaiko.html',
+  '/kaimono.html',
   '/nav.js',
+  '/firebase-config.js',
+  '/manifest.json',
   '/icon-192.png',
-  '/icon-512.png'
+  '/icon-512.png',
+  'https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -35,15 +38,28 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // 基本的にネットワークから取得、失敗したらキャッシュから取得
-  // Firebaseや外部APIとの通信はキャッシュせずネットワークに任せる
-  if (event.request.url.startsWith('https://www.gstatic.com/') || 
-      event.request.url.startsWith('https://firestore.googleapis.com/')) {
-    return; // Firebase等の外部リクエストはService Workerでインターセプトしない
+  // Firestoreデータ通信やAuthの通信はキャッシュせずにスルー
+  if (event.request.url.includes('firestore.googleapis.com') || 
+      event.request.url.includes('identitytoolkit.googleapis.com') ||
+      event.request.url.includes('securetoken.googleapis.com')) {
+    return;
   }
 
   event.respondWith(
-    fetch(event.request).catch(() => {
+    fetch(event.request).then((response) => {
+      // ネットワーク通信が成功した場合、静的ファイルやSDKを動的にキャッシュ
+      if (event.request.method === 'GET' && 
+         (event.request.url.startsWith(self.location.origin) || 
+          event.request.url.startsWith('https://www.gstatic.com/') ||
+          event.request.url.startsWith('https://cdn.jsdelivr.net/'))) {
+        const responseClone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseClone);
+        });
+      }
+      return response;
+    }).catch(() => {
+      // ネットワークがオフライン・失敗した場合はキャッシュから返す
       return caches.match(event.request);
     })
   );

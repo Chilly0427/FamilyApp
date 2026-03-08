@@ -35,7 +35,7 @@ main{padding:12px;padding-bottom:120px;max-width:600px;margin:0 auto;}
 .row-calc{font-weight:bold; color:#e65100; font-size:1.05em; margin-top:4px;}
 
 input[type=number], input[type=text], input[type=date]{width:100%;padding:10px 12px;border:1px solid #cfd8dc;border-radius:8px;box-sizing:border-box;font-size:16px;background:#fff;transition:all 0.2s ease; color:#333;}
-input[type=number]:focus, input[type=text]:focus, input[type=date]:focus{border-color:#4caf50; outline:none; box-shadow:0 0 0 3px rgba(76,175,80,0.15);}
+
 
 button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px; -webkit-tap-highlight-color: transparent;}
 
@@ -69,26 +69,45 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
   transform: scale(1.02);
   z-index: 10;
 }
+
+/* --- Focus & Interaction Styles --- */
+input:focus, select:focus {
+  border-color: #1976d2 !important;
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.2) !important;
+  background-color: #f4fafe !important;
+  outline: none !important;
+  transition: all 0.2s ease;
+}
+.row, .item-row, .input-section, .group-container {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.row:focus-within, .item-row:focus-within, .input-section:focus-within, .group-container:focus-within {
+  box-shadow: 0 0 0 2px #1976d2, 0 4px 12px rgba(25, 118, 210, 0.2) !important;
+  transform: translateY(-1px);
+}
+
 </style>
 </head>
 <body style="display: none;">
 
 <header style="position:relative; display:flex; justify-content:space-between; align-items:center;">
-  <h1>🛒 底値帳</h1>
+  <h1 style="margin: 0; font-size: 1.25em; color: #2c3e50;">📉 底値メモ</h1>
   <div id="global-nav-placeholder"></div>
 </header>
 
 <script type="module">
-  import { initGlobalNav } from './nav.js?v=000309';
+  import { initGlobalNav } from './nav.js?v=000310';
   initGlobalNav('sokone');
 </script>
 
 <main>
-  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; gap:8px;">
-    <div class="help-text" style="flex:1; margin:0;">
-      💡 <strong>使い方</strong>：「➕ 新しい商品グループ」から登録。<br>
-      各グループ内の最安値が王冠で表示されます。
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:8px; flex-wrap:wrap;">
+    <div style="display:flex; gap:6px;">
+      <button onclick="document.getElementById('importFile').click()" style="padding:6px; border:none; border-radius:4px; font-weight:bold; cursor:pointer; background:#fff; border:1px solid #ccc; font-size: 0.9em;">📂 読込</button>
+      <button onclick="exportData()" style="padding:6px; border:none; border-radius:4px; font-weight:bold; cursor:pointer; background:#fff; border:1px solid #ccc; font-size: 0.9em;">💾 保存</button>
+      <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
     </div>
+    
     <select id="sortModeSelect" onchange="setSortMode(this.value)" style="padding:8px; border-radius:8px; border:1px solid #cfd8dc; background:#fff; font-weight:bold; color:#2e7d32; outline:none;">
       <option value="manual">☰ 手動並べ替え</option>
       <option value="name">🔤 名前順(自動)</option>
@@ -101,14 +120,7 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
     <button class="btn-add" onclick="addRow()">➕ 新しい商品グループ</button>
   </div>
 
-  <!-- データ管理 -->
-  <div style="text-align:center;margin:40px 0 20px; padding-top:20px; border-top: 1px dashed #cfd8dc;">
-    <p style="font-size:12px;color:#888;margin-bottom:10px;">📉 データ管理</p>
-    <button onclick="exportData()" style="padding:6px 12px; font-size:12px; border-radius:4px; border:1px solid #ccc; background:#f9f9f9; cursor:pointer; margin-right:10px;">エクスポート (JSON)</button>
-    <button onclick="document.getElementById('importFile').click()" style="padding:6px 12px; font-size:12px; border-radius:4px; border:1px solid #ccc; background:#f9f9f9; cursor:pointer;">インポート (JSON)</button>
-    <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
-  </div>
-</main>
+  </main>
 
 <datalist id="store-list"></datalist>
 <datalist id="unit-list"></datalist>

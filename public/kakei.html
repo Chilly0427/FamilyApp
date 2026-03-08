@@ -27,6 +27,23 @@ button:hover{background:#ddd}
 .blocked-input::placeholder{color:transparent !important;}
 .clear-btn{position:absolute; right:4px; top:50%; transform:translateY(-50%); cursor:pointer; color:#777; font-size:14px; font-weight:bold; background:#e0e0e0; border-radius:50%; width:18px; height:18px; display:flex; align-items:center; justify-content:center; z-index:2;}
 .clear-btn:hover{background:#d0d0d0;}
+
+/* --- Focus & Interaction Styles --- */
+input:focus, select:focus {
+  border-color: #1976d2 !important;
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.2) !important;
+  background-color: #f4fafe !important;
+  outline: none !important;
+  transition: all 0.2s ease;
+}
+.row, .item-row, .input-section, .group-container {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.row:focus-within, .item-row:focus-within, .input-section:focus-within, .group-container:focus-within {
+  box-shadow: 0 0 0 2px #1976d2, 0 4px 12px rgba(25, 118, 210, 0.2) !important;
+  transform: translateY(-1px);
+}
+
 </style>
 </head>
 <body style="display: none;">
@@ -58,6 +75,39 @@ button:hover{background:#ddd}
   });
 
   let items = [];
+  
+  // Month selection variables
+  window.currentMonthStr = new Date(new Date().getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 7); // init with current JST Month
+
+  window.formatMonthStr = function(yrmo) {
+    const parts = yrmo.split('-');
+    if(parts.length < 2) return yrmo;
+    return `${parts[0]}年${parseInt(parts[1], 10)}月`;
+  };
+
+  window.setMonthDisplay = function() {
+    const disp = document.getElementById('currentMonthDisplay');
+    if(disp) disp.textContent = window.formatMonthStr(window.currentMonthStr);
+  };
+
+  window.prevMonth = () => {
+    let d = new Date(window.currentMonthStr + '-01T00:00:00Z');
+    d.setUTCMonth(d.getUTCMonth() - 1);
+    window.currentMonthStr = d.toISOString().slice(0, 7);
+    window.setMonthDisplay();
+    render(); 
+    updateUIOnly();
+  };
+  
+  window.nextMonth = () => {
+    let d = new Date(window.currentMonthStr + '-01T00:00:00Z');
+    d.setUTCMonth(d.getUTCMonth() + 1);
+    window.currentMonthStr = d.toISOString().slice(0, 7);
+    window.setMonthDisplay();
+    render();
+    updateUIOnly();
+  };
+
   const list = document.getElementById('list');
   const ratioSlider = document.getElementById('ratio');
   const ratioLabel = document.getElementById('ratioLabel');
@@ -65,6 +115,7 @@ button:hover{background:#ddd}
   let updateTimeoutMap = {};
 
   function initApp() {
+    window.setMonthDisplay();
     Sortable.create(list, {
       handle: '.drag-handle',
       animation: 150,
@@ -117,7 +168,9 @@ button:hover{background:#ddd}
       const newDocRef = doc(collection(db, "kakei_items"));
       const today = new Date();
       // JST Date String YYYY-MM-DD
-      const jstDate = new Date(today.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0,10);
+      const todayJst = new Date(today.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0,10);
+      const isCurrentMonth = todayJst.startsWith(window.currentMonthStr);
+      const jstDate = isCurrentMonth ? todayJst : window.currentMonthStr + '-01';
       let maxOrder = 0;
       if (items.length > 0) {
         maxOrder = Math.max(...items.map(i => i.order || 0));
@@ -198,7 +251,8 @@ button:hover{background:#ddd}
 
   function render(activeElementId = null) {
     list.innerHTML = '';
-    items.forEach((it) => {
+    const currentMonthItems = items.filter(it => it.date && it.date.startsWith(window.currentMonthStr));
+    currentMonthItems.forEach((it) => {
       const div = document.createElement('div');
       div.className = 'row';
       if (it.isSettled) {
@@ -352,7 +406,8 @@ button:hover{background:#ddd}
 
     let sharedH = 0, sharedW = 0, transH = 0, transW = 0;
     
-    items.forEach(it => {
+    const currentMonthItems = items.filter(it => it.date && it.date.startsWith(window.currentMonthStr));
+    currentMonthItems.forEach(it => {
       if (it.isSettled) return;
       if (it.type === 'shared') {
         sharedH += it.h;
@@ -403,7 +458,8 @@ button:hover{background:#ddd}
     const wifeRatio = 1 - r;
     let sharedH = 0, sharedW = 0, transH = 0, transW = 0;
     
-    items.forEach(it => {
+    const currentMonthItems = items.filter(it => it.date && it.date.startsWith(window.currentMonthStr));
+    currentMonthItems.forEach(it => {
       if (it.isSettled) return;
       if (it.type === 'shared') {
         sharedH += it.h;
@@ -517,20 +573,22 @@ button:hover{background:#ddd}
 
 <header>
   <div style="display:flex; justify-content:space-between; align-items:center; position:relative;">
-    <div>🏠 <strong>家計精算ツール</strong></div>
+    <h1 style="margin: 0; font-size: 1.25em; color: #2c3e50;">🏠 家計精算</h1>
     <div id="global-nav-placeholder"></div>
   </div>
+  
+  <div style="display:flex; justify-content:center; align-items:center; background:#fff; padding: 12px 0; border-bottom: 1px solid #ddd; position:sticky; top: 58px; z-index:9; font-size:1.2em; font-weight:bold; gap: 16px;">
+    <span onclick="prevMonth()" style="cursor:pointer; padding:4px 12px; background:#f0f0f0; border-radius:4px; user-select:none;">◁</span>
+    <span id="currentMonthDisplay"></span>
+    <span onclick="nextMonth()" style="cursor:pointer; padding:4px 12px; background:#f0f0f0; border-radius:4px; user-select:none;">▷</span>
+  </div>
+
   <script type="module">
-    import { initGlobalNav } from './nav.js?v=000309';
+    import { initGlobalNav } from './nav.js?v=000310';
     initGlobalNav('kakei');
   </script>
   
-  <div class="legend" style="margin-top:10px;">
-    <strong>【使い方・凡例】</strong><br>
-    🏠 <strong>家計</strong>：下のスライダーの割合で負担する生活費など<br>
-    💸 <strong>立替</strong>：相手の個人の買い物を全額立て替えた時など<br>
-    ☰ <strong>並替</strong>：左端のマークごと長押しで上下に移動可能<br>
-  </div>
+  
 
   <div style="margin-top:10px">⚖️ <span id="ratioLabel">夫70% / 妻30%</span></div>
   <input type="range" min="0" max="100" value="70" id="ratio" style="width:100%;margin:10px 0" />
@@ -538,12 +596,14 @@ button:hover{background:#ddd}
   <div class="big" id="finalResult">計算中...</div>
   
   <div style="display:flex;justify-content:space-between;margin-top:10px; flex-wrap:wrap; gap:8px;">
-    <button id="toggleAllBtn" onclick="toggleAllSettled()" style="color:#1976d2;">✅ 全て「済」にする</button>
-    <div style="display:flex; gap:6px;">
+    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+      <button id="toggleAllBtn" onclick="toggleAllSettled()" style="color:#1976d2;">✅ 全て「済」にする</button>
+      <button onclick="clearSettled()" style="color:#d32f2f">🗑 「済」を削除</button>
+    </div>
+    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:4px;">
       <button onclick="importJSON()">📂 読込</button>
       <button onclick="exportJSON()">💾 保存</button>
-      <button onclick="exportImage()">📷 スクショ</button>
-      <button onclick="clearSettled()" style="color:#d32f2f">🗑 「済」を削除</button>
+      <button onclick="exportImage()">📷 スクリーンショット</button>
     </div>
   </div>
 </header>
