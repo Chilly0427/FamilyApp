@@ -256,16 +256,16 @@ header h1 { margin: 0; font-size: 1.25em; color: #2c3e50; }
         if(item.isDone) hasDone = true;
         
         const row = document.createElement('div');
-        row.className = \`item-row \${item.isDone ? 'done' : ''}\`;
+        row.className = `item-row ${item.isDone ? 'done' : ''}`;
         
-        row.innerHTML = \`
-          <div class="item-name" onclick="toggleItemDone('\${item.id}', \${item.isDone})">
-            \${escapeHtml(item.name)}
+        row.innerHTML = `
+          <div class="item-name" onclick="toggleItemDone('${item.id}', ${item.isDone})">
+            ${escapeHtml(item.name)}
           </div>
-          <div class="status-indicator" onclick="cycleItemStatus('\${item.id}', \${item.status})">
-            <span>\${STATUS_ICONS[item.status]}</span>
+          <div class="status-indicator" onclick="cycleItemStatus('${item.id}', ${item.status})">
+            <span>${STATUS_ICONS[item.status]}</span>
           </div>
-        \`;
+        `;
         shopSection.appendChild(row);
       });
       listContainer.appendChild(shopSection);
@@ -293,14 +293,14 @@ header h1 { margin: 0; font-size: 1.25em; color: #2c3e50; }
         const row = document.createElement('div');
         row.className = 'item-row';
         
-        row.innerHTML = \`
+        row.innerHTML = `
           <div class="item-name">
-            \${escapeHtml(item.name)}
+            ${escapeHtml(item.name)}
           </div>
-          <div class="status-indicator" onclick="cycleItemStatus('\${item.id}', \${item.status})">
-            <span>\${STATUS_ICONS[item.status]}</span>
+          <div class="status-indicator" onclick="cycleItemStatus('${item.id}', ${item.status})">
+            <span>${STATUS_ICONS[item.status]}</span>
           </div>
-        \`;
+        `;
         shopSection.appendChild(row);
       });
       inventoryContainer.appendChild(shopSection);
@@ -316,16 +316,16 @@ header h1 { margin: 0; font-size: 1.25em; color: #2c3e50; }
     const currentSelections = Array.from(shopCheckboxes.querySelectorAll('.selected')).map(el => el.dataset.shopId);
     shopCheckboxes.innerHTML = categories.map(cat => {
       const isSelected = currentSelections.includes(cat.id) ? 'selected' : '';
-      return \`<div class="checkbox-item \${isSelected}" data-shop-id="\${cat.id}">\${escapeHtml(cat.name)}</div>\`;
+      return `<div class="checkbox-item ${isSelected}" data-shop-id="${cat.id}">${escapeHtml(cat.name)}</div>`;
     }).join('');
 
     // Categories list for management
-    shopListContainer.innerHTML = categories.map(cat => \`
+    shopListContainer.innerHTML = categories.map(cat => `
       <div class="list-item">
-        <span>\${escapeHtml(cat.name)}</span>
-        <button class="delete-btn" onclick="deleteCategory('\${cat.id}')">✖</button>
+        <span>${escapeHtml(cat.name)}</span>
+        <button class="delete-btn" onclick="deleteCategory('${cat.id}')">✖</button>
       </div>
-    \`).join('');
+    `).join('');
     
     // Add Item management
     const allItemsDiv = document.createElement('div');
@@ -334,10 +334,10 @@ header h1 { margin: 0; font-size: 1.25em; color: #2c3e50; }
     items.forEach(item => {
       const row = document.createElement('div');
       row.className = 'list-item';
-      row.innerHTML = \`
-        <span>\${escapeHtml(item.name)}</span>
-        <button class="delete-btn" onclick="deleteItem('\${item.id}')">削除</button>
-      \`;
+      row.innerHTML = `
+        <span>${escapeHtml(item.name)}</span>
+        <button class="delete-btn" onclick="deleteItem('${item.id}')">削除</button>
+      `;
       allItemsDiv.appendChild(row);
     });
     
