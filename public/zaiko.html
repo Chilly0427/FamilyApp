@@ -96,6 +96,8 @@ header h1 { margin: 0; font-size: 1.25em; color: #2c3e50; }
   import { getFirestore, collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, addDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
   import { firebaseConfig, ALLOWED_EMAILS } from "./firebase-config.js";
 
+  initGlobalNav('zaiko');
+
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
