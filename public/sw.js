@@ -1,4 +1,4 @@
-const CACHE_NAME = 'familyapp-cache-v20';
+const CACHE_NAME = 'familyapp-cache-v21';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -10,6 +10,9 @@ const urlsToCache = [
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
+  '/favicon-32x32.png',
+  '/favicon-16x16.png',
+  '/favicon.ico',
   'https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js'
 ];
 
