@@ -419,15 +419,7 @@ input:focus, select:focus {
         }
       };
 
-      const editBtn = document.createElement('button');
-      editBtn.innerHTML = '✏️';
-      editBtn.style.background = 'none';
-      editBtn.style.border = 'none';
-      editBtn.style.fontSize = '1.2em';
-      editBtn.style.cursor = 'pointer';
-      editBtn.style.padding = '4px 8px';
-      editBtn.onclick = () => renameCategory(cat.id, cat.name);
-
+      // カテゴリの鉛筆ボタンはタップで編集する仕様にしたため削除
       const delBtn = document.createElement('button');
       delBtn.className = 'delete-btn';
       delBtn.innerHTML = '✖';
@@ -440,7 +432,6 @@ input:focus, select:focus {
       delBtn.onclick = () => deleteCategory(cat.id, cat.name);
 
       actionsWrap.appendChild(addItemBtn);
-      actionsWrap.appendChild(editBtn);
 
       // 完了済みの表示/非表示トグルボタン（SVGアイコン：目 / 目に斜線）
       const toggleDoneBtn = document.createElement('button');
@@ -561,21 +552,9 @@ input:focus, select:focus {
         itemDelBtn.style.padding = '0 8px';
         itemDelBtn.onclick = (e) => { e.stopPropagation(); deleteItem(item.id); };
         
-        const editBtn = document.createElement('button');
-        editBtn.innerHTML = '✏️';
-        editBtn.className = 'item-edit-btn';
-        editBtn.style.color = '#1976d2';
-        editBtn.style.background = 'none';
-        editBtn.style.border = 'none';
-        editBtn.style.fontSize = '1.2em';
-        editBtn.style.cursor = 'pointer';
-        editBtn.style.padding = '0 8px';
-        editBtn.onclick = (e) => { e.stopPropagation(); startEditingItem(item); };
-        
         row.appendChild(handle);
         row.appendChild(checkIcon);
         row.appendChild(nameSpanContainer);
-        row.appendChild(editBtn);
         row.appendChild(itemDelBtn);
         itemList.appendChild(row);
 
