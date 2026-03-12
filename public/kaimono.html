@@ -385,6 +385,7 @@ input:focus, select:focus {
         
         const itemDelBtn = document.createElement('button');
         itemDelBtn.innerHTML = '✖';
+        itemDelBtn.className = 'item-del-btn';
         itemDelBtn.style.color = '#aaa';
         itemDelBtn.style.background = 'none';
         itemDelBtn.style.border = 'none';
@@ -393,9 +394,21 @@ input:focus, select:focus {
         itemDelBtn.style.padding = '0 8px';
         itemDelBtn.onclick = (e) => { e.stopPropagation(); deleteItem(item.id); };
         
+        const editBtn = document.createElement('button');
+        editBtn.innerHTML = '✏️';
+        editBtn.className = 'item-edit-btn';
+        editBtn.style.color = '#1976d2';
+        editBtn.style.background = 'none';
+        editBtn.style.border = 'none';
+        editBtn.style.fontSize = '1.2em';
+        editBtn.style.cursor = 'pointer';
+        editBtn.style.padding = '0 8px';
+        editBtn.onclick = (e) => { e.stopPropagation(); startEditingItem(item); };
+        
         row.appendChild(handle);
         row.appendChild(checkIcon);
         row.appendChild(nameSpanContainer);
+        row.appendChild(editBtn);
         row.appendChild(itemDelBtn);
         itemList.appendChild(row);
       });
@@ -597,6 +610,83 @@ input:focus, select:focus {
       console.error(e);
       alert('カテゴリ名の変更に失敗しました');
     }
+  }
+
+  // アイテム名のインライン編集を開始する
+  async function startEditingItem(item) {
+    const row = document.querySelector(`.item-row[data-id="${item.id}"]`);
+    if (!row) return;
+    const nameContainer = row.querySelector('.item-name');
+    if (!nameContainer) return;
+
+    // 入力フィールドを作る
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = item.name || '';
+    input.style.padding = '8px';
+    input.style.fontSize = '1em';
+    input.style.border = '1px solid #ccc';
+    input.style.borderRadius = '6px';
+    input.style.width = '100%';
+
+    input.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        await save();
+      } else if (e.key === 'Escape') {
+        renderList();
+      }
+    });
+
+    // 隠すべきボタン
+    const editBtn = row.querySelector('.item-edit-btn');
+    const delBtn = row.querySelector('.item-del-btn');
+    if (editBtn) editBtn.style.display = 'none';
+    if (delBtn) delBtn.style.display = 'none';
+
+    // 既存内容を置き換え（date はそのまま残すため一旦クリアして input を入れる）
+    const dateSpan = nameContainer.querySelector('div:nth-child(2)');
+    nameContainer.innerHTML = '';
+    nameContainer.appendChild(input);
+    if (dateSpan) nameContainer.appendChild(dateSpan);
+    input.focus();
+
+    // 保存・キャンセルボタン
+    const saveBtn = document.createElement('button');
+    saveBtn.innerHTML = '✅';
+    saveBtn.style.background = 'none';
+    saveBtn.style.border = 'none';
+    saveBtn.style.fontSize = '1.2em';
+    saveBtn.style.cursor = 'pointer';
+    saveBtn.style.color = '#2e7d32';
+    saveBtn.style.padding = '0 8px';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.innerHTML = '✖';
+    cancelBtn.style.background = 'none';
+    cancelBtn.style.border = 'none';
+    cancelBtn.style.fontSize = '1.2em';
+    cancelBtn.style.cursor = 'pointer';
+    cancelBtn.style.color = '#d32f2f';
+    cancelBtn.style.padding = '0 8px';
+
+    row.appendChild(saveBtn);
+    row.appendChild(cancelBtn);
+
+    async function save() {
+      const newName = input.value.trim();
+      if (!newName) { alert('名前を入力してください'); input.focus(); return; }
+      try {
+        await updateDoc(doc(db, 'shopping_list', item.id), { name: newName, updatedAt: serverTimestamp() });
+      } catch (err) {
+        console.error(err);
+        alert('更新に失敗しました');
+      } finally {
+        renderList();
+      }
+    }
+
+    cancelBtn.addEventListener('click', (e) => { e.stopPropagation(); renderList(); });
+    saveBtn.addEventListener('click', async (e) => { e.stopPropagation(); await save(); });
   }
 </script>
 </body>
