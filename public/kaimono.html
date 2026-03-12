@@ -382,10 +382,11 @@ input:focus, select:focus {
 
       const activeCount = catItems.filter(item => !item.isDone).length;
       const catNameSpan = document.createElement('span');
+      catNameSpan.className = 'cat-name';
       catNameSpan.textContent = cat.name + (activeCount > 0 ? ' (' + activeCount + ')' : ' (0)');
       catNameSpan.style.cursor = 'pointer';
-      // 名前をタップしたらカテゴリ名変更（鉛筆ではなく直接タップで編集）
-      catNameSpan.onclick = (e) => { e.stopPropagation(); renameCategory(cat.id, cat.name); };
+      // 名前をタップしたらカテゴリ名をインライン編集にする
+      catNameSpan.onclick = (e) => { e.stopPropagation(); startEditingCategory(cat); };
 
       titleLeft.appendChild(catHandle);
       titleLeft.appendChild(collapseToggle);
@@ -800,18 +801,61 @@ input:focus, select:focus {
     }
   }
 
-  async function renameCategory(id, oldName) {
-    const newName = prompt('新しいカテゴリ名を入力してください:', oldName);
-    if (!newName || newName.trim() === '' || newName === oldName) return;
+  function startEditingCategory(cat) {
+    const catDiv = document.querySelector(`.category-section[data-id="${cat.id}"]`);
+    if (!catDiv) return;
+    const nameSpan = catDiv.querySelector('.cat-name');
+    if (!nameSpan) return;
+    const oldName = cat.name || '';
 
-    try {
-      await updateDoc(doc(db, "shopping_categories", id), {
-        name: newName.trim()
-      });
-    } catch(e) {
-      console.error(e);
-      alert('カテゴリ名の変更に失敗しました');
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = oldName;
+    input.autocomplete = 'off';
+    input.style.padding = '6px';
+    input.style.fontSize = '1em';
+    input.style.border = '1px solid #ccc';
+    input.style.borderRadius = '6px';
+    input.style.width = '220px';
+
+    // 置換して focus
+    nameSpan.replaceWith(input);
+    input.focus();
+
+    // 編集中は削除ボタンを隠す（誤操作防止）
+    const delBtn = catDiv.querySelector('.delete-btn');
+    if (delBtn) delBtn.style.display = 'none';
+
+    let committed = false;
+    async function commit() {
+      if (committed) return;
+      committed = true;
+      const newName = input.value.trim();
+      try {
+        if (newName && newName !== oldName) {
+          await updateDoc(doc(db, 'shopping_categories', cat.id), { name: newName });
+        }
+      } catch (err) {
+        console.error('rename category failed', err);
+        alert('カテゴリ名の変更に失敗しました');
+      } finally {
+        renderList();
+      }
     }
+
+    input.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        await commit();
+        input.blur();
+      } else if (e.key === 'Escape') {
+        committed = true;
+        renderList();
+      }
+    });
+
+    input.addEventListener('blur', async () => {
+      await commit();
+    });
   }
 
   // 指定カテゴリ内で未完了アイテムを先に、その後に完了アイテムを並べ替え、order を更新する
@@ -864,11 +908,47 @@ input:focus, select:focus {
     input.style.width = '100%';
     input.style.boxSizing = 'border-box';
 
+    let committed = false;
+    async function commit() {
+      if (committed) return;
+      committed = true;
+      const newName = input.value.trim();
+      try {
+        if (!newName) {
+          if (isNew) {
+            await deleteDoc(doc(db, 'shopping_list', item.id));
+            newlyCreatedItemIds.delete(item.id);
+          } else {
+            // 既存アイテムで空にされた場合は何もしない（元の値に戻す）
+          }
+        } else {
+          await updateDoc(doc(db, 'shopping_list', item.id), { name: newName, updatedAt: serverTimestamp() });
+          if (newlyCreatedItemIds.has(item.id)) newlyCreatedItemIds.delete(item.id);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        renderList();
+      }
+    }
+
     input.addEventListener('keydown', async (e) => {
       if (e.key === 'Enter') {
-        await save();
+        await commit();
+        input.blur();
       } else if (e.key === 'Escape') {
-        doCancel();
+        committed = true;
+        // 新規作成アイテムはキャンセルで削除、既存は単に再描画で元に戻す
+        try {
+          if (isNew) {
+            await deleteDoc(doc(db, 'shopping_list', item.id));
+            newlyCreatedItemIds.delete(item.id);
+          }
+        } catch (err) {
+          console.error('cancel delete failed', err);
+        } finally {
+          renderList();
+        }
       }
     });
 
@@ -933,60 +1013,10 @@ input:focus, select:focus {
     if (dateSpan) nameContainer.appendChild(dateSpan);
     input.focus();
 
-    // 保存・キャンセルボタン
-    const saveBtn = document.createElement('button');
-    saveBtn.innerHTML = '✅';
-    saveBtn.style.background = 'none';
-    saveBtn.style.border = 'none';
-    saveBtn.style.fontSize = '1.2em';
-    saveBtn.style.cursor = 'pointer';
-    saveBtn.style.color = '#2e7d32';
-    saveBtn.style.padding = '0 8px';
-
-    const cancelBtn = document.createElement('button');
-    cancelBtn.innerHTML = '✖';
-    cancelBtn.style.background = 'none';
-    cancelBtn.style.border = 'none';
-    cancelBtn.style.fontSize = '1.2em';
-    cancelBtn.style.cursor = 'pointer';
-    cancelBtn.style.color = '#d32f2f';
-    cancelBtn.style.padding = '0 8px';
-
-    // 保存・キャンセルを actionWrap に追加（入力と同列）
-    actionWrap.appendChild(saveBtn);
-    actionWrap.appendChild(cancelBtn);
-
-    async function save() {
-      const newName = input.value.trim();
-      if (!newName) { alert('名前を入力してください'); input.focus(); return; }
-      try {
-        await updateDoc(doc(db, 'shopping_list', item.id), { name: newName, updatedAt: serverTimestamp() });
-        // 保存したら新規フラグを削除
-        if (newlyCreatedItemIds.has(item.id)) newlyCreatedItemIds.delete(item.id);
-      } catch (err) {
-        console.error(err);
-        alert('更新に失敗しました');
-      } finally {
-        renderList();
-      }
-    }
-
-    async function doCancel() {
-      // 新規で何も入力されていない場合は削除する
-      try {
-        if (isNew) {
-          await deleteDoc(doc(db, 'shopping_list', item.id));
-          newlyCreatedItemIds.delete(item.id);
-        }
-      } catch (err) {
-        console.error('cancel delete failed', err);
-      } finally {
-        renderList();
-      }
-    }
-
-    cancelBtn.addEventListener('click', (e) => { e.stopPropagation(); doCancel(); });
-    saveBtn.addEventListener('click', async (e) => { e.stopPropagation(); await save(); });
+    // 編集確定はフォーカスが外れたとき（blur）に自動で行う
+    input.addEventListener('blur', async () => {
+      await commit();
+    });
   }
 </script>
 </body>
