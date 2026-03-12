@@ -645,7 +645,10 @@ input:focus, select:focus {
 
       const batch = writeBatch(db);
       items.forEach((it, idx) => {
-        batch.update(doc(db, 'shopping_list', it.id), { order: idx, updatedAt: serverTimestamp() });
+        // 既に順序が同じなら更新しない（不要な書き込みやupdatedAt更新を避ける）
+        if ((it.order || 0) !== idx) {
+          batch.update(doc(db, 'shopping_list', it.id), { order: idx });
+        }
       });
       await batch.commit();
       // snapshot で自動的に renderList が呼ばれるはずだが、念のため再描画のトリガー
