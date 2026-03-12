@@ -613,6 +613,61 @@ input:focus, select:focus {
       sortableInstances.push(sortable);
     });
 
+    // カテゴリを最下部から追加できるインライン入力を追加
+    (function addInlineCategoryInput() {
+      const addSection = document.createElement('div');
+      addSection.className = 'category-section add-category-section';
+      addSection.style.padding = '10px 16px';
+
+      const addInput = document.createElement('input');
+      addInput.type = 'text';
+      addInput.placeholder = '新しいカテゴリ名を入力して Enter またはフォーカスアウトで追加';
+      addInput.style.width = '100%';
+      addInput.style.padding = '10px';
+      addInput.style.border = '1px solid #ccc';
+      addInput.style.borderRadius = '6px';
+      addInput.autocomplete = 'off';
+
+      let adding = false;
+      async function commitCategory() {
+        if (adding) return;
+        const name = addInput.value.trim();
+        if (!name) return;
+        adding = true;
+        try {
+          const maxOrder = shoppingCategories.length > 0 ? Math.max(...shoppingCategories.map(c => c.order || 0)) : -1;
+          const docRef = await addDoc(collection(db, 'shopping_categories'), { name: name, order: maxOrder + 1 });
+          addInput.value = '';
+          // 新しいカテゴリを選択状態にする
+          if (docRef && docRef.id) selectedCategoryId = docRef.id;
+        } catch (err) {
+          console.error('add category failed', err);
+          alert('カテゴリの追加に失敗しました');
+        } finally {
+          adding = false;
+        }
+      }
+
+      addInput.addEventListener('keydown', async (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          await commitCategory();
+          addInput.blur();
+        } else if (e.key === 'Escape') {
+          addInput.value = '';
+          addInput.blur();
+        }
+      });
+
+      addInput.addEventListener('blur', async () => {
+        // 少し遅延して Enter の blur と二重に実行されるのを防ぐ
+        setTimeout(async () => { await commitCategory(); }, 0);
+      });
+
+      addSection.appendChild(addInput);
+      container.appendChild(addSection);
+    })();
+
     const clearBtn = document.getElementById('clear-done-btn');
     clearBtn.style.display = hasDoneItems ? 'block' : 'none';
 
