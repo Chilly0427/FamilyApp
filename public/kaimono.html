@@ -254,6 +254,13 @@ input:focus, select:focus {
 
     shoppingCategories.forEach(cat => {
       const catItems = shoppingItems.filter(item => item.categoryId === cat.id || (!item.categoryId && item.category === cat.name));
+      // 未完了アイテムを先頭に表示する（同一ステータス内は order 順）
+      catItems.sort((a, b) => {
+        if ((a.isDone ? 1 : 0) === (b.isDone ? 1 : 0)) {
+          return (a.order || 0) - (b.order || 0);
+        }
+        return a.isDone ? 1 : -1;
+      });
       // if (catItems.length === 0) return; // 空カテゴリも表示する
       
       const catDiv = document.createElement('div');
@@ -565,6 +572,17 @@ input:focus, select:focus {
         isDone: !currentStatus,
         updatedAt: serverTimestamp()
       });
+      // 状態を反映したあと、該当カテゴリ内で未完了→完了の順に並び直し、order を書き換える
+      const item = shoppingItems.find(it => it.id === id);
+      let catId = null;
+      if (item) {
+        catId = item.categoryId || null;
+        if (!catId && item.category) {
+          const cat = shoppingCategories.find(c => c.name === item.category);
+          catId = cat ? cat.id : null;
+        }
+      }
+      if (catId) await resortCategory(catId);
     } catch(e) {
       console.error(e);
     }
@@ -609,6 +627,31 @@ input:focus, select:focus {
     } catch(e) {
       console.error(e);
       alert('カテゴリ名の変更に失敗しました');
+    }
+  }
+
+  // 指定カテゴリ内で未完了アイテムを先に、その後に完了アイテムを並べ替え、order を更新する
+  async function resortCategory(categoryId) {
+    try {
+      const category = shoppingCategories.find(c => c.id === categoryId);
+      const categoryName = category ? category.name : null;
+      const items = shoppingItems.filter(item => item.categoryId === categoryId || (!item.categoryId && item.category === categoryName));
+      if (items.length === 0) return;
+
+      items.sort((a, b) => {
+        if ((a.isDone ? 1 : 0) === (b.isDone ? 1 : 0)) return (a.order || 0) - (b.order || 0);
+        return a.isDone ? 1 : -1;
+      });
+
+      const batch = writeBatch(db);
+      items.forEach((it, idx) => {
+        batch.update(doc(db, 'shopping_list', it.id), { order: idx, updatedAt: serverTimestamp() });
+      });
+      await batch.commit();
+      // snapshot で自動的に renderList が呼ばれるはずだが、念のため再描画のトリガー
+      renderList();
+    } catch (err) {
+      console.error('resortCategory error', err);
     }
   }
 
