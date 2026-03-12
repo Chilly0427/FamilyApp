@@ -396,60 +396,87 @@ input:focus, select:focus {
       actionsWrap.style.display = 'flex';
       actionsWrap.style.alignItems = 'center';
 
-      // カテゴリにアイテムを追加するショートカットボタン
-      const addItemBtn = document.createElement('button');
-      addItemBtn.innerHTML = '+';
-      addItemBtn.title = 'このカテゴリにアイテム追加';
-      addItemBtn.className = 'cat-add-item-btn';
-      addItemBtn.style.background = 'none';
-      addItemBtn.style.border = 'none';
-      addItemBtn.style.fontSize = '1.2em';
-      addItemBtn.style.cursor = 'pointer';
-      addItemBtn.style.padding = '4px 8px';
-      addItemBtn.style.color = '#1976d2';
-      addItemBtn.onclick = async (e) => {
-        e.stopPropagation();
-        // 空アイテムを作成して、作成された行を検出してからインライン編集を開始する
-        const newId = await addItemToCategory(cat.id, '');
-        if (!newId) return;
-        try {
-          await waitForRowAndStartEdit(newId);
-        } catch (err) {
-          // 失敗しても特に致命的ではない
-          console.warn('failed to start inline edit for', newId, err);
+      // カテゴリ表示領域に溶け込む形で追加行を表示（既存カテゴリと同じ見た目）
+      (function addInlineCategoryInput() {
+        const catDiv = document.createElement('div');
+        catDiv.className = 'category-section new-category-section';
+        catDiv.dataset.id = '__new__';
+
+        const titleWrap = document.createElement('div');
+        titleWrap.className = 'category-title';
+        titleWrap.style.display = 'flex';
+        titleWrap.style.justifyContent = 'space-between';
+        titleWrap.style.alignItems = 'center';
+
+        const titleLeft = document.createElement('div');
+        titleLeft.style.display = 'flex';
+        titleLeft.style.alignItems = 'center';
+
+        const catHandle = document.createElement('div');
+        catHandle.className = 'cat-drag-handle';
+        catHandle.innerHTML = '☰';
+        catHandle.style.visibility = 'hidden';
+        catHandle.style.marginRight = '12px';
+
+        const collapseToggle = document.createElement('div');
+        collapseToggle.style.width = '20px';
+        collapseToggle.style.marginRight = '8px';
+        collapseToggle.style.textAlign = 'center';
+        collapseToggle.textContent = '';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.id = 'inline-add-category-input';
+        input.placeholder = '新しいカテゴリ名を入力して Enter またはフォーカスアウトで追加';
+        input.style.padding = '8px';
+        input.style.fontSize = '1em';
+        input.style.border = '1px solid #ccc';
+        input.style.borderRadius = '6px';
+        input.style.width = '220px';
+        input.autocomplete = 'off';
+
+        titleLeft.appendChild(catHandle);
+        titleLeft.appendChild(collapseToggle);
+        titleLeft.appendChild(input);
+
+        titleWrap.appendChild(titleLeft);
+        catDiv.appendChild(titleWrap);
+        container.appendChild(catDiv);
+
+        let adding = false;
+        async function commitCategory() {
+          if (adding) return;
+          const name = input.value.trim();
+          if (!name) return;
+          adding = true;
+          try {
+            const maxOrder = shoppingCategories.length > 0 ? Math.max(...shoppingCategories.map(c => c.order || 0)) : -1;
+            const docRef = await addDoc(collection(db, 'shopping_categories'), { name: name, order: maxOrder + 1 });
+            input.value = '';
+            if (docRef && docRef.id) selectedCategoryId = docRef.id;
+          } catch (err) {
+            console.error('add category failed', err);
+            alert('カテゴリの追加に失敗しました');
+          } finally {
+            adding = false;
+          }
         }
-      };
 
-      // カテゴリの鉛筆ボタンはタップで編集する仕様にしたため削除
-      const delBtn = document.createElement('button');
-      delBtn.className = 'delete-btn';
-      delBtn.innerHTML = '✖';
-      delBtn.style.background = 'none';
-      delBtn.style.border = 'none';
-      delBtn.style.color = '#d32f2f';
-      delBtn.style.fontSize = '1.2em';
-      delBtn.style.cursor = 'pointer';
-      delBtn.style.padding = '4px 8px';
-      delBtn.onclick = () => deleteCategory(cat.id, cat.name);
+        input.addEventListener('keydown', async (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            await commitCategory();
+            input.blur();
+          } else if (e.key === 'Escape') {
+            input.value = '';
+            input.blur();
+          }
+        });
 
-      actionsWrap.appendChild(addItemBtn);
-
-      // 完了済みの表示/非表示トグルボタン（SVGアイコン：目 / 目に斜線）
-      const toggleDoneBtn = document.createElement('button');
-      toggleDoneBtn.className = 'cat-toggle-btn';
-      const isHidden = hiddenDoneCategories.has(cat.id);
-      toggleDoneBtn.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
-
-      const iconWrap = document.createElement('span');
-      iconWrap.className = 'toggle-icon' + (isHidden ? ' hidden' : '');
-      iconWrap.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <g class="eye">
-            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path>
-            <circle cx="12" cy="12" r="3"></circle>
-          </g>
-          <g class="eye-slash">
-            <path d="M2 2l20 20"></path>
+        input.addEventListener('blur', async () => {
+          setTimeout(async () => { await commitCategory(); }, 0);
+        });
+      })();
           </g>
         </svg>
       `;
