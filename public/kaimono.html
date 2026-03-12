@@ -123,7 +123,21 @@ input:focus, select:focus {
   let catSortableInstance = null;
   let selectedCategoryId = null;
   let collapsedCategories = new Set();
-  let hiddenDoneCategories = new Set(); // カテゴリごとに完了済み表示を切り替える
+  // カテゴリごとに完了済み表示を切り替える（localStorage に保存してページリロード後も維持）
+  const HIDDEN_DONE_KEY = 'kaimono.hiddenDone';
+  let hiddenDoneCategories = new Set();
+  try {
+    const stored = localStorage.getItem(HIDDEN_DONE_KEY);
+    if (stored) {
+      const arr = JSON.parse(stored);
+      if (Array.isArray(arr)) hiddenDoneCategories = new Set(arr);
+    }
+  } catch (e) {
+    console.error('load hiddenDoneCategories', e);
+  }
+  function saveHiddenDoneCategories() {
+    try { localStorage.setItem(HIDDEN_DONE_KEY, JSON.stringify(Array.from(hiddenDoneCategories))); } catch (e) { console.error('saveHiddenDoneCategories', e); }
+  }
 
   document.addEventListener('DOMContentLoaded', () => {
     onAuthStateChanged(auth, (user) => {
@@ -255,7 +269,7 @@ input:focus, select:focus {
     let hasDoneItems = shoppingItems.some(item => item.isDone);
 
     shoppingCategories.forEach(cat => {
-      const catItems = shoppingItems.filter(item => item.categoryId === cat.id || (!item.categoryId && item.category === cat.name));
+      let catItems = shoppingItems.filter(item => item.categoryId === cat.id || (!item.categoryId && item.category === cat.name));
       // 未完了アイテムを先頭に表示する（同一ステータス内は order 順）
       catItems.sort((a, b) => {
         if ((a.isDone ? 1 : 0) === (b.isDone ? 1 : 0)) {
@@ -345,18 +359,23 @@ input:focus, select:focus {
 
       actionsWrap.appendChild(editBtn);
 
-      // 完了済みの表示/非表示トグルボタン
+      // 完了済みの表示/非表示トグルボタン（アイコン）
       const toggleDoneBtn = document.createElement('button');
       const isHidden = hiddenDoneCategories.has(cat.id);
-      toggleDoneBtn.innerText = isHidden ? '完了表示' : '完了非表示';
+      toggleDoneBtn.innerHTML = isHidden ? '👁️' : '🙈';
       toggleDoneBtn.title = isHidden ? '完了済みを表示' : '完了済みを非表示';
       toggleDoneBtn.style.background = 'none';
       toggleDoneBtn.style.border = 'none';
-      toggleDoneBtn.style.fontSize = '0.95em';
+      toggleDoneBtn.style.fontSize = '1.1em';
       toggleDoneBtn.style.cursor = 'pointer';
       toggleDoneBtn.style.padding = '4px 8px';
       toggleDoneBtn.style.color = '#1976d2';
-      toggleDoneBtn.onclick = (e) => { e.stopPropagation(); if (hiddenDoneCategories.has(cat.id)) { hiddenDoneCategories.delete(cat.id); } else { hiddenDoneCategories.add(cat.id); } renderList(); };
+      toggleDoneBtn.onclick = (e) => { 
+        e.stopPropagation(); 
+        if (hiddenDoneCategories.has(cat.id)) { hiddenDoneCategories.delete(cat.id); } else { hiddenDoneCategories.add(cat.id); }
+        saveHiddenDoneCategories();
+        renderList(); 
+      };
       actionsWrap.appendChild(toggleDoneBtn);
 
       // このカテゴリ内の完了済みアイテムを削除するボタン
