@@ -620,6 +620,7 @@ input:focus, select:focus {
       addSection.style.padding = '10px 16px';
 
       const addInput = document.createElement('input');
+      addInput.id = 'inline-add-category-input';
       addInput.type = 'text';
       addInput.placeholder = '新しいカテゴリ名を入力して Enter またはフォーカスアウトで追加';
       addInput.style.width = '100%';
@@ -744,20 +745,19 @@ input:focus, select:focus {
   }
 
   async function addCategoryPrompt() {
-    const name = prompt('新しいカテゴリ名を入力してください:');
-    if (!name || name.trim() === '') return;
-
-    const maxOrder = shoppingCategories.length > 0 ? Math.max(...shoppingCategories.map(c => c.order || 0)) : -1;
-    try {
-      const docRef = await addDoc(collection(db, "shopping_categories"), {
-        name: name.trim(),
-        order: maxOrder + 1
-      });
-      selectedCategoryId = docRef.id; // 新しいカテゴリを選択状態にする
-    } catch(e) {
-      console.error(e);
-      alert('カテゴリの追加に失敗しました');
+    // 既にレンダリングされている下部のインライン入力にフォーカスして追加操作を促す
+    const inline = document.getElementById('inline-add-category-input');
+    if (!inline) {
+      // renderList が入力欄を作るはずなので、一度描画をトリガーしてからフォーカス
+      renderList();
+      setTimeout(() => {
+        const el = document.getElementById('inline-add-category-input');
+        if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+      }, 50);
+      return;
     }
+    inline.focus();
+    inline.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   async function deleteCategory(id, name) {
