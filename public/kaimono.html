@@ -68,6 +68,17 @@ input:focus, select:focus {
   transform: translateY(-1px);
 }
 
+/* カテゴリの完了表示トグル（目/斜線） */
+.cat-toggle-btn { background: none; border: none; padding: 4px 8px; cursor: pointer; display: inline-flex; align-items: center; }
+.toggle-icon { display: inline-block; width: 20px; height: 20px; line-height: 0; }
+.toggle-icon svg { width: 20px; height: 20px; display: block; color: #1976d2; }
+.toggle-icon .eye, .toggle-icon .eye-slash { transition: opacity 180ms ease, transform 180ms ease; transform-origin: center; }
+.toggle-icon .eye { opacity: 1; }
+.toggle-icon.hidden .eye { opacity: 0; transform: scale(0.85) rotate(-8deg); }
+.toggle-icon .eye-slash { opacity: 0; transform: scale(0.8) rotate(8deg); }
+.toggle-icon.hidden .eye-slash { opacity: 1; transform: none; }
+
+
 </style>
 </head>
 <body style="display: none;">
@@ -359,22 +370,43 @@ input:focus, select:focus {
 
       actionsWrap.appendChild(editBtn);
 
-      // 完了済みの表示/非表示トグルボタン（アイコン）
+      // 完了済みの表示/非表示トグルボタン（SVGアイコン：目 / 目に斜線）
       const toggleDoneBtn = document.createElement('button');
+      toggleDoneBtn.className = 'cat-toggle-btn';
       const isHidden = hiddenDoneCategories.has(cat.id);
-      toggleDoneBtn.innerHTML = isHidden ? '👁️' : '🙈';
+      toggleDoneBtn.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
+
+      const iconWrap = document.createElement('span');
+      iconWrap.className = 'toggle-icon' + (isHidden ? ' hidden' : '');
+      iconWrap.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <g class="eye">
+            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </g>
+          <g class="eye-slash">
+            <path d="M2 2l20 20"></path>
+          </g>
+        </svg>
+      `;
       toggleDoneBtn.title = isHidden ? '完了済みを表示' : '完了済みを非表示';
-      toggleDoneBtn.style.background = 'none';
-      toggleDoneBtn.style.border = 'none';
-      toggleDoneBtn.style.fontSize = '1.1em';
-      toggleDoneBtn.style.cursor = 'pointer';
-      toggleDoneBtn.style.padding = '4px 8px';
-      toggleDoneBtn.style.color = '#1976d2';
-      toggleDoneBtn.onclick = (e) => { 
-        e.stopPropagation(); 
-        if (hiddenDoneCategories.has(cat.id)) { hiddenDoneCategories.delete(cat.id); } else { hiddenDoneCategories.add(cat.id); }
+      toggleDoneBtn.appendChild(iconWrap);
+
+      toggleDoneBtn.onclick = (e) => {
+        e.stopPropagation();
+        const willHide = !hiddenDoneCategories.has(cat.id);
+        if (willHide) {
+          hiddenDoneCategories.add(cat.id);
+          iconWrap.classList.add('hidden');
+          toggleDoneBtn.setAttribute('aria-pressed', 'true');
+        } else {
+          hiddenDoneCategories.delete(cat.id);
+          iconWrap.classList.remove('hidden');
+          toggleDoneBtn.setAttribute('aria-pressed', 'false');
+        }
         saveHiddenDoneCategories();
-        renderList(); 
+        // アイコンアニメーションを見せてから再描画（軽い遅延）
+        setTimeout(renderList, 220);
       };
       actionsWrap.appendChild(toggleDoneBtn);
 
