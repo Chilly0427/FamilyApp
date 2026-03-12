@@ -647,7 +647,30 @@ input:focus, select:focus {
     // 既存内容を置き換え（date はそのまま残すため一旦クリアして input を入れる）
     const dateSpan = nameContainer.querySelector('div:nth-child(2)');
     nameContainer.innerHTML = '';
-    nameContainer.appendChild(input);
+    // 入力ラッパーを作り、入力幅を抑えつつクリアボタンを内包する
+    const inputWrap = document.createElement('div');
+    inputWrap.style.display = 'flex';
+    inputWrap.style.alignItems = 'center';
+    inputWrap.style.gap = '8px';
+
+    // 表示幅を狭める（レスポンシブに最大幅を設定）
+    input.style.maxWidth = '420px';
+    input.style.width = '100%';
+    input.style.boxSizing = 'border-box';
+
+    const clearInputBtn = document.createElement('button');
+    clearInputBtn.innerHTML = '✖';
+    clearInputBtn.style.background = 'none';
+    clearInputBtn.style.border = 'none';
+    clearInputBtn.style.fontSize = '1em';
+    clearInputBtn.style.cursor = 'pointer';
+    clearInputBtn.style.color = '#777';
+    clearInputBtn.style.padding = '0 6px';
+    clearInputBtn.addEventListener('click', (e) => { e.stopPropagation(); input.value = ''; input.focus(); });
+
+    inputWrap.appendChild(input);
+    inputWrap.appendChild(clearInputBtn);
+    nameContainer.appendChild(inputWrap);
     if (dateSpan) nameContainer.appendChild(dateSpan);
     input.focus();
 
