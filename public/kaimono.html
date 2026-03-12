@@ -628,6 +628,7 @@ input:focus, select:focus {
     input.style.border = '1px solid #ccc';
     input.style.borderRadius = '6px';
     input.style.width = '100%';
+    input.style.boxSizing = 'border-box';
 
     input.addEventListener('keydown', async (e) => {
       if (e.key === 'Enter') {
@@ -669,8 +670,15 @@ input:focus, select:focus {
     cancelBtn.style.color = '#d32f2f';
     cancelBtn.style.padding = '0 8px';
 
-    row.appendChild(saveBtn);
-    row.appendChild(cancelBtn);
+    // ボタンは名前コンテナ内に格納してレイアウトの崩れを防ぐ
+    const btnWrap = document.createElement('div');
+    btnWrap.style.display = 'flex';
+    btnWrap.style.justifyContent = 'flex-end';
+    btnWrap.style.gap = '8px';
+    btnWrap.style.marginTop = '8px';
+    btnWrap.appendChild(saveBtn);
+    btnWrap.appendChild(cancelBtn);
+    nameContainer.appendChild(btnWrap);
 
     async function save() {
       const newName = input.value.trim();
