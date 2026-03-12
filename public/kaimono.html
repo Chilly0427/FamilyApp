@@ -384,7 +384,8 @@ input:focus, select:focus {
       const catNameSpan = document.createElement('span');
       catNameSpan.textContent = cat.name + (activeCount > 0 ? ' (' + activeCount + ')' : ' (0)');
       catNameSpan.style.cursor = 'pointer';
-      catNameSpan.onclick = collapseToggle.onclick; // 名前クリックでも折りたたみ
+      // 名前をタップしたらカテゴリ名変更（鉛筆ではなく直接タップで編集）
+      catNameSpan.onclick = (e) => { e.stopPropagation(); renameCategory(cat.id, cat.name); };
 
       titleLeft.appendChild(catHandle);
       titleLeft.appendChild(collapseToggle);
@@ -531,7 +532,8 @@ input:focus, select:focus {
 
         const nameSpan = document.createElement('div');
         nameSpan.textContent = item.name;
-        nameSpanContainer.onclick = () => toggleDone(item.id, item.isDone);
+        // 名前をタップしたらインライン編集を開始（鉛筆アイコンではなく直接タップで編集）
+        nameSpanContainer.onclick = (e) => { e.stopPropagation(); startEditingItem(item, { isNew: newlyCreatedItemIds.has(item.id) }); };
         
         const dateSpan = document.createElement('div');
         dateSpan.style.fontSize = '0.7em';
