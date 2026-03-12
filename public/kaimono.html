@@ -89,6 +89,9 @@ input:focus, select:focus {
 </header>
 
 <main>
+  <div style="padding: 12px 16px 0;">
+    <button id="add-category-top-btn" class="btn-outline" style="width:auto; display:inline-block; padding:8px 12px;">カテゴリを追加</button>
+  </div>
   <div class="input-section">
     <div class="input-group">
       <label>カテゴリ</label>
@@ -170,6 +173,8 @@ input:focus, select:focus {
       if (e.key === 'Enter') addItem();
     });
     document.getElementById('clear-done-btn').addEventListener('click', clearDoneItems);
+    const addCatTopBtn = document.getElementById('add-category-top-btn');
+    if (addCatTopBtn) addCatTopBtn.addEventListener('click', addCategoryPrompt);
   }
 
   function setupListeners() {
@@ -254,18 +259,7 @@ input:focus, select:focus {
       };
       container.appendChild(chip);
     });
-
-    // 「＋ 追加」チップを最後に追加
-    const addChip = document.createElement('div');
-    addChip.className = 'chip';
-    addChip.textContent = '＋ 追加';
-    addChip.style.background = '#e3f2fd';
-    addChip.style.color = '#1976d2';
-    addChip.style.fontWeight = 'bold';
-    addChip.onclick = () => {
-      addCategoryPrompt();
-    };
-    container.appendChild(addChip);
+    
   }
 
   function renderList() {
@@ -347,6 +341,18 @@ input:focus, select:focus {
       const actionsWrap = document.createElement('div');
       actionsWrap.style.display = 'flex';
       actionsWrap.style.alignItems = 'center';
+
+      // カテゴリにアイテムを追加するショートカットボタン
+      const addItemBtn = document.createElement('button');
+      addItemBtn.innerHTML = '+';
+      addItemBtn.title = 'このカテゴリにアイテム追加';
+      addItemBtn.style.background = 'none';
+      addItemBtn.style.border = 'none';
+      addItemBtn.style.fontSize = '1.2em';
+      addItemBtn.style.cursor = 'pointer';
+      addItemBtn.style.padding = '4px 8px';
+      addItemBtn.style.color = '#1976d2';
+      addItemBtn.onclick = (e) => { e.stopPropagation(); selectedCategoryId = cat.id; renderCategoriesUI(); const input = document.getElementById('item-name'); const section = document.querySelector('.input-section'); if (section) section.scrollIntoView({behavior:'smooth', block:'start'}); setTimeout(() => { if (input) input.focus(); }, 200); };
 
       const editBtn = document.createElement('button');
       editBtn.innerHTML = '✏️';
