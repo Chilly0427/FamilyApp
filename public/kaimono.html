@@ -125,6 +125,7 @@ input:focus, select:focus {
   let catSortableInstance = null;
   let selectedCategoryId = null;
   let collapsedCategories = new Set();
+  let newlyCreatedItemIds = new Set(); // +で作った未編集の新規アイテムIDを保持
   // カテゴリごとに完了済み表示を切り替える（localStorage に保存してページリロード後も維持）
   const HIDDEN_DONE_KEY = 'kaimono.hiddenDone';
   let hiddenDoneCategories = new Set();
@@ -236,6 +237,8 @@ input:focus, select:focus {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
+      // 新規作成フラグを保持しておき、キャンセル時に削除できるようにする
+      if (docRef && docRef.id) newlyCreatedItemIds.add(docRef.id);
       // 名前が入っている場合は履歴へ保存
       if (nm) {
         const historyId = encodeURIComponent(nm).replace(/\./g, '%2E');
@@ -257,7 +260,8 @@ input:focus, select:focus {
         const row = document.querySelector(`.item-row[data-id="${id}"]`);
         if (row) {
           const item = shoppingItems.find(it => it.id === id) || { id, name: '' };
-          startEditingItem(item);
+          const isNew = newlyCreatedItemIds.has(id);
+          startEditingItem(item, { isNew });
           resolve(item);
           return;
         }
@@ -836,7 +840,8 @@ input:focus, select:focus {
   }
 
   // アイテム名のインライン編集を開始する
-  async function startEditingItem(item) {
+  async function startEditingItem(item, options = {}) {
+    const isNew = options.isNew === true;
     const row = document.querySelector(`.item-row[data-id="${item.id}"]`);
     if (!row) return;
     const nameContainer = row.querySelector('.item-name');
@@ -860,7 +865,7 @@ input:focus, select:focus {
       if (e.key === 'Enter') {
         await save();
       } else if (e.key === 'Escape') {
-        renderList();
+        doCancel();
       }
     });
 
@@ -953,6 +958,8 @@ input:focus, select:focus {
       if (!newName) { alert('名前を入力してください'); input.focus(); return; }
       try {
         await updateDoc(doc(db, 'shopping_list', item.id), { name: newName, updatedAt: serverTimestamp() });
+        // 保存したら新規フラグを削除
+        if (newlyCreatedItemIds.has(item.id)) newlyCreatedItemIds.delete(item.id);
       } catch (err) {
         console.error(err);
         alert('更新に失敗しました');
@@ -961,7 +968,21 @@ input:focus, select:focus {
       }
     }
 
-    cancelBtn.addEventListener('click', (e) => { e.stopPropagation(); renderList(); });
+    async function doCancel() {
+      // 新規で何も入力されていない場合は削除する
+      try {
+        if (isNew) {
+          await deleteDoc(doc(db, 'shopping_list', item.id));
+          newlyCreatedItemIds.delete(item.id);
+        }
+      } catch (err) {
+        console.error('cancel delete failed', err);
+      } finally {
+        renderList();
+      }
+    }
+
+    cancelBtn.addEventListener('click', (e) => { e.stopPropagation(); doCancel(); });
     saveBtn.addEventListener('click', async (e) => { e.stopPropagation(); await save(); });
   }
 </script>
