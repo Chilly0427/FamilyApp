@@ -20,7 +20,23 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        return cache.addAll(urlsToCache);
+        // addAll は一つ失敗すると Promise 全体が reject されるため、
+        // 各 URL を個別に fetch->put して失敗を握りつぶす（ベストエフォート）
+        return Promise.all(urlsToCache.map((url) => {
+          return fetch(url).then((resp) => {
+            if (!resp || !resp.ok) {
+              // 404 等はキャッシュしないが、install を失敗させない
+              console.warn('sw: could not fetch', url, resp && resp.status);
+              return Promise.resolve();
+            }
+            return cache.put(url, resp.clone()).catch((err) => {
+              console.warn('sw: cache.put failed for', url, err);
+            });
+          }).catch((err) => {
+            console.warn('sw: fetch failed for', url, err);
+            return Promise.resolve();
+          });
+        }));
       })
   );
   self.skipWaiting();

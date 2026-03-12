@@ -129,6 +129,19 @@ input:focus, select:focus {
   let selectedCategoryId = null;
   let collapsedCategories = new Set();
   let newlyCreatedItemIds = new Set(); // +で作った未編集の新規アイテムIDを保持
+  let newlyCreatedCategoryIds = new Set(); // 新規作成して編集中のカテゴリIDを保持
+  // カテゴリの折りたたみ状態を localStorage に保存して再現する
+  const COLLAPSED_KEY = 'kaimono.collapsedCats';
+  try {
+    const storedCollapsed = localStorage.getItem(COLLAPSED_KEY);
+    if (storedCollapsed) {
+      const arr = JSON.parse(storedCollapsed);
+      if (Array.isArray(arr)) collapsedCategories = new Set(arr);
+    }
+  } catch (e) {
+    console.error('load collapsedCategories', e);
+  }
+  function saveCollapsedCategories() { try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify(Array.from(collapsedCategories))); } catch (e) { console.error('saveCollapsedCategories', e); } }
   // カテゴリごとに完了済み表示を切り替える（localStorage に保存してページリロード後も維持）
   const HIDDEN_DONE_KEY = 'kaimono.hiddenDone';
   let hiddenDoneCategories = new Set();
@@ -281,6 +294,27 @@ input:focus, select:focus {
     });
   }
 
+  // 新規作成したカテゴリが DOM に現れるのを待ってから編集モードを開始する
+  function waitForCategoryAndStartEdit(id, timeout = 3000) {
+    return new Promise((resolve, reject) => {
+      const start = Date.now();
+      (function check() {
+        const el = document.querySelector(`.category-section[data-id="${id}"]`);
+        if (el) {
+          const cat = shoppingCategories.find(c => c.id === id) || { id, name: '' };
+          startEditingCategory(cat);
+          resolve(cat);
+          return;
+        }
+        if (Date.now() - start > timeout) {
+          reject(new Error('category row not found'));
+          return;
+        }
+        setTimeout(check, 100);
+      })();
+    });
+  }
+
   function renderCategoriesUI() {
     const container = document.getElementById('category-chips');
     if (!container) {
@@ -377,6 +411,7 @@ input:focus, select:focus {
         } else {
           collapsedCategories.add(cat.id);
         }
+        saveCollapsedCategories();
         renderList();
       };
 
@@ -396,87 +431,24 @@ input:focus, select:focus {
       actionsWrap.style.display = 'flex';
       actionsWrap.style.alignItems = 'center';
 
-      // カテゴリ表示領域に溶け込む形で追加行を表示（既存カテゴリと同じ見た目）
-      (function addInlineCategoryInput() {
-        const catDiv = document.createElement('div');
-        catDiv.className = 'category-section new-category-section';
-        catDiv.dataset.id = '__new__';
+      
 
-        const titleWrap = document.createElement('div');
-        titleWrap.className = 'category-title';
-        titleWrap.style.display = 'flex';
-        titleWrap.style.justifyContent = 'space-between';
-        titleWrap.style.alignItems = 'center';
+      // カテゴリの完了表示トグル用アイコン（目/目に斜線）を挿入
+      const toggleDoneBtn = document.createElement('button');
+      toggleDoneBtn.className = 'cat-toggle-btn';
+      const isHidden = hiddenDoneCategories.has(cat.id);
+      toggleDoneBtn.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
 
-        const titleLeft = document.createElement('div');
-        titleLeft.style.display = 'flex';
-        titleLeft.style.alignItems = 'center';
-
-        const catHandle = document.createElement('div');
-        catHandle.className = 'cat-drag-handle';
-        catHandle.innerHTML = '☰';
-        catHandle.style.visibility = 'hidden';
-        catHandle.style.marginRight = '12px';
-
-        const collapseToggle = document.createElement('div');
-        collapseToggle.style.width = '20px';
-        collapseToggle.style.marginRight = '8px';
-        collapseToggle.style.textAlign = 'center';
-        collapseToggle.textContent = '';
-
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.id = 'inline-add-category-input';
-        input.placeholder = '新しいカテゴリ名を入力して Enter またはフォーカスアウトで追加';
-        input.style.padding = '8px';
-        input.style.fontSize = '1em';
-        input.style.border = '1px solid #ccc';
-        input.style.borderRadius = '6px';
-        input.style.width = '220px';
-        input.autocomplete = 'off';
-
-        titleLeft.appendChild(catHandle);
-        titleLeft.appendChild(collapseToggle);
-        titleLeft.appendChild(input);
-
-        titleWrap.appendChild(titleLeft);
-        catDiv.appendChild(titleWrap);
-        container.appendChild(catDiv);
-
-        let adding = false;
-        async function commitCategory() {
-          if (adding) return;
-          const name = input.value.trim();
-          if (!name) return;
-          adding = true;
-          try {
-            const maxOrder = shoppingCategories.length > 0 ? Math.max(...shoppingCategories.map(c => c.order || 0)) : -1;
-            const docRef = await addDoc(collection(db, 'shopping_categories'), { name: name, order: maxOrder + 1 });
-            input.value = '';
-            if (docRef && docRef.id) selectedCategoryId = docRef.id;
-          } catch (err) {
-            console.error('add category failed', err);
-            alert('カテゴリの追加に失敗しました');
-          } finally {
-            adding = false;
-          }
-        }
-
-        input.addEventListener('keydown', async (e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            await commitCategory();
-            input.blur();
-          } else if (e.key === 'Escape') {
-            input.value = '';
-            input.blur();
-          }
-        });
-
-        input.addEventListener('blur', async () => {
-          setTimeout(async () => { await commitCategory(); }, 0);
-        });
-      })();
+      const iconWrap = document.createElement('span');
+      iconWrap.className = 'toggle-icon' + (isHidden ? ' hidden' : '');
+      iconWrap.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <g class="eye">
+            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </g>
+          <g class="eye-slash">
+            <path d="M2 2l20 20"></path>
           </g>
         </svg>
       `;
@@ -514,6 +486,18 @@ input:focus, select:focus {
       clearCatBtn.onclick = (e) => { e.stopPropagation(); clearDoneInCategory(cat.id); };
       actionsWrap.appendChild(clearCatBtn);
 
+      // カテゴリ削除ボタン
+      const delBtn = document.createElement('button');
+      delBtn.className = 'delete-btn';
+      delBtn.innerHTML = '✖';
+      delBtn.title = 'このカテゴリを削除';
+      delBtn.style.background = 'none';
+      delBtn.style.border = 'none';
+      delBtn.style.fontSize = '1.2em';
+      delBtn.style.cursor = 'pointer';
+      delBtn.style.padding = '4px 8px';
+      delBtn.style.color = '#d32f2f';
+      delBtn.onclick = (e) => { e.stopPropagation(); deleteCategory(cat.id, cat.name); };
       actionsWrap.appendChild(delBtn);
 
       titleWrap.appendChild(titleLeft);
@@ -640,61 +624,7 @@ input:focus, select:focus {
       sortableInstances.push(sortable);
     });
 
-    // カテゴリを最下部から追加できるインライン入力を追加
-    (function addInlineCategoryInput() {
-      const addSection = document.createElement('div');
-      addSection.className = 'category-section add-category-section';
-      addSection.style.padding = '10px 16px';
-
-      const addInput = document.createElement('input');
-      addInput.id = 'inline-add-category-input';
-      addInput.type = 'text';
-      addInput.placeholder = '新しいカテゴリ名を入力して Enter またはフォーカスアウトで追加';
-      addInput.style.width = '100%';
-      addInput.style.padding = '10px';
-      addInput.style.border = '1px solid #ccc';
-      addInput.style.borderRadius = '6px';
-      addInput.autocomplete = 'off';
-
-      let adding = false;
-      async function commitCategory() {
-        if (adding) return;
-        const name = addInput.value.trim();
-        if (!name) return;
-        adding = true;
-        try {
-          const maxOrder = shoppingCategories.length > 0 ? Math.max(...shoppingCategories.map(c => c.order || 0)) : -1;
-          const docRef = await addDoc(collection(db, 'shopping_categories'), { name: name, order: maxOrder + 1 });
-          addInput.value = '';
-          // 新しいカテゴリを選択状態にする
-          if (docRef && docRef.id) selectedCategoryId = docRef.id;
-        } catch (err) {
-          console.error('add category failed', err);
-          alert('カテゴリの追加に失敗しました');
-        } finally {
-          adding = false;
-        }
-      }
-
-      addInput.addEventListener('keydown', async (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          await commitCategory();
-          addInput.blur();
-        } else if (e.key === 'Escape') {
-          addInput.value = '';
-          addInput.blur();
-        }
-      });
-
-      addInput.addEventListener('blur', async () => {
-        // 少し遅延して Enter の blur と二重に実行されるのを防ぐ
-        setTimeout(async () => { await commitCategory(); }, 0);
-      });
-
-      addSection.appendChild(addInput);
-      container.appendChild(addSection);
-    })();
+    // 下部のインライン入力は廃止（Add Category ボタンで新規カテゴリを作成し、即編集モードへ移行する）
 
     const clearBtn = document.getElementById('clear-done-btn');
     clearBtn.style.display = hasDoneItems ? 'block' : 'none';
@@ -772,19 +702,23 @@ input:focus, select:focus {
   }
 
   async function addCategoryPrompt() {
-    // 既にレンダリングされている下部のインライン入力にフォーカスして追加操作を促す
-    const inline = document.getElementById('inline-add-category-input');
-    if (!inline) {
-      // renderList が入力欄を作るはずなので、一度描画をトリガーしてからフォーカス
-      renderList();
-      setTimeout(() => {
-        const el = document.getElementById('inline-add-category-input');
-        if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-      }, 50);
-      return;
+    // 新しいカテゴリドキュメントを作成してレンダリング後にインライン編集を開始する
+    try {
+      const maxOrder = shoppingCategories.length > 0 ? Math.max(...shoppingCategories.map(c => c.order || 0)) : -1;
+      const docRef = await addDoc(collection(db, 'shopping_categories'), { name: '', order: maxOrder + 1 });
+      if (docRef && docRef.id) {
+        newlyCreatedCategoryIds.add(docRef.id);
+        selectedCategoryId = docRef.id;
+        // 新規カテゴリは折りたたまれないようにし、状態を保存
+        if (collapsedCategories.has(docRef.id)) collapsedCategories.delete(docRef.id);
+        saveCollapsedCategories();
+        // DOMに反映されるのを待ってから編集モードへ
+        waitForCategoryAndStartEdit(docRef.id).catch(err => console.error('waitForCategoryAndStartEdit failed', err));
+      }
+    } catch (err) {
+      console.error('addCategoryPrompt failed', err);
+      alert('カテゴリの追加に失敗しました');
     }
-    inline.focus();
-    inline.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   async function deleteCategory(id, name) {
@@ -890,6 +824,8 @@ input:focus, select:focus {
     if (!nameSpan) return;
     const oldName = cat.name || '';
 
+    const isNew = newlyCreatedCategoryIds.has(cat.id);
+
     const input = document.createElement('input');
     input.type = 'text';
     input.value = oldName;
@@ -916,6 +852,11 @@ input:focus, select:focus {
       try {
         if (newName && newName !== oldName) {
           await updateDoc(doc(db, 'shopping_categories', cat.id), { name: newName });
+          if (isNew) newlyCreatedCategoryIds.delete(cat.id);
+        } else if (!newName && isNew) {
+          // 新規カテゴリで名前が空のまま確定された場合は削除
+          try { await deleteDoc(doc(db, 'shopping_categories', cat.id)); } catch (e) { console.error('delete new category failed', e); }
+          newlyCreatedCategoryIds.delete(cat.id);
         }
       } catch (err) {
         console.error('rename category failed', err);
@@ -931,6 +872,11 @@ input:focus, select:focus {
         input.blur();
       } else if (e.key === 'Escape') {
         committed = true;
+        // 新規カテゴリ作成直後で Escape の場合は削除して元に戻す
+        if (isNew) {
+          try { await deleteDoc(doc(db, 'shopping_categories', cat.id)); } catch (e) { console.error('cancel delete category failed', e); }
+          newlyCreatedCategoryIds.delete(cat.id);
+        }
         renderList();
       }
     });
