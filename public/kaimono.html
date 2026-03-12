@@ -98,6 +98,9 @@ input:focus, select:focus {
     <!-- カテゴリごとのリストがここに動的に追加される -->
   </div>
 
+  <!-- 入力履歴の datalist（スクリプトが参照するため必須） -->
+  <datalist id="item-history"></datalist>
+
   <button id="clear-done-btn" class="btn-danger" style="display: none;">🗑️ 完了済みを一括削除</button>
 
 </main>
@@ -194,6 +197,10 @@ input:focus, select:focus {
     const hQuery = query(collection(db, "shopping_history"), orderBy("lastUsed", "desc"), limit(100));
     onSnapshot(hQuery, (snapshot) => {
       const datalist = document.getElementById('item-history');
+      if (!datalist) {
+        console.warn('item-history datalist element not found');
+        return;
+      }
       datalist.innerHTML = '';
       const uniqueNames = new Set();
       
@@ -569,6 +576,21 @@ input:focus, select:focus {
         row.appendChild(editBtn);
         row.appendChild(itemDelBtn);
         itemList.appendChild(row);
+
+        // 新規作成（+）で作られた一時アイテムは、レンダリング後に自動で編集モードに移行する
+        if (newlyCreatedItemIds.has(item.id)) {
+          // 非同期で呼ぶことで render 中の置換競合を避ける
+          setTimeout(() => {
+            try {
+              const r = document.querySelector(`.item-row[data-id="${item.id}"]`);
+              if (r && !r.querySelector('input')) {
+                startEditingItem(item, { isNew: true });
+              }
+            } catch (e) {
+              console.error('auto startEditingItem failed', e);
+            }
+          }, 50);
+        }
       });
       
       if (catItems.length === 0) {
