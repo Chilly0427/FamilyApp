@@ -623,6 +623,9 @@ input:focus, select:focus {
     const input = document.createElement('input');
     input.type = 'text';
     input.value = item.name || '';
+    // 編集時も履歴候補を表示させる
+    input.setAttribute('list', 'item-history');
+    input.autocomplete = 'off';
     input.style.padding = '8px';
     input.style.fontSize = '1em';
     input.style.border = '1px solid #ccc';
