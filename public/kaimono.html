@@ -718,15 +718,9 @@ input:focus, select:focus {
     cancelBtn.style.color = '#d32f2f';
     cancelBtn.style.padding = '0 8px';
 
-    // ボタンは名前コンテナ内に格納してレイアウトの崩れを防ぐ
-    const btnWrap = document.createElement('div');
-    btnWrap.style.display = 'flex';
-    btnWrap.style.justifyContent = 'flex-end';
-    btnWrap.style.gap = '8px';
-    btnWrap.style.marginTop = '8px';
-    btnWrap.appendChild(saveBtn);
-    btnWrap.appendChild(cancelBtn);
-    nameContainer.appendChild(btnWrap);
+    // 保存・キャンセルを actionWrap に追加（入力と同列）
+    actionWrap.appendChild(saveBtn);
+    actionWrap.appendChild(cancelBtn);
 
     async function save() {
       const newName = input.value.trim();
