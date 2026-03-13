@@ -1069,8 +1069,41 @@ input:focus, select:focus {
     input.focus();
 
     // 編集確定はフォーカスが外れたとき（blur）に自動で行う
+    let _delTimer = null;
+    input.addEventListener('focus', () => {
+      if (_delTimer) { clearTimeout(_delTimer); _delTimer = null; }
+    });
+    input.addEventListener('input', () => {
+      if (_delTimer) { clearTimeout(_delTimer); _delTimer = null; }
+    });
     input.addEventListener('blur', async () => {
-      await commit();
+      const val = input.value.trim();
+      if (isNew && !val) {
+        // 新規作成アイテムが空のままフォーカスを失った場合、即削除せず短時間待つ（リレンダリング競合対策）
+        _delTimer = setTimeout(async () => {
+          try {
+            const rowNow = document.querySelector(`.item-row[data-id="${item.id}"]`);
+            const currentInput = rowNow ? rowNow.querySelector('input') : null;
+            if (currentInput && currentInput.value.trim() !== '') {
+              // ユーザが値を入力していた -> 通常コミット
+              await commit();
+              return;
+            }
+          } catch (e) {
+            console.error('check current input failed', e);
+          }
+          // まだ空なら削除
+          try {
+            if (newlyCreatedItemIds.has(item.id)) {
+              await deleteDoc(doc(db, 'shopping_list', item.id));
+              newlyCreatedItemIds.delete(item.id);
+            }
+          } catch (e) { console.error('delete new item failed', e); }
+          renderList();
+        }, 400);
+      } else {
+        await commit();
+      }
     });
   }
 </script>
