@@ -92,7 +92,14 @@ input:focus, select:focus {
 </header>
 
 <main>
-  <!-- ヘッダにカテゴリ追加を移動したため、上部の入力カードは削除しました -->
+  <!-- 上部の入力欄：アイテム名を入力して追加 -->
+  <div class="input-section" style="margin-bottom:18px;">
+    <div class="input-group">
+      <label for="item-name">アイテムを追加</label>
+      <input type="text" id="item-name" list="item-history" placeholder="例：牛乳" style="padding:10px;border:1px solid #ccc;border-radius:6px;width:100%;box-sizing:border-box;" autocomplete="off">
+    </div>
+    <button id="add-btn" class="btn-primary">追加する</button>
+  </div>
 
   <div id="lists-container">
     <!-- カテゴリごとのリストがここに動的に追加される -->
@@ -174,6 +181,10 @@ input:focus, select:focus {
     document.getElementById('clear-done-btn').addEventListener('click', clearDoneItems);
     const addCatTopBtn = document.getElementById('add-category-top-btn');
     if (addCatTopBtn) addCatTopBtn.addEventListener('click', addCategoryPrompt);
+    const addBtn = document.getElementById('add-btn');
+    if (addBtn) addBtn.addEventListener('click', addItem);
+    const nameInput = document.getElementById('item-name');
+    if (nameInput) nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addItem(); });
   }
 
   function setupListeners() {
