@@ -92,15 +92,6 @@ input:focus, select:focus {
 </header>
 
 <main>
-  <!-- 上部の入力欄：アイテム名を入力して追加 -->
-  <div class="input-section" style="margin-bottom:18px;">
-    <div class="input-group">
-      <label for="item-name">アイテムを追加</label>
-      <input type="text" id="item-name" list="item-history" placeholder="例：牛乳" style="padding:10px;border:1px solid #ccc;border-radius:6px;width:100%;box-sizing:border-box;" autocomplete="off">
-    </div>
-    <button id="add-btn" class="btn-primary">追加する</button>
-  </div>
-
   <div id="lists-container">
     <!-- カテゴリごとのリストがここに動的に追加される -->
   </div>
@@ -181,10 +172,7 @@ input:focus, select:focus {
     document.getElementById('clear-done-btn').addEventListener('click', clearDoneItems);
     const addCatTopBtn = document.getElementById('add-category-top-btn');
     if (addCatTopBtn) addCatTopBtn.addEventListener('click', addCategoryPrompt);
-    const addBtn = document.getElementById('add-btn');
-    if (addBtn) addBtn.addEventListener('click', addItem);
-    const nameInput = document.getElementById('item-name');
-    if (nameInput) nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addItem(); });
+    // Top-level item input removed; per-category + buttons are used instead.
   }
 
   function setupListeners() {
@@ -442,6 +430,28 @@ input:focus, select:focus {
       actionsWrap.style.display = 'flex';
       actionsWrap.style.alignItems = 'center';
 
+      // カテゴリ単位でアイテムを追加するボタン（＋） — 目アイコンの左に配置
+      const addItemBtn = document.createElement('button');
+      addItemBtn.innerHTML = '＋';
+      addItemBtn.title = 'このカテゴリにアイテムを追加';
+      addItemBtn.style.background = 'none';
+      addItemBtn.style.border = 'none';
+      addItemBtn.style.fontSize = '1.2em';
+      addItemBtn.style.cursor = 'pointer';
+      addItemBtn.style.padding = '4px 8px';
+      addItemBtn.style.color = '#1976d2';
+      addItemBtn.onclick = async (e) => {
+        e.stopPropagation();
+        try {
+          const id = await addItemToCategory(cat.id, '');
+          if (id) {
+            waitForRowAndStartEdit(id).catch(err => console.error('waitForRowAndStartEdit failed', err));
+          }
+        } catch (err) {
+          console.error('addItemBtn error', err);
+        }
+      };
+
       
 
       // カテゴリの完了表示トグル用アイコン（目/目に斜線）を挿入
@@ -482,7 +492,11 @@ input:focus, select:focus {
         // アイコンアニメーションを見せてから再描画（軽い遅延）
         setTimeout(renderList, 220);
       };
+      // 先に + ボタンを配置してから目アイコンを追加（+ は目の左に表示される）
+      actionsWrap.appendChild(addItemBtn);
       actionsWrap.appendChild(toggleDoneBtn);
+
+      
 
       // このカテゴリ内の完了済みアイテムを削除するボタン
       const clearCatBtn = document.createElement('button');
@@ -661,6 +675,10 @@ input:focus, select:focus {
 
   async function addItem() {
     const nameInput = document.getElementById('item-name');
+    if (!nameInput) {
+      console.warn('addItem: top item input not present; use per-category + button');
+      return;
+    }
     const name = nameInput.value.trim();
     if (!name) return;
     
@@ -675,8 +693,7 @@ input:focus, select:focus {
     // UIブロック
     nameInput.value = '';
     const addBtn = document.getElementById('add-btn');
-    addBtn.disabled = true;
-    addBtn.innerHTML = '⋯';
+    if (addBtn) { addBtn.disabled = true; addBtn.innerHTML = '⋯'; }
     
     // 現在のカテゴリの最大orderを取得
     const catItems = shoppingItems.filter(item => item.categoryId === categoryId || item.category === categoryName);
@@ -706,8 +723,7 @@ input:focus, select:focus {
       console.error(e);
       alert('エラーが発生しました');
     } finally {
-      addBtn.disabled = false;
-      addBtn.innerHTML = '追加する';
+      if (addBtn) { addBtn.disabled = false; addBtn.innerHTML = '追加する'; }
       nameInput.focus();
     }
   }
