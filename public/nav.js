@@ -69,7 +69,7 @@ export function initGlobalNav(activePageName) {
       </a>
       <a href="kaimono.html" class="nav-item ${activePageName === 'kaimono' ? 'active' : ''}">
         <span class="icon">🛒</span>
-        <span>買うもの</span>
+        <span>リスト</span>
       </a>
       <div id="nav-logout-btn" class="nav-item" style="cursor:pointer;">
         <span class="icon" style="color:#d32f2f;">🚪</span>

@@ -123,9 +123,14 @@ input { -webkit-appearance: none; appearance: none; }
 .list-meta-row:last-child { border-bottom: none; }
 .list-shared-badge { font-size: 0.8em; padding: 3px 9px; border-radius: 10px; background: #e3f2fd; color: #1976d2; font-weight: bold; cursor: pointer; white-space: nowrap; border: none; }
 .list-shared-badge.private { background: #fce4ec; color: #c2185b; }
-
-/* 絵文字ピッカー */
-.emoji-picker { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+/* 共有/個人トグル */
+.shared-toggle { display: flex; gap: 4px; }
+.shared-toggle-btn { font-size: 0.8em; padding: 5px 10px; border-radius: 8px; border: 2px solid transparent; cursor: pointer; font-weight: bold; white-space: nowrap; background: #f0f0f0; color: #999; transition: 0.15s; }
+.shared-toggle-btn.active-shared { background: #e3f2fd; color: #1976d2; border-color: #1976d2; }
+.shared-toggle-btn.active-private { background: #fce4ec; color: #c2185b; border-color: #c2185b; }
+/* 絵文字検索 */
+.emoji-search { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 1em; box-sizing: border-box; margin-bottom: 8px; }
+.emoji-picker { display: flex; flex-wrap: wrap; gap: 4px; max-height: 200px; overflow-y: auto; }
 .emoji-opt { font-size: 1.5em; padding: 5px 8px; border: 2px solid transparent; border-radius: 8px; cursor: pointer; transition: 0.15s; }
 .emoji-opt.selected { border-color: #1976d2; background: #e3f2fd; }
 .emoji-opt:active { background: #bbdefb; }
@@ -141,7 +146,6 @@ input { -webkit-appearance: none; appearance: none; }
   <h1 id="page-title" style="margin: 0; font-size: 1.15em; color: #2c3e50;">📋 リスト管理</h1>
   <div style="display:flex;align-items:center;gap:6px;">
     <button id="list-settings-btn" style="padding:6px 10px; font-size:0.9em; background:#fff; border:1px solid #ccc; border-radius:6px; cursor:pointer; font-weight:bold;">⚙ リスト</button>
-    <button id="add-category-top-btn" class="btn-outline" style="padding:6px 10px; font-size:0.9em;">カテゴリを追加</button>
     <div id="global-nav-placeholder"></div>
   </div>
 </header>
@@ -236,8 +240,6 @@ input { -webkit-appearance: none; appearance: none; }
   function initApp() {
     setupListeners();
     document.getElementById('clear-done-btn').addEventListener('click', clearDoneItems);
-    const addCatTopBtn = document.getElementById('add-category-top-btn');
-    if (addCatTopBtn) addCatTopBtn.addEventListener('click', addCategoryPrompt);
     const listSettingsBtn = document.getElementById('list-settings-btn');
     if (listSettingsBtn) listSettingsBtn.addEventListener('click', openListSettingsModal);
     // メニュー外タップで⋯メニューを閉じる
@@ -857,7 +859,15 @@ input { -webkit-appearance: none; appearance: none; }
       sortableInstances.push(sortable);
     });
 
-    // 下部のインライン入力は廃止（Add Category ボタンで新規カテゴリを作成し、即編集モードへ移行する）
+    // カテゴリを追加ボタン（リスト末尾）
+    const addCatBtnWrap = document.createElement('div');
+    addCatBtnWrap.style.cssText = 'padding: 12px 0 8px 0; text-align: center;';
+    const addCatBtn = document.createElement('button');
+    addCatBtn.textContent = '＋ カテゴリを追加';
+    addCatBtn.style.cssText = 'padding:10px 24px; background:#e8f5e9; color:#2e7d32; border:2px dashed #a5d6a7; border-radius:10px; font-size:0.95em; font-weight:bold; cursor:pointer; width:100%;';
+    addCatBtn.onclick = () => addCategoryPrompt();
+    addCatBtnWrap.appendChild(addCatBtn);
+    container.appendChild(addCatBtnWrap);
 
     const clearBtn = document.getElementById('clear-done-btn');
     clearBtn.style.display = hasDoneItems ? 'block' : 'none';
@@ -1311,7 +1321,26 @@ input { -webkit-appearance: none; appearance: none; }
   }
 
   // ========== マルチリスト機能 ==========
-  const LIST_EMOJIS = ['🛒','🎒','⭐','🎬','📚','💊','🏃','🎁','🧹','📝','🍜','✈️','🏠','💰','🎵','📋','🧳','🏥','🎮','🛠'];
+  const LIST_EMOJIS = [
+    // 食べ物・飲み物
+    {e:'🍎',k:'りんご 果物'},{ e:'🍌',k:'バナナ 果物'},{e:'🍅',k:'とまと 野菜'},{e:'🥕',k:'にんじん 野菜'},{e:'🧅',k:'たまねぎ'},{e:'🧄',k:'にんにく'},{e:'🌽',k:'とうもろこし'},{e:'🥦',k:'ブロッコリー'},{e:'🍄',k:'きのこ'},{e:'🍞',k:'パン パン屋'},{e:'🍙',k:'おにぎり'},{e:'🍱',k:'お弁当'},{e:'🍜',k:'ラーメン'},{e:'🍣',k:'寿司'},{e:'🍕',k:'ピザ'},{e:'🍔',k:'ハンバーガー'},{e:'🧁',k:'ケーキ'},{e:'🍩',k:'ドーナツ'},{e:'🍫',k:'チョコレート'},{e:'☕',k:'コーヒー'},{e:'🧃',k:'ジュース'},{e:'🍺',k:'ビール'},
+    // 日用品・買い物
+    {e:'🛒',k:'ショッピング 買い物 カート'},{e:'🧴',k:'シャンプー 洗剤'},{e:'🧹',k:'はけ 掃除'},{e:'🧺',k:'洗濤物'},{e:'🧻',k:'トイレットペーパー'},{e:'🪥',k:'歯ブラシ'},{e:'🪣',k:'バケツ'},{e:'🔋',k:'電池'},{e:'💊',k:'薬 ドラッグ'},{e:'🩹',k:'譆帯'},{e:'🧼',k:'せっけん ソープ'},{e:'🪴',k:'植物 花'},
+    // 生活・ファッション
+    {e:'👔',k:'シャツ 服'},{e:'👕',k:'Tシャツ'},{e:'👗',k:'ワンピース 服'},{e:'👟',k:'靴'},{e:'👜',k:'バッグ カバン'},{e:'🧣',k:'マフラー'},{e:'🕶',k:'サングラス'},
+    // レジャー・趣味
+    {e:'🎒',k:'リュックサック カバン 豊'},{e:'⭐',k:'はお おおお ウィッシュ 欲しい'},{e:'🎬',k:'映画 ムービー ウォッチリスト'},{e:'📚',k:'本 読書 図書館'},{e:'🎮',k:'ゲーム'},{e:'🎵',k:'音楽 コンサート'},{e:'🎨',k:'絵 アート'},{e:'📷',k:'写真 カメラ'},{e:'🏀',k:'バスケットボール'},{e:'⚽',k:'サッカー'},{e:'🏊',k:'水泳'},{e:'🏃',k:'ランニング ジョギング'},{e:'🧘',k:'ヨガ'},{e:'🎁',k:'プレゼント 赈り物'},{e:'🎉',k:'パーティー 祀い'},{e:'🃏',k:'カード トランプ'},
+    // 旅行・外出
+    {e:'✈️',k:'飛行機 旅行'},{e:'🧳',k:'スーツケース 旅行'},{e:'🏖',k:'海水浴 ビーチ'},{e:'🏕',k:'キャンプ'},{e:'🗺',k:'地図 旅行'},{e:'🚗',k:'車 ドライブ'},{e:'🚌',k:'バス'},{e:'🚂',k:'電車'},{e:'🚁',k:'ヘリコプター'},
+    // 仕事・学校
+    {e:'💼',k:'仕事 ビジネス'},{e:'📋',k:'リスト メモ クリップボード'},{e:'📝',k:'メモ ノート 作業'},{e:'📅',k:'カレンダー 予定'},{e:'⏰',k:'閘警時計 時間'},{e:'💡',k:'アイデア'},{e:'📐',k:'情報 記録'},{e:'🏫',k:'学校'},{e:'🎓',k:'卒業 勉強'},{e:'🔬',k:'実験 研究'},{e:'📐',k:'数学'},{e:'✏️',k:'邉筆 学習 べんきょう'},
+    // 家・生活
+    {e:'🏠',k:'家 ホーム'},{e:'🏥',k:'病院 医画'},{e:'🏪',k:'コンビニ ストア'},{e:'🏗',k:'工事 リフォーム'},{e:'🛠',k:'ツール 修理'},{e:'🪟',k:'窓'},{e:'🛏',k:'べっど 寝具'},
+    // 動物
+    {e:'🐶',k:'いぬ ペット'},{e:'🐱',k:'ねこ ペット'},{e:'🐰',k:'うさぎ'},{e:'🐾',k:'ペット 動物 足跡'},
+    // その他
+    {e:'💰',k:'お金 費用 財布'},{e:'💳',k:'カード 支払い'},{e:'🎯',k:'目標 ターゲット'},{e:'📦',k:'荷物 配送'},{e:'🗑',k:'ゴミ筒'},{e:'🔑',k:'鍵'},{e:'🧲',k:'磁石'},{e:'🌟',k:'お気に入り おすすめ'},{e:'❤️',k:'恋が'},{e:'🌈',k:'第一強 リスト'},{e:'🌙',k:'夜 咄前'},
+  ];
   let _newListEmoji = '📋';
 
   function renderTabs() {
@@ -1403,36 +1432,44 @@ input { -webkit-appearance: none; appearance: none; }
     visibleLists.forEach(list => {
       const row = document.createElement('div');
       row.className = 'list-meta-row';
+      row.style.flexWrap = 'wrap';
 
+      // リスト名（タップで直接編集）
       const nameSpan = document.createElement('span');
-      nameSpan.style.flex = '1';
-      nameSpan.style.fontWeight = 'bold';
-      nameSpan.style.fontSize = '1em';
-      nameSpan.textContent = (list.emoji || '📋') + ' ' + list.name;
+      nameSpan.style.cssText = 'flex:1; font-weight:bold; font-size:1em; cursor:pointer; padding:4px 2px; border-bottom: 1px dashed transparent;';
+      nameSpan.textContent = (list.emoji || '📋') + ' ' + list.name;
+      nameSpan.title = 'タップして名前変更';
+      if (list.id !== 'default') {
+        nameSpan.style.borderBottomColor = '#ccc';
+        nameSpan.onclick = () => startEditingListName(list, row);
+      }
       row.appendChild(nameSpan);
 
-      // 共有/個人バッジ（defaultリスト以外はクリックで切替）
-      const sharedBadge = document.createElement('button');
-      sharedBadge.className = 'list-shared-badge' + (list.shared ? '' : ' private');
-      sharedBadge.textContent = list.shared ? '👥 共有' : '🔒 個人';
+      // 共有/個人 トグルボタン
+      const toggleWrap = document.createElement('div');
+      toggleWrap.className = 'shared-toggle';
+
+      const sharedBtn = document.createElement('button');
+      sharedBtn.className = 'shared-toggle-btn' + (list.shared ? ' active-shared' : '');
+      sharedBtn.textContent = '👥 共有';
+      const privateBtn = document.createElement('button');
+      privateBtn.className = 'shared-toggle-btn' + (!list.shared ? ' active-private' : '');
+      privateBtn.textContent = '🔒 個人';
+
       if (list.id !== 'default') {
-        sharedBadge.onclick = async () => {
-          try {
-            await updateDoc(doc(db, 'list_meta', list.id), { shared: !list.shared });
-          } catch (err) { console.error(err); alert('変更に失敗しました'); }
+        sharedBtn.onclick = async () => {
+          if (!list.shared) { try { await updateDoc(doc(db, 'list_meta', list.id), { shared: true }); } catch (e) { console.error(e); } }
+        };
+        privateBtn.onclick = async () => {
+          if (list.shared) { try { await updateDoc(doc(db, 'list_meta', list.id), { shared: false }); } catch (e) { console.error(e); } }
         };
       } else {
-        sharedBadge.style.cursor = 'default';
-        sharedBadge.style.opacity = '0.7';
+        sharedBtn.style.opacity = '0.7'; sharedBtn.style.cursor = 'default';
+        privateBtn.style.opacity = '0.5'; privateBtn.style.cursor = 'default';
       }
-      row.appendChild(sharedBadge);
-
-      // 名前・絵文字編集ボタン
-      const editBtn = document.createElement('button');
-      editBtn.innerHTML = '✏';
-      editBtn.style.cssText = 'background:none;border:none;font-size:1.1em;cursor:pointer;color:#1976d2;padding:4px 6px;';
-      editBtn.onclick = () => startEditingListName(list, row);
-      row.appendChild(editBtn);
+      toggleWrap.appendChild(sharedBtn);
+      toggleWrap.appendChild(privateBtn);
+      row.appendChild(toggleWrap);
 
       // 削除ボタン（defaultリストは不可）
       if (list.id !== 'default') {
@@ -1473,7 +1510,7 @@ input { -webkit-appearance: none; appearance: none; }
 
   function openDeleteListModal(list) {
     const modal = document.getElementById('list-delete-confirm-modal');
-    document.getElementById('delete-list-name-display').textContent = `「${list.emoji || ''} ${list.name}」`;
+    document.getElementById('delete-list-name-display').textContent = `「${list.name}」`;
     document.getElementById('delete-list-name-input').value = '';
     document.getElementById('delete-list-name-error').textContent = '';
     modal.dataset.listId = list.id;
@@ -1517,28 +1554,37 @@ input { -webkit-appearance: none; appearance: none; }
     }
   };
 
+  window.openCreateListModal = openCreateListModal;
   function openCreateListModal() {
     _newListEmoji = '📋';
     document.getElementById('new-list-name').value = '';
     document.getElementById('new-list-name-error').textContent = '';
     document.getElementById('new-list-shared-yes').checked = true;
+    renderEmojiPicker('');
+    document.getElementById('list-create-modal').classList.add('open');
+    setTimeout(() => document.getElementById('new-list-name').focus(), 100);
+  }
 
+  window.renderEmojiPicker = renderEmojiPicker;
+  function renderEmojiPicker(query) {
     const pickerEl = document.getElementById('emoji-picker-container');
     pickerEl.innerHTML = '';
-    LIST_EMOJIS.forEach(em => {
+    const q = (query || '').trim().toLowerCase();
+    const filtered = q
+      ? LIST_EMOJIS.filter(o => o.k.includes(q) || o.e.includes(q))
+      : LIST_EMOJIS;
+    filtered.forEach(o => {
       const btn = document.createElement('span');
-      btn.className = 'emoji-opt' + (em === _newListEmoji ? ' selected' : '');
-      btn.textContent = em;
+      btn.className = 'emoji-opt' + (o.e === _newListEmoji ? ' selected' : '');
+      btn.textContent = o.e;
+      btn.title = o.k;
       btn.onclick = () => {
-        _newListEmoji = em;
+        _newListEmoji = o.e;
         pickerEl.querySelectorAll('.emoji-opt').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
       };
       pickerEl.appendChild(btn);
     });
-
-    document.getElementById('list-create-modal').classList.add('open');
-    setTimeout(() => document.getElementById('new-list-name').focus(), 100);
   }
 
   window.closeCreateListModal = function() {
@@ -1591,6 +1637,7 @@ input { -webkit-appearance: none; appearance: none; }
     </div>
     <div style="margin-bottom:12px;">
       <label style="font-size:0.9em; color:#666; display:block; margin-bottom:6px; font-weight:bold;">絵文字</label>
+      <input id="emoji-search-input" class="emoji-search" type="text" placeholder="キーワードで検索（例: 食べ物、旅行）" oninput="renderEmojiPicker(this.value)">
       <div id="emoji-picker-container" class="emoji-picker"></div>
     </div>
     <div style="margin-bottom:16px;">

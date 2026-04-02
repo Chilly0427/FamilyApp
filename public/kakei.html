@@ -629,11 +629,12 @@ input:focus, select:focus {
     <div id="global-nav-placeholder"></div>
   </div>
   
-  <div style="display:flex; justify-content:center; align-items:center; background:#fff; padding: 12px 0; border-bottom: 1px solid #ddd; position:sticky; top: 58px; z-index:9; font-size:1.2em; font-weight:bold; gap: 8px;">
+  <div style="display:flex; justify-content:center; align-items:center; background:#fff; padding: 12px 8px; border-bottom: 1px solid #ddd; position:sticky; top: 58px; z-index:9; font-size:1.2em; font-weight:bold; gap: 8px;">
     <span onclick="prevMonth()" style="cursor:pointer; padding:10px 18px; background:#f0f0f0; border-radius:8px; user-select:none; font-size:1.1em;">◁</span>
-    <span id="currentMonthDisplay"></span>
+    <span id="currentMonthDisplay" style="flex:0 0 auto;"></span>
     <span onclick="nextMonth()" style="cursor:pointer; padding:10px 18px; background:#f0f0f0; border-radius:8px; user-select:none; font-size:1.1em;">▷</span>
-    <span onclick="goToCurrentMonth()" style="cursor:pointer; padding:6px 12px; background:#e3f2fd; border-radius:6px; user-select:none; font-size:0.7em; color:#1976d2; font-weight:bold;">今月</span>
+    <span style="flex:1;"></span>
+    <span onclick="goToCurrentMonth()" style="cursor:pointer; padding:6px 12px; background:#e3f2fd; border-radius:6px; user-select:none; font-size:0.7em; color:#1976d2; font-weight:bold; white-space:nowrap;">今月</span>
   </div>
 
   <script type="module">
