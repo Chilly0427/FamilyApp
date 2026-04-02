@@ -147,7 +147,7 @@ input { -webkit-appearance: none; appearance: none; }
 <header>
   <h1 id="page-title" style="margin: 0; font-size: 1.15em; color: #2c3e50;">📋 リスト管理</h1>
   <div style="display:flex;align-items:center;gap:6px;">
-    <button id="list-settings-btn" style="padding:6px 10px; font-size:0.9em; background:#fff; border:1px solid #ccc; border-radius:6px; cursor:pointer; font-weight:bold;">⚙ リスト</button>
+    <button id="list-settings-btn" style="padding:6px 10px; font-size:0.9em; background:#fff; border:1px solid #ccc; border-radius:6px; cursor:pointer; font-weight:bold;">⚙ リスト管理</button>
     <div id="global-nav-placeholder"></div>
   </div>
 </header>
@@ -650,7 +650,7 @@ input { -webkit-appearance: none; appearance: none; }
       const isHidden = hiddenDoneCategories.has(cat.id);
       const toggleBtn = document.createElement('button');
       toggleBtn.className = 'cat-action-btn';
-      toggleBtn.innerHTML = isHidden ? '👁' : '🙈';
+      toggleBtn.innerHTML = isHidden ? '👁' : '�';
       toggleBtn.title = isHidden ? '完了済みを表示' : '完了済みを非表示';
       toggleBtn.onclick = (e) => {
         e.stopPropagation();
@@ -663,7 +663,7 @@ input { -webkit-appearance: none; appearance: none; }
       // 完了済み削除ボタン（✅×）
       const clearDoneBtn = document.createElement('button');
       clearDoneBtn.className = 'cat-action-btn warn';
-      clearDoneBtn.innerHTML = '☑✖';
+      clearDoneBtn.innerHTML = '☑🗑';
       clearDoneBtn.title = '完了済みを削除';
       clearDoneBtn.style.fontSize = '0.9em';
       clearDoneBtn.onclick = (e) => { e.stopPropagation(); clearDoneInCategory(cat.id); };
