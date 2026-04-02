@@ -669,10 +669,10 @@ input { -webkit-appearance: none; appearance: none; }
       clearDoneBtn.onclick = (e) => { e.stopPropagation(); clearDoneInCategory(cat.id); };
       actionsWrap.appendChild(clearDoneBtn);
 
-      // カテゴリ削除ボタン（❌）
+      // カテゴリ削除ボタン（✖）
       const deleteCatBtn = document.createElement('button');
       deleteCatBtn.className = 'cat-action-btn danger';
-      deleteCatBtn.innerHTML = '❌';
+      deleteCatBtn.innerHTML = '✖';
       deleteCatBtn.title = 'カテゴリを削除';
       deleteCatBtn.onclick = (e) => { e.stopPropagation(); deleteCategory(cat.id, cat.name); };
       actionsWrap.appendChild(deleteCatBtn);
@@ -848,7 +848,7 @@ input { -webkit-appearance: none; appearance: none; }
         }
 
         const itemDelBtn = document.createElement('button');
-        itemDelBtn.innerHTML = '✖';
+        itemDelBtn.innerHTML = '🗑';
         itemDelBtn.className = 'item-del-btn';
         itemDelBtn.style.color = '#aaa';
         itemDelBtn.style.background = 'none';

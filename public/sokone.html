@@ -484,7 +484,7 @@ input:focus, select:focus {
               <input type="text" value="${(groupName === '未分類の商品' || groupName.startsWith('未設定_')) ? '' : gnAttr}" placeholder="商品名を入力..." list="item-list" onblur="updateGroupName('${gnEsc}', this.value)" style="flex:1; font-size:1.2em; padding:8px 12px; font-weight:bold; color:#2e7d32; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.05); min-width:120px;">
               <div style="font-size:0.95em; color:#78909c; font-weight:bold; white-space:nowrap;">(${realItems.length}件)</div>
               <input type="text" value="${escHtml(groupUnit)}" placeholder="単位" list="unit-list" onblur="updateGroupUnit('${gnEsc}', this.value)" style="width:85px; font-size:1.0em; padding:8px; border:1px solid #cfd8dc; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); text-align:center;">
-              <button class="del-btn" style="padding:10px 12px; font-size:1.1em;" onclick="event.stopPropagation(); deleteGroup('${gnEsc}')">🗑</button>
+              <button class="del-btn" style="padding:10px 12px; font-size:1.1em;" onclick="event.stopPropagation(); deleteGroup('${gnEsc}')">✖</button>
             </div>
             <div style="cursor:pointer;" onclick="toggleGroup('${gnEsc}')">${rankingHtml}</div>
           </div>
@@ -537,7 +537,7 @@ input:focus, select:focus {
               <span style="font-weight:bold; color:#f57c00; font-size:1.0em; min-width:54px;">${rankBadge}</span>
               <input type="date" value="${dateVal}" onblur="updateItem('${it.id}', 'recordedDate', this.value)" style="max-width:160px;">
             </div>
-            <button class="del-btn" style="padding:8px; font-size:1em;" onclick="deleteItem('${it.id}')">✖</button>
+            <button class="del-btn" style="padding:8px; font-size:1em;" onclick="deleteItem('${it.id}')">🗑</button>
           </div>
 
           <div class="row-middle" style="margin-top:8px;">
