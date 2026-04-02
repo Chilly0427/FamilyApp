@@ -103,6 +103,33 @@ input::-webkit-contacts-auto-fill-button {
 }
 input { -webkit-appearance: none; appearance: none; }
 
+/* ===== マルチリスト タブバー ===== */
+.tabs-bar { display: flex; overflow-x: auto; gap: 0; padding: 0 12px; background: #fff; border-bottom: 2px solid #e0e0e0; scrollbar-width: none; flex-shrink: 0; }
+.tabs-bar::-webkit-scrollbar { display: none; }
+.tab-item { flex-shrink: 0; display: flex; align-items: center; gap: 4px; padding: 10px 14px; cursor: pointer; font-size: 0.9em; font-weight: bold; border-bottom: 3px solid transparent; margin-bottom: -2px; color: #666; white-space: nowrap; transition: 0.15s; user-select: none; }
+.tab-item.active { color: #1976d2; border-bottom-color: #1976d2; }
+.tab-badge { background: #1976d2; color: #fff; border-radius: 10px; font-size: 0.75em; padding: 1px 6px; min-width: 18px; text-align: center; margin-left: 4px; }
+.tab-add-btn { flex-shrink: 0; padding: 8px 12px; background: none; border: none; font-size: 1.3em; cursor: pointer; color: #1976d2; }
+
+/* ===== モーダル共通 ===== */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 200; overflow-y: auto; }
+.modal-overlay.open { display: block; }
+.modal-box { max-width: 480px; margin: 40px auto 24px; background: #fff; border-radius: 16px; padding: 20px; position: relative; }
+.modal-title { font-size: 1.1em; font-weight: bold; color: #2c3e50; margin: 0 0 16px; }
+.modal-close-btn { position: absolute; right: 14px; top: 14px; background: none; border: none; font-size: 1.4em; cursor: pointer; color: #888; padding: 0; line-height: 1; }
+
+/* リスト設定モーダル内の行 */
+.list-meta-row { display: flex; align-items: center; gap: 6px; padding: 10px 4px; border-bottom: 1px solid #f0f0f0; }
+.list-meta-row:last-child { border-bottom: none; }
+.list-shared-badge { font-size: 0.8em; padding: 3px 9px; border-radius: 10px; background: #e3f2fd; color: #1976d2; font-weight: bold; cursor: pointer; white-space: nowrap; border: none; }
+.list-shared-badge.private { background: #fce4ec; color: #c2185b; }
+
+/* 絵文字ピッカー */
+.emoji-picker { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.emoji-opt { font-size: 1.5em; padding: 5px 8px; border: 2px solid transparent; border-radius: 8px; cursor: pointer; transition: 0.15s; }
+.emoji-opt.selected { border-color: #1976d2; background: #e3f2fd; }
+.emoji-opt:active { background: #bbdefb; }
+
 </style>
 </head>
 <body style="display: none;">
@@ -111,12 +138,14 @@ input { -webkit-appearance: none; appearance: none; }
 </div>
 
 <header>
-  <h1 style="margin: 0; font-size: 1.25em; color: #2c3e50;">🛒 買い物メモ</h1>
-  <div style="display:flex;align-items:center;gap:8px;">
-    <button id="add-category-top-btn" class="btn-outline" style="padding:6px 10px; font-size:0.95em;">カテゴリを追加</button>
+  <h1 id="page-title" style="margin: 0; font-size: 1.15em; color: #2c3e50;">📋 リスト管理</h1>
+  <div style="display:flex;align-items:center;gap:6px;">
+    <button id="list-settings-btn" style="padding:6px 10px; font-size:0.9em; background:#fff; border:1px solid #ccc; border-radius:6px; cursor:pointer; font-weight:bold;">⚙ リスト</button>
+    <button id="add-category-top-btn" class="btn-outline" style="padding:6px 10px; font-size:0.9em;">カテゴリを追加</button>
     <div id="global-nav-placeholder"></div>
   </div>
 </header>
+<div id="tabs-bar" class="tabs-bar"></div>
 
 <main>
   <div style="margin-bottom:12px;">
@@ -159,6 +188,10 @@ input { -webkit-appearance: none; appearance: none; }
   let newlyCreatedItemIds = new Set(); // +で作った未編集の新規アイテムIDを保持
   let newlyCreatedCategoryIds = new Set(); // 新規作成して編集中のカテゴリIDを保持
   let editingItemIds = new Set(); // 現在インライン編集中のアイテムIDを保持
+  // マルチリスト管理
+  let allLists = [];
+  let currentListId = 'default';
+  let currentUserEmail = '';
   // カテゴリの折りたたみ状態を localStorage に保存して再現する
   const COLLAPSED_KEY = 'kaimono.collapsedCats';
   try {
@@ -192,6 +225,7 @@ input { -webkit-appearance: none; appearance: none; }
       if (user && ALLOWED_EMAILS.includes(user.email)) {
         document.body.style.display = 'block';
         const lo = document.getElementById('loading-overlay'); if(lo) lo.style.display='none';
+        currentUserEmail = user.email;
         initApp();
       } else if (!user) {
         window.location.href = "index.html";
@@ -204,6 +238,8 @@ input { -webkit-appearance: none; appearance: none; }
     document.getElementById('clear-done-btn').addEventListener('click', clearDoneItems);
     const addCatTopBtn = document.getElementById('add-category-top-btn');
     if (addCatTopBtn) addCatTopBtn.addEventListener('click', addCategoryPrompt);
+    const listSettingsBtn = document.getElementById('list-settings-btn');
+    if (listSettingsBtn) listSettingsBtn.addEventListener('click', openListSettingsModal);
     // メニュー外タップで⋯メニューを閉じる
     document.addEventListener('click', () => {
       document.querySelectorAll('.cat-menu-dropdown.open').forEach(d => d.classList.remove('open'));
@@ -266,6 +302,25 @@ input { -webkit-appearance: none; appearance: none; }
         }
       });
     });
+
+    // list_meta 取得（リスト管理）
+    onSnapshot(collection(db, "list_meta"), (snapshot) => {
+      allLists = [];
+      snapshot.forEach(docSnap => {
+        allLists.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      allLists.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+      // defaultリストが存在しない場合は自動作成
+      if (!snapshot.metadata.fromCache && !allLists.find(l => l.id === 'default')) {
+        setDoc(doc(db, 'list_meta', 'default'), {
+          name: '買い物', emoji: '🛒', shared: true, ownerId: currentUserEmail, order: 0
+        }).catch(e => console.error('create default list failed', e));
+      }
+
+      renderTabs();
+      renderList();
+    });
   }
 
   async function seedDefaultCategories() {
@@ -273,7 +328,7 @@ input { -webkit-appearance: none; appearance: none; }
     const batch = writeBatch(db);
     defaults.forEach((name, index) => {
       const newRef = doc(collection(db, "shopping_categories"));
-      batch.set(newRef, { name, order: index });
+      batch.set(newRef, { name, order: index, listId: 'default' });
     });
     await batch.commit();
   }
@@ -291,6 +346,7 @@ input { -webkit-appearance: none; appearance: none; }
         name: nm,
         categoryId: categoryId,
         category: categoryName,
+        listId: currentListId,
         isDone: false,
         order: maxOrder + 1,
         createdAt: serverTimestamp(),
@@ -388,7 +444,7 @@ input { -webkit-appearance: none; appearance: none; }
   }
 
   function renderList() {
-    if(shoppingCategories.length === 0) return;
+    renderTabs();
 
     const container = document.getElementById('lists-container');
     container.innerHTML = '';
@@ -403,6 +459,9 @@ input { -webkit-appearance: none; appearance: none; }
     let hasDoneItems = shoppingItems.some(item => item.isDone);
 
     shoppingCategories.forEach(cat => {
+      // 現在のリストに属するカテゴリのみ表示
+      if ((cat.listId || 'default') !== currentListId) return;
+
       let catItems = shoppingItems.filter(item => item.categoryId === cat.id || (!item.categoryId && item.category === cat.name));
       // 未完了アイテムを先頭に表示する（同一ステータス内は order 順）
       catItems.sort((a, b) => {
@@ -881,7 +940,7 @@ input { -webkit-appearance: none; appearance: none; }
     // 新しいカテゴリドキュメントを作成してレンダリング後にインライン編集を開始する
     try {
       const maxOrder = shoppingCategories.length > 0 ? Math.max(...shoppingCategories.map(c => c.order || 0)) : -1;
-      const docRef = await addDoc(collection(db, 'shopping_categories'), { name: '', order: maxOrder + 1 });
+      const docRef = await addDoc(collection(db, 'shopping_categories'), { name: '', order: maxOrder + 1, listId: currentListId });
       if (docRef && docRef.id) {
         newlyCreatedCategoryIds.add(docRef.id);
         selectedCategoryId = docRef.id;
@@ -1250,7 +1309,313 @@ input { -webkit-appearance: none; appearance: none; }
       }
     });
   }
+
+  // ========== マルチリスト機能 ==========
+  const LIST_EMOJIS = ['🛒','🎒','⭐','🎬','📚','💊','🏃','🎁','🧹','📝','🍜','✈️','🏠','💰','🎵','📋','🧳','🏥','🎮','🛠'];
+  let _newListEmoji = '📋';
+
+  function renderTabs() {
+    const tabsBar = document.getElementById('tabs-bar');
+    if (!tabsBar) return;
+
+    const visibleLists = allLists.filter(l => l.shared || l.ownerId === currentUserEmail);
+    // default を先頭に、それ以外は order 順
+    visibleLists.sort((a, b) => {
+      if (a.id === 'default') return -1;
+      if (b.id === 'default') return 1;
+      return (a.order || 0) - (b.order || 0);
+    });
+
+    // currentListId が非表示リストなら default にフォールバック
+    if (visibleLists.length > 0 && !visibleLists.find(l => l.id === currentListId)) {
+      currentListId = visibleLists[0].id;
+    }
+
+    tabsBar.innerHTML = '';
+
+    visibleLists.forEach(list => {
+      const tab = document.createElement('div');
+      tab.className = 'tab-item' + (list.id === currentListId ? ' active' : '');
+
+      const sharedIcon = list.shared ? '👥' : '🔒';
+
+      // このリストの未完了アイテム数
+      const catIdsInList = shoppingCategories.filter(c => (c.listId || 'default') === list.id).map(c => c.id);
+      const countUndone = shoppingItems.filter(i => {
+        const inList = i.listId ? i.listId === list.id : catIdsInList.includes(i.categoryId);
+        return inList && !i.isDone;
+      }).length;
+
+      tab.innerHTML = `<span>${list.emoji || '📋'}</span><span style="margin-left:4px;">${list.name}</span><span style="font-size:0.7em; opacity:0.6; margin-left:3px;">${sharedIcon}</span>`;
+      if (countUndone > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'tab-badge';
+        badge.textContent = countUndone;
+        tab.appendChild(badge);
+      }
+
+      tab.onclick = () => {
+        currentListId = list.id;
+        // ページタイトルも更新
+        const pt = document.getElementById('page-title');
+        if (pt) pt.textContent = (list.emoji || '📋') + ' ' + list.name;
+        renderTabs();
+        renderList();
+      };
+
+      tabsBar.appendChild(tab);
+    });
+
+    // ＋ボタン
+    const addBtn = document.createElement('button');
+    addBtn.className = 'tab-add-btn';
+    addBtn.textContent = '＋';
+    addBtn.title = '新しいリストを作成';
+    addBtn.onclick = (e) => { e.stopPropagation(); openCreateListModal(); };
+    tabsBar.appendChild(addBtn);
+
+    // ページタイトルを現在のリストに合わせる
+    const currentList = visibleLists.find(l => l.id === currentListId);
+    const pt = document.getElementById('page-title');
+    if (pt && currentList) pt.textContent = (currentList.emoji || '📋') + ' ' + currentList.name;
+  }
+
+  function openListSettingsModal() {
+    document.getElementById('list-settings-modal').classList.add('open');
+    renderListSettingsContent();
+  }
+
+  function closeListSettingsModal() {
+    document.getElementById('list-settings-modal').classList.remove('open');
+  }
+
+  function renderListSettingsContent() {
+    const visibleLists = allLists.filter(l => l.shared || l.ownerId === currentUserEmail);
+    visibleLists.sort((a, b) => {
+      if (a.id === 'default') return -1;
+      if (b.id === 'default') return 1;
+      return (a.order || 0) - (b.order || 0);
+    });
+
+    const container = document.getElementById('list-settings-content');
+    container.innerHTML = '';
+
+    visibleLists.forEach(list => {
+      const row = document.createElement('div');
+      row.className = 'list-meta-row';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.style.flex = '1';
+      nameSpan.style.fontWeight = 'bold';
+      nameSpan.style.fontSize = '1em';
+      nameSpan.textContent = (list.emoji || '📋') + ' ' + list.name;
+      row.appendChild(nameSpan);
+
+      // 共有/個人バッジ（defaultリスト以外はクリックで切替）
+      const sharedBadge = document.createElement('button');
+      sharedBadge.className = 'list-shared-badge' + (list.shared ? '' : ' private');
+      sharedBadge.textContent = list.shared ? '👥 共有' : '🔒 個人';
+      if (list.id !== 'default') {
+        sharedBadge.onclick = async () => {
+          try {
+            await updateDoc(doc(db, 'list_meta', list.id), { shared: !list.shared });
+          } catch (err) { console.error(err); alert('変更に失敗しました'); }
+        };
+      } else {
+        sharedBadge.style.cursor = 'default';
+        sharedBadge.style.opacity = '0.7';
+      }
+      row.appendChild(sharedBadge);
+
+      // 名前・絵文字編集ボタン
+      const editBtn = document.createElement('button');
+      editBtn.innerHTML = '✏';
+      editBtn.style.cssText = 'background:none;border:none;font-size:1.1em;cursor:pointer;color:#1976d2;padding:4px 6px;';
+      editBtn.onclick = () => startEditingListName(list, row);
+      row.appendChild(editBtn);
+
+      // 削除ボタン（defaultリストは不可）
+      if (list.id !== 'default') {
+        const delBtn = document.createElement('button');
+        delBtn.innerHTML = '🗑';
+        delBtn.style.cssText = 'background:none;border:none;font-size:1.1em;cursor:pointer;color:#d32f2f;padding:4px 6px;';
+        delBtn.onclick = () => openDeleteListModal(list);
+        row.appendChild(delBtn);
+      }
+
+      container.appendChild(row);
+    });
+  }
+
+  function startEditingListName(list, rowEl) {
+    const nameSpan = rowEl.querySelector('span:first-child');
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = list.name;
+    input.style.cssText = 'flex:1; padding:6px 8px; border:1px solid #ccc; border-radius:6px; font-size:0.95em; font-weight:bold; min-width:0; width:100%;';
+    nameSpan.replaceWith(input);
+    input.focus();
+
+    async function commit() {
+      const newName = input.value.trim();
+      if (newName && newName !== list.name) {
+        try { await updateDoc(doc(db, 'list_meta', list.id), { name: newName }); } catch (err) { console.error(err); }
+      }
+      renderListSettingsContent();
+    }
+
+    input.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') { await commit(); }
+      else if (e.key === 'Escape') renderListSettingsContent();
+    });
+    input.addEventListener('blur', commit);
+  }
+
+  function openDeleteListModal(list) {
+    const modal = document.getElementById('list-delete-confirm-modal');
+    document.getElementById('delete-list-name-display').textContent = `「${list.emoji || ''} ${list.name}」`;
+    document.getElementById('delete-list-name-input').value = '';
+    document.getElementById('delete-list-name-error').textContent = '';
+    modal.dataset.listId = list.id;
+    modal.dataset.listName = list.name;
+    modal.classList.add('open');
+  }
+
+  window.closeDeleteListModal = function() {
+    document.getElementById('list-delete-confirm-modal').classList.remove('open');
+  };
+
+  window.executeDeleteList = async function() {
+    const modal = document.getElementById('list-delete-confirm-modal');
+    const id = modal.dataset.listId;
+    const name = modal.dataset.listName;
+    const inputVal = document.getElementById('delete-list-name-input').value.trim();
+
+    if (inputVal !== name) {
+      document.getElementById('delete-list-name-error').textContent = 'リスト名が一致しません';
+      return;
+    }
+    document.getElementById('delete-list-name-error').textContent = '';
+
+    try {
+      const batch = writeBatch(db);
+      shoppingCategories.filter(c => (c.listId || 'default') === id).forEach(c => batch.delete(doc(db, 'shopping_categories', c.id)));
+      shoppingItems.filter(i => {
+        if (i.listId) return i.listId === id;
+        const cat = shoppingCategories.find(c => c.id === i.categoryId);
+        return cat && (cat.listId || 'default') === id;
+      }).forEach(i => batch.delete(doc(db, 'shopping_list', i.id)));
+      batch.delete(doc(db, 'list_meta', id));
+      await batch.commit();
+
+      if (currentListId === id) currentListId = 'default';
+      closeDeleteListModal();
+      closeListSettingsModal();
+    } catch (err) {
+      console.error(err);
+      alert('削除に失敗しました: ' + err.message);
+    }
+  };
+
+  function openCreateListModal() {
+    _newListEmoji = '📋';
+    document.getElementById('new-list-name').value = '';
+    document.getElementById('new-list-name-error').textContent = '';
+    document.getElementById('new-list-shared-yes').checked = true;
+
+    const pickerEl = document.getElementById('emoji-picker-container');
+    pickerEl.innerHTML = '';
+    LIST_EMOJIS.forEach(em => {
+      const btn = document.createElement('span');
+      btn.className = 'emoji-opt' + (em === _newListEmoji ? ' selected' : '');
+      btn.textContent = em;
+      btn.onclick = () => {
+        _newListEmoji = em;
+        pickerEl.querySelectorAll('.emoji-opt').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+      };
+      pickerEl.appendChild(btn);
+    });
+
+    document.getElementById('list-create-modal').classList.add('open');
+    setTimeout(() => document.getElementById('new-list-name').focus(), 100);
+  }
+
+  window.closeCreateListModal = function() {
+    document.getElementById('list-create-modal').classList.remove('open');
+  };
+
+  window.createNewList = async function() {
+    const name = document.getElementById('new-list-name').value.trim();
+    if (!name) {
+      document.getElementById('new-list-name-error').textContent = 'リスト名を入力してください';
+      document.getElementById('new-list-name').focus();
+      return;
+    }
+    const shared = document.getElementById('new-list-shared-yes').checked;
+    const maxOrder = allLists.length > 0 ? Math.max(...allLists.map(l => l.order || 0)) : 0;
+
+    try {
+      const docRef = await addDoc(collection(db, 'list_meta'), {
+        name, emoji: _newListEmoji, shared, ownerId: currentUserEmail,
+        order: maxOrder + 1, createdAt: serverTimestamp()
+      });
+      currentListId = docRef.id;
+      closeCreateListModal();
+    } catch (err) {
+      console.error(err);
+      alert('リストの作成に失敗しました');
+    }
+  };
 </script>
+
+<!-- ===== リスト設定モーダル ===== -->
+<div id="list-settings-modal" class="modal-overlay">
+  <div class="modal-box">
+    <button class="modal-close-btn" onclick="document.getElementById('list-settings-modal').classList.remove('open')">✕</button>
+    <p class="modal-title">⚙ リスト管理</p>
+    <div id="list-settings-content"></div>
+    <button onclick="openCreateListModal()" style="margin-top:16px; width:100%; padding:12px; background:#4caf50; color:#fff; border:none; border-radius:8px; font-size:1em; font-weight:bold; cursor:pointer;">＋ 新しいリストを作成</button>
+  </div>
+</div>
+
+<!-- ===== リスト作成モーダル ===== -->
+<div id="list-create-modal" class="modal-overlay">
+  <div class="modal-box">
+    <button class="modal-close-btn" onclick="closeCreateListModal()">✕</button>
+    <p class="modal-title">➕ 新しいリストを作成</p>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:0.9em; color:#666; display:block; margin-bottom:6px; font-weight:bold;">リスト名</label>
+      <input id="new-list-name" type="text" placeholder="例: 持ち物リスト" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:1em; box-sizing:border-box;">
+      <div id="new-list-name-error" style="color:#d32f2f; font-size:0.85em; min-height:18px; margin-top:4px;"></div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:0.9em; color:#666; display:block; margin-bottom:6px; font-weight:bold;">絵文字</label>
+      <div id="emoji-picker-container" class="emoji-picker"></div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:0.9em; color:#666; display:block; margin-bottom:8px; font-weight:bold;">共有設定</label>
+      <div style="display:flex; gap:16px; flex-wrap:wrap;">
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.95em;"><input type="radio" id="new-list-shared-yes" name="new-list-shared" value="shared" checked> 👥 共有（家族全員）</label>
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.95em;"><input type="radio" id="new-list-shared-no" name="new-list-shared" value="private"> 🔒 個人（自分だけ）</label>
+      </div>
+    </div>
+    <button onclick="createNewList()" style="width:100%; padding:12px; background:#1976d2; color:#fff; border:none; border-radius:8px; font-size:1em; font-weight:bold; cursor:pointer;">作成する</button>
+  </div>
+</div>
+
+<!-- ===== リスト削除確認モーダル ===== -->
+<div id="list-delete-confirm-modal" class="modal-overlay">
+  <div class="modal-box">
+    <button class="modal-close-btn" onclick="closeDeleteListModal()">✕</button>
+    <p class="modal-title">🗑 リストの削除</p>
+    <p style="font-size:0.95em; margin-bottom:12px;"><strong id="delete-list-name-display" style="color:#d32f2f;"></strong> を削除します。<br><span style="color:#666;">カテゴリとアイテムもすべて削除されます。</span></p>
+    <label style="font-size:0.9em; color:#666; font-weight:bold; display:block; margin-bottom:6px;">確認のためリスト名を入力してください:</label>
+    <input id="delete-list-name-input" type="text" placeholder="リスト名を入力" style="width:100%; padding:10px; border:2px solid #d32f2f; border-radius:6px; font-size:1em; box-sizing:border-box; margin-bottom:4px;">
+    <div id="delete-list-name-error" style="color:#d32f2f; font-size:0.85em; min-height:20px; margin-bottom:12px;"></div>
+    <button id="delete-list-confirm-btn" onclick="executeDeleteList()" style="width:100%; padding:12px; background:#d32f2f; color:#fff; border:none; border-radius:8px; font-size:1em; font-weight:bold; cursor:pointer;">削除する</button>
+  </div>
+</div>
+
 </body>
-</html>
 </html>
