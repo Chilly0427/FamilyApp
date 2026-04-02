@@ -154,6 +154,7 @@ input { -webkit-appearance: none; appearance: none; }
 <main>
   <div style="margin-bottom:12px;">
     <input type="text" id="search-filter" placeholder="🔍 アイテムを検索..." style="width:100%; padding:10px 12px; border:1px solid #ccc; border-radius:8px; font-size:16px; box-sizing:border-box; background:#fff;">
+    <button id="add-category-top-btn" style="margin-top:8px; width:100%; padding:9px; background:#e8f5e9; color:#2e7d32; border:2px dashed #a5d6a7; border-radius:8px; font-size:0.9em; font-weight:bold; cursor:pointer;">＋ カテゴリを追加</button>
   </div>
   <div id="lists-container">
     <!-- カテゴリごとのリストがここに動的に追加される -->
@@ -240,6 +241,8 @@ input { -webkit-appearance: none; appearance: none; }
   function initApp() {
     setupListeners();
     document.getElementById('clear-done-btn').addEventListener('click', clearDoneItems);
+    const addCatTopBtn = document.getElementById('add-category-top-btn');
+    if (addCatTopBtn) addCatTopBtn.addEventListener('click', addCategoryPrompt);
     const listSettingsBtn = document.getElementById('list-settings-btn');
     if (listSettingsBtn) listSettingsBtn.addEventListener('click', openListSettingsModal);
     // メニュー外タップで⋯メニューを閉じる
@@ -322,6 +325,9 @@ input { -webkit-appearance: none; appearance: none; }
 
       renderTabs();
       renderList();
+      if (document.getElementById('list-settings-modal').classList.contains('open')) {
+        renderListSettingsContent();
+      }
     });
   }
 
@@ -858,16 +864,6 @@ input { -webkit-appearance: none; appearance: none; }
       });
       sortableInstances.push(sortable);
     });
-
-    // カテゴリを追加ボタン（リスト末尾）
-    const addCatBtnWrap = document.createElement('div');
-    addCatBtnWrap.style.cssText = 'padding: 12px 0 8px 0; text-align: center;';
-    const addCatBtn = document.createElement('button');
-    addCatBtn.textContent = '＋ カテゴリを追加';
-    addCatBtn.style.cssText = 'padding:10px 24px; background:#e8f5e9; color:#2e7d32; border:2px dashed #a5d6a7; border-radius:10px; font-size:0.95em; font-weight:bold; cursor:pointer; width:100%;';
-    addCatBtn.onclick = () => addCategoryPrompt();
-    addCatBtnWrap.appendChild(addCatBtn);
-    container.appendChild(addCatBtnWrap);
 
     const clearBtn = document.getElementById('clear-done-btn');
     clearBtn.style.display = hasDoneItems ? 'block' : 'none';
@@ -1559,13 +1555,27 @@ input { -webkit-appearance: none; appearance: none; }
     _newListEmoji = '📋';
     document.getElementById('new-list-name').value = '';
     document.getElementById('new-list-name-error').textContent = '';
-    document.getElementById('new-list-shared-yes').checked = true;
+    setNewListShared(true);
     renderEmojiPicker('');
+    document.getElementById('emoji-search-input').value = '';
     document.getElementById('list-create-modal').classList.add('open');
     setTimeout(() => document.getElementById('new-list-name').focus(), 100);
   }
 
   window.renderEmojiPicker = renderEmojiPicker;
+  window.setNewListShared = function(isShared) {
+    const yesBtn = document.getElementById('new-list-shared-yes');
+    const noBtn = document.getElementById('new-list-shared-no');
+    if (isShared) {
+      yesBtn.className = 'shared-toggle-btn active-shared';
+      noBtn.className = 'shared-toggle-btn';
+    } else {
+      yesBtn.className = 'shared-toggle-btn';
+      noBtn.className = 'shared-toggle-btn active-private';
+    }
+    yesBtn.dataset.active = isShared ? '1' : '0';
+  };
+
   function renderEmojiPicker(query) {
     const pickerEl = document.getElementById('emoji-picker-container');
     pickerEl.innerHTML = '';
@@ -1598,7 +1608,7 @@ input { -webkit-appearance: none; appearance: none; }
       document.getElementById('new-list-name').focus();
       return;
     }
-    const shared = document.getElementById('new-list-shared-yes').checked;
+    const shared = document.getElementById('new-list-shared-yes').dataset.active === '1';
     const maxOrder = allLists.length > 0 ? Math.max(...allLists.map(l => l.order || 0)) : 0;
 
     try {
@@ -1642,9 +1652,9 @@ input { -webkit-appearance: none; appearance: none; }
     </div>
     <div style="margin-bottom:16px;">
       <label style="font-size:0.9em; color:#666; display:block; margin-bottom:8px; font-weight:bold;">共有設定</label>
-      <div style="display:flex; gap:16px; flex-wrap:wrap;">
-        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.95em;"><input type="radio" id="new-list-shared-yes" name="new-list-shared" value="shared" checked> 👥 共有（家族全員）</label>
-        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.95em;"><input type="radio" id="new-list-shared-no" name="new-list-shared" value="private"> 🔒 個人（自分だけ）</label>
+      <div class="shared-toggle">
+        <button type="button" id="new-list-shared-yes" class="shared-toggle-btn active-shared" onclick="setNewListShared(true)">👥 共有（家族全員）</button>
+        <button type="button" id="new-list-shared-no" class="shared-toggle-btn" onclick="setNewListShared(false)">🔒 個人（自分だけ）</button>
       </div>
     </div>
     <button onclick="createNewList()" style="width:100%; padding:12px; background:#1976d2; color:#fff; border:none; border-radius:8px; font-size:1em; font-weight:bold; cursor:pointer;">作成する</button>
