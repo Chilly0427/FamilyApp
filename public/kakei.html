@@ -26,8 +26,8 @@ button:hover{background:#ddd}
 .del-btn{color:#d32f2f;padding:4px 8px;font-size:1.2em;}
 .legend{font-size:0.8em;color:#666;background:#eee;padding:8px;border-radius:4px;margin-bottom:10px;}
 .drag-handle{color:#bbb; cursor:grab; text-align:center; font-size:1.2em;}
-.blocked-input{background-color:#ccc !important; opacity:1 !important; color:transparent !important;}
-.blocked-input::placeholder{color:transparent !important;}
+.blocked-input{background-color:#f0f0f0 !important; opacity:1 !important; color:transparent !important;}
+.blocked-input::placeholder{color:#aaa !important; font-size:0.85em;}
 .clear-btn{position:absolute; right:4px; top:50%; transform:translateY(-50%); cursor:pointer; color:#777; font-size:14px; font-weight:bold; background:#e0e0e0; border-radius:50%; width:18px; height:18px; display:flex; align-items:center; justify-content:center; z-index:2;}
 .clear-btn:hover{background:#d0d0d0;}
 
@@ -50,6 +50,9 @@ input:focus, select:focus {
 </style>
 </head>
 <body style="display: none;">
+<div id="loading-overlay" style="position:fixed;inset:0;background:#fafafa;display:flex;align-items:center;justify-content:center;z-index:9999;">
+  <div style="text-align:center;color:#888;"><div style="font-size:2em;margin-bottom:8px;">🏠</div>読み込み中...</div>
+</div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
@@ -67,6 +70,7 @@ input:focus, select:focus {
     if (user && ALLOWED_EMAILS.includes(user.email)) {
       document.body.style.display = 'block';
       currentUserId = user.uid;
+      const lo = document.getElementById('loading-overlay'); if(lo) lo.style.display='none';
       initApp();
     } else {
       if (user) {
@@ -109,6 +113,25 @@ input:focus, select:focus {
     window.setMonthDisplay();
     render();
     updateUIOnly();
+  };
+
+  window.goToCurrentMonth = () => {
+    window.currentMonthStr = new Date(new Date().getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 7);
+    window.setMonthDisplay();
+    render();
+    updateUIOnly();
+  };
+
+  window.toggleHeaderAccordion = () => {
+    const acc = document.getElementById('header-accordion');
+    const toggle = document.getElementById('header-accordion-toggle');
+    if (acc.style.display === 'none') {
+      acc.style.display = 'block';
+      toggle.textContent = '⚙️ 設定・操作 ▲';
+    } else {
+      acc.style.display = 'none';
+      toggle.textContent = '⚙️ 設定・操作 ▼';
+    }
   };
 
   const list = document.getElementById('list');
@@ -189,6 +212,16 @@ input:focus, select:focus {
         isSettled: false,
         createdAt: serverTimestamp()
       });
+      // 追加後に最下部へスクロールし、内容欄にフォーカス
+      setTimeout(() => {
+        const rows = list.querySelectorAll('.row');
+        if (rows.length > 0) {
+          const lastRow = rows[rows.length - 1];
+          lastRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const nameInput = lastRow.querySelector('input[type="text"]');
+          if (nameInput) setTimeout(() => nameInput.focus(), 300);
+        }
+      }, 500);
     };
 
     window.removeRow = async (id) => {
@@ -291,7 +324,7 @@ input:focus, select:focus {
       const h = document.createElement('input');
       h.id = hId;
       h.type = 'number';
-      h.placeholder = '👨夫支払い分';
+      h.placeholder = (it.w > 0 && !it.isSettled) ? '妻が入力済' : '👨夫支払い分';
       h.value = it.h || '';
       h.disabled = it.isSettled || (it.w > 0);
       if (it.w > 0 && !it.isSettled) h.classList.add('blocked-input');
@@ -309,7 +342,7 @@ input:focus, select:focus {
       const w = document.createElement('input');
       w.id = wId;
       w.type = 'number';
-      w.placeholder = '👩妻支払い分';
+      w.placeholder = (it.h > 0 && !it.isSettled) ? '夫が入力済' : '👩妻支払い分';
       w.value = it.w || '';
       w.disabled = it.isSettled || (it.h > 0);
       if (it.h > 0 && !it.isSettled) w.classList.add('blocked-input');
@@ -322,8 +355,8 @@ input:focus, select:focus {
       h.onblur = e => { 
         it.h = Number(e.target.value) || 0; 
         w.disabled = it.isSettled || (it.h > 0);
-        if (it.h > 0 && !it.isSettled) w.classList.add('blocked-input');
-        else w.classList.remove('blocked-input');
+        if (it.h > 0 && !it.isSettled) { w.classList.add('blocked-input'); w.placeholder = '夫が入力済'; }
+        else { w.classList.remove('blocked-input'); w.placeholder = '👩妻支払い分'; }
         
         hClear.style.display = (!it.isSettled && it.h > 0) ? 'flex' : 'none';
 
@@ -340,8 +373,8 @@ input:focus, select:focus {
       w.onblur = e => { 
         it.w = Number(e.target.value) || 0; 
         h.disabled = it.isSettled || (it.w > 0);
-        if (it.w > 0 && !it.isSettled) h.classList.add('blocked-input');
-        else h.classList.remove('blocked-input');
+        if (it.w > 0 && !it.isSettled) { h.classList.add('blocked-input'); h.placeholder = '妻が入力済'; }
+        else { h.classList.remove('blocked-input'); h.placeholder = '👨夫支払い分'; }
 
         wClear.style.display = (!it.isSettled && it.w > 0) ? 'flex' : 'none';
 
@@ -374,7 +407,18 @@ input:focus, select:focus {
       name.value = it.name || '';
       name.disabled = it.isSettled;
       name.style.flex = "1";
-      name.onchange = e => { updateItem(it.id, 'name', e.target.value); };
+      name.onchange = e => { 
+        updateItem(it.id, 'name', e.target.value); 
+      };
+      // 名前欄がblurされた時、全フィールドが空なら自動削除
+      name.addEventListener('blur', () => {
+        setTimeout(() => {
+          const currentItem = items.find(i => i.id === it.id);
+          if (currentItem && !currentItem.name && !currentItem.h && !currentItem.w) {
+            removeRow(it.id);
+          }
+        }, 600);
+      });
 
       const del = document.createElement('button');
       del.className = 'del-btn';
@@ -585,10 +629,11 @@ input:focus, select:focus {
     <div id="global-nav-placeholder"></div>
   </div>
   
-  <div style="display:flex; justify-content:center; align-items:center; background:#fff; padding: 12px 0; border-bottom: 1px solid #ddd; position:sticky; top: 58px; z-index:9; font-size:1.2em; font-weight:bold; gap: 16px;">
-    <span onclick="prevMonth()" style="cursor:pointer; padding:4px 12px; background:#f0f0f0; border-radius:4px; user-select:none;">◁</span>
+  <div style="display:flex; justify-content:center; align-items:center; background:#fff; padding: 12px 0; border-bottom: 1px solid #ddd; position:sticky; top: 58px; z-index:9; font-size:1.2em; font-weight:bold; gap: 8px;">
+    <span onclick="prevMonth()" style="cursor:pointer; padding:10px 18px; background:#f0f0f0; border-radius:8px; user-select:none; font-size:1.1em;">◁</span>
     <span id="currentMonthDisplay"></span>
-    <span onclick="nextMonth()" style="cursor:pointer; padding:4px 12px; background:#f0f0f0; border-radius:4px; user-select:none;">▷</span>
+    <span onclick="nextMonth()" style="cursor:pointer; padding:10px 18px; background:#f0f0f0; border-radius:8px; user-select:none; font-size:1.1em;">▷</span>
+    <span onclick="goToCurrentMonth()" style="cursor:pointer; padding:6px 12px; background:#e3f2fd; border-radius:6px; user-select:none; font-size:0.7em; color:#1976d2; font-weight:bold;">今月</span>
   </div>
 
   <script type="module">
@@ -596,22 +641,25 @@ input:focus, select:focus {
     initGlobalNav('kakei');
   </script>
   
-  
-
-  <div style="margin-top:10px">⚖️ <span id="ratioLabel">夫70% / 妻30%</span></div>
-  <input type="range" min="0" max="100" value="70" id="ratio" style="width:100%;margin:10px 0" />
-  
   <div class="big" id="finalResult">計算中...</div>
   
-  <div style="display:flex;justify-content:space-between;margin-top:10px; flex-wrap:wrap; gap:8px;">
-    <div style="display:flex; gap:6px; flex-wrap:wrap;">
-      <button id="toggleAllBtn" onclick="toggleAllSettled()" style="color:#1976d2;">✅ 全て「済」にする</button>
-      <button onclick="clearSettled()" style="color:#d32f2f">🗑 「済」を削除</button>
-    </div>
-    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:4px;">
-      <button onclick="importJSON()">📂 読込</button>
-      <button onclick="exportJSON()">💾 保存</button>
-      <button onclick="exportImage()">📷 スクリーンショット</button>
+  <div id="header-accordion-toggle" onclick="toggleHeaderAccordion()" style="text-align:center; padding:6px 0; cursor:pointer; color:#1976d2; font-size:0.85em; user-select:none; border-top:1px solid #eee; margin-top:4px;">
+    ⚙️ 設定・操作 ▼
+  </div>
+  <div id="header-accordion" style="display:none; transition: all 0.2s;">
+    <div style="margin-top:6px">⚖️ <span id="ratioLabel">夫70% / 妻30%</span></div>
+    <input type="range" min="0" max="100" value="70" id="ratio" style="width:100%;margin:10px 0" />
+    
+    <div style="display:flex;justify-content:space-between;margin-top:10px; flex-wrap:wrap; gap:8px;">
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <button id="toggleAllBtn" onclick="toggleAllSettled()" style="color:#1976d2;">✅ 全て「済」にする</button>
+        <button onclick="clearSettled()" style="color:#d32f2f">🗑 「済」を削除</button>
+      </div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:4px;">
+        <button onclick="importJSON()">📂 読込</button>
+        <button onclick="exportJSON()">💾 保存</button>
+        <button onclick="exportImage()">📷 スクリーンショット</button>
+      </div>
     </div>
   </div>
 </header>

@@ -92,6 +92,9 @@ input:focus, select:focus {
 </style>
 </head>
 <body style="display: none;">
+<div id="loading-overlay" style="position:fixed;inset:0;background:#f5f6f8;display:flex;align-items:center;justify-content:center;z-index:9999;">
+  <div style="text-align:center;color:#888;"><div style="font-size:2em;margin-bottom:8px;">📉</div>読み込み中...</div>
+</div>
 
 <header style="position:relative; display:flex; justify-content:space-between; align-items:center;">
   <h1 style="margin: 0; font-size: 1.25em; color: #2c3e50;">📉 底値メモ</h1>
@@ -108,6 +111,7 @@ input:focus, select:focus {
     <div style="display:flex; gap:6px;">
       <button onclick="document.getElementById('importFile').click()" style="padding:6px; border:none; border-radius:4px; font-weight:bold; cursor:pointer; background:#fff; border:1px solid #ccc; font-size: 0.9em;">📂 読込</button>
       <button onclick="exportData()" style="padding:6px; border:none; border-radius:4px; font-weight:bold; cursor:pointer; background:#fff; border:1px solid #ccc; font-size: 0.9em;">💾 保存</button>
+      <button onclick="openOcrModal()" style="padding:6px; border:none; border-radius:4px; font-weight:bold; cursor:pointer; background:#e8f5e9; border:1px solid #a5d6a7; font-size: 0.9em; color:#2e7d32;">📷 読取</button>
       <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
     </div>
     
@@ -118,6 +122,7 @@ input:focus, select:focus {
     </select>
   </div>
 
+  <input type="text" id="sokone-search" placeholder="🔍 商品を検索..." style="width:100%;padding:10px 14px;border:1px solid #cfd8dc;border-radius:10px;box-sizing:border-box;font-size:1em;margin-bottom:12px;background:#fff;">
   <div id="list"></div>
   <div style="text-align:center;margin:30px 0">
     <button class="btn-add" onclick="addRow()">➕ 新しい商品グループ</button>
@@ -130,6 +135,44 @@ input:focus, select:focus {
 <datalist id="item-list"></datalist>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<!-- OCR モーダル -->
+<div id="ocr-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; overflow-y:auto;">
+  <div style="max-width:560px; margin:24px auto; background:#fff; border-radius:16px; padding:20px; position:relative;">
+    <button onclick="closeOcrModal()" style="position:absolute; right:12px; top:12px; background:none; border:none; font-size:1.4em; cursor:pointer;">✕</button>
+    <h2 style="margin:0 0 12px; font-size:1.15em; color:#2e7d32;">📷 レシート読み取り</h2>
+
+    <div id="ocr-upload-area" style="text-align:center; padding:16px;">
+      <input type="file" id="ocr-file" accept="image/*" capture="environment" style="display:none;" onchange="handleOcrFile(event)">
+      <button onclick="document.getElementById('ocr-file').click()" style="padding:14px 24px; background:#4caf50; color:#fff; border:none; border-radius:12px; font-size:1em; font-weight:bold; cursor:pointer; margin:4px;">📸 撮影 / 画像を選択</button>
+      <p style="font-size:0.85em; color:#888; margin-top:8px;">レシートの写真から商品名・価格を自動検出します</p>
+    </div>
+
+    <div id="ocr-preview" style="display:none; margin:12px 0; text-align:center;">
+      <img id="ocr-preview-img" style="max-width:100%; max-height:240px; border-radius:8px; border:1px solid #e0e0e0;">
+    </div>
+
+    <div id="ocr-progress" style="display:none; text-align:center; padding:20px;">
+      <div id="ocr-progress-text" style="font-weight:bold; color:#1976d2; margin-bottom:8px;">解析中...</div>
+      <div style="width:100%; height:8px; background:#e0e0e0; border-radius:4px; overflow:hidden;">
+        <div id="ocr-progress-bar" style="width:0%; height:100%; background:#4caf50; transition:width 0.3s;"></div>
+      </div>
+    </div>
+
+    <div id="ocr-results" style="display:none;">
+      <h3 style="margin:12px 0 8px; font-size:1em; color:#333;">検出結果 <span id="ocr-result-count" style="font-size:0.85em; color:#78909c;"></span></h3>
+      <div id="ocr-items-list"></div>
+      <div id="ocr-raw-toggle" style="margin-top:8px;">
+        <button onclick="document.getElementById('ocr-raw-text').style.display = document.getElementById('ocr-raw-text').style.display === 'none' ? 'block' : 'none'" style="font-size:0.8em; background:none; border:1px solid #ccc; border-radius:6px; padding:4px 10px; color:#888; cursor:pointer;">📄 生テキスト表示</button>
+        <pre id="ocr-raw-text" style="display:none; font-size:0.75em; background:#f5f5f5; padding:10px; border-radius:8px; max-height:150px; overflow-y:auto; white-space:pre-wrap; word-break:break-all; margin-top:6px;"></pre>
+      </div>
+      <div style="margin-top:16px; text-align:center;">
+        <button onclick="importOcrItems()" style="padding:12px 30px; background:#4caf50; color:#fff; border:none; border-radius:12px; font-size:1.05em; font-weight:bold; cursor:pointer; width:80%;">✅ 選択した項目を登録</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
@@ -140,6 +183,12 @@ input:focus, select:focus {
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
+
+  // HTMLエスケープ（XSS対策）
+  function escHtml(str) {
+    if (str == null) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
 
   let items = [];
   let sortableInst = null;
@@ -175,7 +224,10 @@ input:focus, select:focus {
   onAuthStateChanged(auth, (user) => {
     if (user && ALLOWED_EMAILS.includes(user.email)) {
       document.body.style.display = 'block';
+      const lo = document.getElementById('loading-overlay'); if(lo) lo.style.display='none';
       loadData();
+      const sokoneSearch = document.getElementById('sokone-search');
+      if (sokoneSearch) sokoneSearch.addEventListener('input', () => renderList());
     } else {
       window.location.href = "index.html"; // Redirect to login if unauthorized
     }
@@ -215,9 +267,9 @@ input:focus, select:focus {
     const unitDatalist = document.getElementById("unit-list");
     const itemDatalist = document.getElementById("item-list");
     
-    storeDatalist.innerHTML = Array.from(storesSet).map(s => `<option value="${s}">`).join('');
-    unitDatalist.innerHTML = Array.from(unitsSet).map(u => `<option value="${u}">`).join('');
-    itemDatalist.innerHTML = Array.from(itemsSet).map(i => `<option value="${i}">`).join('');
+    storeDatalist.innerHTML = Array.from(storesSet).map(s => `<option value="${escHtml(s)}">`).join('');
+    unitDatalist.innerHTML = Array.from(unitsSet).map(u => `<option value="${escHtml(u)}">`).join('');
+    itemDatalist.innerHTML = Array.from(itemsSet).map(i => `<option value="${escHtml(i)}">`).join('');
   }
 
   function renderList() {
@@ -235,7 +287,7 @@ input:focus, select:focus {
       const price = parseFloat(it.price) || 0;
       let unitPrice = 0;
       if (price > 0 && qty > 0) {
-        const calcPrice = isTaxInc ? price : price * 1.08;
+        const calcPrice = isTaxInc ? price : price * (1 + (it.taxRate || 8) / 100);
         unitPrice = calcPrice / qty;
       }
       
@@ -247,7 +299,15 @@ input:focus, select:focus {
     const sortSelect = document.getElementById('sortModeSelect');
     if (sortSelect) sortSelect.value = sortMode;
 
-    const sortedGroupNames = Object.keys(groups).sort((a, b) => {
+    const searchQuery = (document.getElementById('sokone-search')?.value || '').trim().toLowerCase();
+
+    const sortedGroupNames = Object.keys(groups).filter(name => {
+      if (!searchQuery) return true;
+      // グループ名(商品名)で検索
+      if (name.toLowerCase().includes(searchQuery)) return true;
+      // グループ内の店舗名でも検索
+      return groups[name].some(it => (it.storeName || '').toLowerCase().includes(searchQuery));
+    }).sort((a, b) => {
       // "未分類の商品" を一番最後に回す
       const nameA = (a === "未分類の商品" || a.startsWith("未設定_")) ? "んんん" : a;
       const nameB = (b === "未分類の商品" || b.startsWith("未設定_")) ? "んんん" : b;
@@ -403,8 +463,8 @@ input:focus, select:focus {
         const unitPriceStr = (Math.round(best.unitPrice * 10) / 10).toFixed(1);
         rankingHtml = `
           <div class="best-price-row">
-            👑 1位: ${best.storeName || '店名未入力'} 
-            <strong style="color:#d32f2f; font-size:1.1em;">${unitPriceStr}円</strong>/1${groupUnit}
+            👑 1位: ${escHtml(best.storeName) || '店名未入力'} 
+            <strong style="color:#d32f2f; font-size:1.1em;">${unitPriceStr}円</strong>/1${escHtml(groupUnit)}
             <span style="color:#888; font-size:0.8em;">(${bestDateStr})</span>
           </div>
         `;
@@ -413,19 +473,20 @@ input:focus, select:focus {
       }
 
       const gnEsc = groupName.replace(/'/g, "\\'");
+      const gnAttr = escHtml(groupName);
       const realItems = groupItems.filter(it => (it.storeName && it.storeName.trim() !== "") || (it.price !== null && it.price !== "") || (it.quantity !== null && it.quantity !== ""));
 
       groupDiv.innerHTML = `
         <div class="group-header">
           <div class="drag-handle" style="display:${sortMode === 'manual' ? 'block' : 'none'}">☰</div>
-          <div class="group-title-area" onclick="toggleGroup('${gnEsc}')">
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-              <input type="text" value="${(groupName === '未分類の商品' || groupName.startsWith('未設定_')) ? '' : groupName}" placeholder="商品名を入力..." list="item-list" onclick="event.stopPropagation()" onblur="updateGroupName('${gnEsc}', this.value)" style="flex:1; font-size:1.2em; padding:8px 12px; font-weight:bold; color:#2e7d32; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.05); min-width:120px;">
+          <div class="group-title-area">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;" onclick="event.stopPropagation()">
+              <input type="text" value="${(groupName === '未分類の商品' || groupName.startsWith('未設定_')) ? '' : gnAttr}" placeholder="商品名を入力..." list="item-list" onblur="updateGroupName('${gnEsc}', this.value)" style="flex:1; font-size:1.2em; padding:8px 12px; font-weight:bold; color:#2e7d32; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.05); min-width:120px;">
               <div style="font-size:0.95em; color:#78909c; font-weight:bold; white-space:nowrap;">(${realItems.length}件)</div>
-              <input type="text" value="${groupUnit}" placeholder="単位" list="unit-list" onclick="event.stopPropagation()" onblur="updateGroupUnit('${gnEsc}', this.value)" style="width:85px; font-size:1.0em; padding:8px; border:1px solid #cfd8dc; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); text-align:center;">
+              <input type="text" value="${escHtml(groupUnit)}" placeholder="単位" list="unit-list" onblur="updateGroupUnit('${gnEsc}', this.value)" style="width:85px; font-size:1.0em; padding:8px; border:1px solid #cfd8dc; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); text-align:center;">
               <button class="del-btn" style="padding:10px 12px; font-size:1.1em;" onclick="event.stopPropagation(); deleteGroup('${gnEsc}')">🗑</button>
             </div>
-            ${rankingHtml}
+            <div style="cursor:pointer;" onclick="toggleGroup('${gnEsc}')">${rankingHtml}</div>
           </div>
           <div class="expand-icon" onclick="toggleGroup('${gnEsc}')">${isExpanded ? '▲' : '▼'}</div>
         </div>
@@ -480,7 +541,7 @@ input:focus, select:focus {
           </div>
 
           <div class="row-middle" style="margin-top:8px;">
-            <input type="text" placeholder="店名 (例: コストコ)" value="${it.storeName || ''}" list="store-list" onblur="updateItem('${it.id}', 'storeName', this.value)" style="flex:1;">
+            <input type="text" placeholder="店名 (例: コストコ)" value="${escHtml(it.storeName) || ''}" list="store-list" onblur="updateItem('${it.id}', 'storeName', this.value)" style="flex:1;">
           </div>
 
           <div class="row-bottom">
@@ -492,18 +553,22 @@ input:focus, select:focus {
               <button class="toggle-btn ${!isTaxInc ? '' : 'active'} " onclick="updateItem('${it.id}', 'isTaxIncluded', true)" style="border-radius:8px 0 0 8px; border-right:none; padding:10px 4px;">税込</button>
               <button class="toggle-btn ${!isTaxInc ? 'active' : ''} " onclick="updateItem('${it.id}', 'isTaxIncluded', false)" style="border-radius:0 8px 8px 0; border-left:none; padding:10px 4px;">税抜</button>
             </div>
+            <div style="display:${isTaxInc ? 'none' : 'flex'}; min-width:90px;">
+              <button class="toggle-btn ${(it.taxRate || 8) === 8 ? 'active' : ''}" onclick="updateItem('${it.id}', 'taxRate', 8)" style="border-radius:8px 0 0 8px; border-right:none; padding:10px 4px; font-size:0.85em;">8%</button>
+              <button class="toggle-btn ${(it.taxRate || 8) === 10 ? 'active' : ''}" onclick="updateItem('${it.id}', 'taxRate', 10)" style="border-radius:0 8px 8px 0; border-left:none; padding:10px 4px; font-size:0.85em;">10%</button>
+            </div>
           </div>
 
           <div class="row-bottom" style="margin-top:8px;">
             <div style="display:flex; align-items:center; gap:8px; flex:1;">
               <span style="color:#666; font-weight:bold;">容量:</span> <input type="number" step="0.1" value="${it.quantity || 1}" onblur="updateItem('${it.id}', 'quantity', this.value === '' ? null : parseFloat(this.value))" style="width:100px; text-align:right;">
-              <span style="font-weight:bold; color:#78909c; font-size:1.1em; padding-left:4px;">${groupUnit}</span>
+              <span style="font-weight:bold; color:#78909c; font-size:1.1em; padding-left:4px;">${escHtml(groupUnit)}</span>
             </div>
           </div>
 
           <div class="row-calc">
             <div class="unit-price">
-              ✨単価: <strong>${unitPriceStr}</strong> 円 / 1${groupUnit}
+              ✨単価: <strong>${unitPriceStr}</strong> 円 / 1${escHtml(groupUnit)}
             </div>
           </div>
         `;
@@ -529,7 +594,7 @@ input:focus, select:focus {
           </div>
 
           <div class="row-middle" style="margin-top:8px;">
-            <input type="text" placeholder="店名 (例: コストコ)" value="${draft.storeName}" list="store-list" oninput="updateDraft('${gnEsc}', 'storeName', this.value)" style="flex:1;">
+            <input type="text" placeholder="店名 (例: コストコ)" value="${escHtml(draft.storeName)}" list="store-list" oninput="updateDraft('${gnEsc}', 'storeName', this.value)" style="flex:1;">
           </div>
 
           <div class="row-bottom">
@@ -541,12 +606,16 @@ input:focus, select:focus {
               <button class="toggle-btn ${!isTaxInc ? '' : 'active'} " onclick="toggleDraftTax('${gnEsc}', true)" style="border-radius:8px 0 0 8px; border-right:none; padding:10px 4px;">税込</button>
               <button class="toggle-btn ${!isTaxInc ? 'active' : ''} " onclick="toggleDraftTax('${gnEsc}', false)" style="border-radius:0 8px 8px 0; border-left:none; padding:10px 4px;">税抜</button>
             </div>
+            <div style="display:${isTaxInc ? 'none' : 'flex'}; min-width:90px;">
+              <button class="toggle-btn ${(draft.taxRate || 8) === 8 ? 'active' : ''}" onclick="updateDraft('${gnEsc}', 'taxRate', 8); renderList();" style="border-radius:8px 0 0 8px; border-right:none; padding:10px 4px; font-size:0.85em;">8%</button>
+              <button class="toggle-btn ${(draft.taxRate || 8) === 10 ? 'active' : ''}" onclick="updateDraft('${gnEsc}', 'taxRate', 10); renderList();" style="border-radius:0 8px 8px 0; border-left:none; padding:10px 4px; font-size:0.85em;">10%</button>
+            </div>
           </div>
 
           <div class="row-bottom" style="margin-top:8px;">
             <div style="display:flex; align-items:center; gap:8px; flex:1;">
               <span style="color:#666; font-weight:bold;">容量:</span> <input type="number" step="0.1" value="${draft.quantity}" oninput="updateDraft('${gnEsc}', 'quantity', this.value)" style="width:100px; text-align:right;">
-              <span style="font-weight:bold; color:#78909c; font-size:1.1em; padding-left:4px;">${groupUnit}</span>
+              <span style="font-weight:bold; color:#78909c; font-size:1.1em; padding-left:4px;">${escHtml(groupUnit)}</span>
             </div>
           </div>
           
@@ -645,6 +714,7 @@ input:focus, select:focus {
       price: "",
       quantity: "", 
       isTaxIncluded: true,
+      taxRate: 8,
       recordedDate: `${yyyy}-${mm}-${dd}`
     };
     expandedGroups[groupName] = true;
@@ -686,6 +756,7 @@ input:focus, select:focus {
       quantity: draft.quantity === "" ? null : parseFloat(draft.quantity),
       unit: repItem ? repItem.unit : "",
       isTaxIncluded: draft.isTaxIncluded,
+      taxRate: draft.taxRate || 8,
       recordedDate: draft.recordedDate,
       updatedAt: serverTimestamp()
     };
@@ -815,6 +886,203 @@ input:focus, select:focus {
       });
     });
   }
+
+  // -----------------------------------------
+  // OCR レシート読み取り
+  // -----------------------------------------
+  let ocrDetectedItems = [];
+
+  window.openOcrModal = () => {
+    document.getElementById('ocr-modal').style.display = 'block';
+    document.getElementById('ocr-upload-area').style.display = 'block';
+    document.getElementById('ocr-preview').style.display = 'none';
+    document.getElementById('ocr-progress').style.display = 'none';
+    document.getElementById('ocr-results').style.display = 'none';
+    document.getElementById('ocr-file').value = '';
+    ocrDetectedItems = [];
+  };
+
+  window.closeOcrModal = () => {
+    document.getElementById('ocr-modal').style.display = 'none';
+  };
+
+  window.handleOcrFile = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // プレビュー表示
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      document.getElementById('ocr-preview-img').src = e.target.result;
+      document.getElementById('ocr-preview').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+
+    // OCR実行
+    document.getElementById('ocr-progress').style.display = 'block';
+    document.getElementById('ocr-results').style.display = 'none';
+    document.getElementById('ocr-progress-text').textContent = '解析中...';
+    document.getElementById('ocr-progress-bar').style.width = '0%';
+
+    try {
+      const worker = await Tesseract.createWorker('jpn', 1, {
+        logger: (m) => {
+          if (m.status === 'recognizing text') {
+            const pct = Math.round((m.progress || 0) * 100);
+            document.getElementById('ocr-progress-bar').style.width = pct + '%';
+            document.getElementById('ocr-progress-text').textContent = `解析中... ${pct}%`;
+          }
+        }
+      });
+
+      const { data } = await worker.recognize(file);
+      await worker.terminate();
+
+      document.getElementById('ocr-progress').style.display = 'none';
+      document.getElementById('ocr-raw-text').textContent = data.text;
+
+      // テキスト解析
+      ocrDetectedItems = parseReceiptText(data.text);
+      renderOcrResults();
+    } catch (err) {
+      console.error('OCR error:', err);
+      document.getElementById('ocr-progress').style.display = 'none';
+      alert('OCR解析中にエラーが発生しました: ' + err.message);
+    }
+  };
+
+  function parseReceiptText(text) {
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const detected = [];
+    let storeName = '';
+
+    // 店名検出: 先頭数行で「店」「ストア」「マート」等を含む行、または最初の非数字行
+    for (let i = 0; i < Math.min(lines.length, 5); i++) {
+      const line = lines[i];
+      if (/店|ストア|マート|スーパー|ドラッグ|コンビニ|イオン|コストコ|業務|西友|ライフ|マックスバリュ|ドンキ|ダイソー|セブン|ローソン|ファミリー|ミニストップ|ヤオコー|オーケー|サミット/.test(line)) {
+        storeName = line.replace(/[☆★◆◇■□▲△▽▼●○\s]+/g, ' ').trim();
+        break;
+      }
+    }
+    if (!storeName && lines.length > 0) {
+      // 先頭行を店名候補として使用 (数字のみの行は除外)
+      const firstNonNum = lines.find(l => !/^\d+$/.test(l) && !/^\d{4}[\/\-]/.test(l));
+      if (firstNonNum) storeName = firstNonNum.replace(/[☆★◆◇■□▲△▽▼]+/g, '').trim();
+    }
+
+    // 商品行の検出: 「商品名 ... 金額」パターン
+    // よくある日本語レシートのパターン:
+    //   商品名  ¥999  or  商品名  999円  or  商品名  999  or  商品名\t999
+    const pricePattern = /^(.+?)\s+[¥\\￥]?\s*(\d{1,7})[円]?\s*$/;
+    const pricePatternAlt = /^(.+?)\s{2,}(\d{1,7})\s*$/;
+    // 「*」や「※」で始まる商品行
+    const pricePatternStar = /^[*※＊]\s*(.+?)\s+[¥\\￥]?\s*(\d{1,7})[円]?\s*$/;
+
+    for (const line of lines) {
+      let match = line.match(pricePattern) || line.match(pricePatternAlt) || line.match(pricePatternStar);
+      if (match) {
+        let name = match[1].trim();
+        const price = parseInt(match[2], 10);
+
+        // ノイズ除去: 小計/合計/税/お釣り等はスキップ
+        if (/小計|合計|税|消費|外税|内税|お預|お釣|つり|現金|クレジット|カード|ポイント|値引|割引|お買上|点数|領収/.test(name)) continue;
+        if (price <= 0 || price > 999999) continue;
+
+        // 商品名クリーンアップ
+        name = name.replace(/^[*※＊\s]+/, '').replace(/\s+/g, ' ').trim();
+        if (name.length < 1) continue;
+
+        detected.push({
+          selected: true,
+          itemName: name,
+          storeName: storeName,
+          price: price,
+          quantity: '',
+          unit: '',
+          isTaxIncluded: true,
+          taxRate: 8
+        });
+      }
+    }
+
+    // 何も検出できなかった場合、店名だけ設定した空エントリを1つ
+    if (detected.length === 0) {
+      detected.push({
+        selected: true,
+        itemName: '',
+        storeName: storeName,
+        price: '',
+        quantity: '',
+        unit: '',
+        isTaxIncluded: true,
+        taxRate: 8
+      });
+    }
+
+    return detected;
+  }
+
+  function renderOcrResults() {
+    const container = document.getElementById('ocr-items-list');
+    const countEl = document.getElementById('ocr-result-count');
+    document.getElementById('ocr-results').style.display = 'block';
+    countEl.textContent = `(${ocrDetectedItems.length}件検出)`;
+
+    container.innerHTML = ocrDetectedItems.map((item, idx) => `
+      <div style="border:1px solid #e0e0e0; border-radius:10px; padding:12px; margin-bottom:8px; background:${item.selected ? '#f1f8e9' : '#fafafa'};">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <input type="checkbox" ${item.selected ? 'checked' : ''} onchange="ocrDetectedItems[${idx}].selected=this.checked; renderOcrResults();" style="width:20px; height:20px; accent-color:#4caf50;">
+          <input type="text" value="${escHtml(item.itemName)}" placeholder="商品名" oninput="ocrDetectedItems[${idx}].itemName=this.value" list="item-list" style="flex:1; padding:8px; border:1px solid #cfd8dc; border-radius:6px; font-size:0.95em; font-weight:bold;">
+          <button onclick="ocrDetectedItems.splice(${idx},1); renderOcrResults();" style="background:none; border:none; font-size:1.1em; cursor:pointer; color:#d32f2f;">✕</button>
+        </div>
+        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+          <input type="text" value="${escHtml(item.storeName)}" placeholder="店名" oninput="ocrDetectedItems[${idx}].storeName=this.value" list="store-list" style="flex:1; min-width:100px; padding:6px; border:1px solid #cfd8dc; border-radius:6px; font-size:0.9em;">
+          <input type="number" value="${item.price}" placeholder="価格" oninput="ocrDetectedItems[${idx}].price=this.value" style="width:80px; padding:6px; border:1px solid #cfd8dc; border-radius:6px; font-size:0.9em; text-align:right;">
+          <span style="color:#666; font-size:0.9em;">円</span>
+          <input type="number" step="0.1" value="${item.quantity}" placeholder="容量" oninput="ocrDetectedItems[${idx}].quantity=this.value" style="width:60px; padding:6px; border:1px solid #cfd8dc; border-radius:6px; font-size:0.9em; text-align:right;">
+          <input type="text" value="${escHtml(item.unit || '')}" placeholder="単位" oninput="ocrDetectedItems[${idx}].unit=this.value" list="unit-list" style="width:50px; padding:6px; border:1px solid #cfd8dc; border-radius:6px; font-size:0.9em;">
+        </div>
+      </div>
+    `).join('');
+  }
+
+  window.importOcrItems = async () => {
+    const selected = ocrDetectedItems.filter(it => it.selected && it.itemName);
+    if (selected.length === 0) {
+      alert('登録する項目を選択してください');
+      return;
+    }
+
+    const dObj = new Date();
+    const yyyy = dObj.getFullYear();
+    const mm = String(dObj.getMonth() + 1).padStart(2, '0');
+    const dd = String(dObj.getDate()).padStart(2, '0');
+    const today = `${yyyy}-${mm}-${dd}`;
+
+    let count = 0;
+    for (const item of selected) {
+      const newId = Date.now().toString() + Math.floor(Math.random() * 10000);
+      const newOrder = items.length > 0 ? Math.max(...items.map(i => i.order || 0)) + 1000 + count * 1000 : 1000 + count * 1000;
+
+      await setDoc(doc(db, "sokone_items", newId), {
+        order: newOrder,
+        itemName: item.itemName,
+        storeName: item.storeName || '',
+        price: parseFloat(item.price) || null,
+        quantity: item.quantity ? parseFloat(item.quantity) : '',
+        unit: item.unit || '',
+        isTaxIncluded: item.isTaxIncluded,
+        taxRate: item.taxRate || 8,
+        isDiscount: false,
+        recordedDate: today,
+        updatedAt: serverTimestamp()
+      });
+      count++;
+    }
+
+    alert(`${count}件を登録しました！`);
+    closeOcrModal();
+  };
 </script>
 </body>
 </html>

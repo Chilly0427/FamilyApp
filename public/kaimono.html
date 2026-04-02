@@ -52,6 +52,16 @@ main { padding: 16px; }
 /* スマホでのタップハイライトを消す */
 * { -webkit-tap-highlight-color: transparent; }
 
+/* ⋯メニュー */
+.cat-menu-wrap { position: relative; }
+.cat-menu-btn { background: none; border: none; font-size: 1.3em; cursor: pointer; padding: 4px 8px; color: #666; }
+.cat-menu-dropdown { display: none; position: absolute; right: 0; top: 100%; background: #fff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 100; min-width: 160px; overflow: hidden; }
+.cat-menu-dropdown.open { display: block; }
+.cat-menu-item { display: flex; align-items: center; gap: 8px; padding: 12px 16px; font-size: 0.95em; cursor: pointer; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+.cat-menu-item:last-child { border-bottom: none; }
+.cat-menu-item:active { background: #f5f5f5; }
+.cat-menu-item.danger { color: #d32f2f; }
+
 /* --- Focus & Interaction Styles --- */
 input:focus, select:focus {
   border-color: #1976d2 !important;
@@ -96,6 +106,9 @@ input { -webkit-appearance: none; appearance: none; }
 </style>
 </head>
 <body style="display: none;">
+<div id="loading-overlay" style="position:fixed;inset:0;background:#f5f6f8;display:flex;align-items:center;justify-content:center;z-index:9999;">
+  <div style="text-align:center;color:#888;"><div style="font-size:2em;margin-bottom:8px;">🛒</div>読み込み中...</div>
+</div>
 
 <header>
   <h1 style="margin: 0; font-size: 1.25em; color: #2c3e50;">🛒 買い物メモ</h1>
@@ -106,6 +119,9 @@ input { -webkit-appearance: none; appearance: none; }
 </header>
 
 <main>
+  <div style="margin-bottom:12px;">
+    <input type="text" id="search-filter" placeholder="🔍 アイテムを検索..." style="width:100%; padding:10px 12px; border:1px solid #ccc; border-radius:8px; font-size:16px; box-sizing:border-box; background:#fff;">
+  </div>
   <div id="lists-container">
     <!-- カテゴリごとのリストがここに動的に追加される -->
   </div>
@@ -175,6 +191,7 @@ input { -webkit-appearance: none; appearance: none; }
     onAuthStateChanged(auth, (user) => {
       if (user && ALLOWED_EMAILS.includes(user.email)) {
         document.body.style.display = 'block';
+        const lo = document.getElementById('loading-overlay'); if(lo) lo.style.display='none';
         initApp();
       } else if (!user) {
         window.location.href = "index.html";
@@ -187,7 +204,15 @@ input { -webkit-appearance: none; appearance: none; }
     document.getElementById('clear-done-btn').addEventListener('click', clearDoneItems);
     const addCatTopBtn = document.getElementById('add-category-top-btn');
     if (addCatTopBtn) addCatTopBtn.addEventListener('click', addCategoryPrompt);
-    // Top-level item input removed; per-category + buttons are used instead.
+    // メニュー外タップで⋯メニューを閉じる
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.cat-menu-dropdown.open').forEach(d => d.classList.remove('open'));
+    });
+    // 検索フィルター
+    const searchInput = document.getElementById('search-filter');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => { renderList(); });
+    }
   }
 
   function setupListeners() {
@@ -370,6 +395,10 @@ input { -webkit-appearance: none; appearance: none; }
     sortableInstances.forEach(inst => inst.destroy());
     sortableInstances = [];
 
+    // 検索フィルター
+    const searchInput = document.getElementById('search-filter');
+    const searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
     // グローバルで完了済みが存在するか（ボタン表示制御用）
     let hasDoneItems = shoppingItems.some(item => item.isDone);
 
@@ -388,7 +417,14 @@ input { -webkit-appearance: none; appearance: none; }
       if (hideDone) {
         catItems = catItems.filter(item => !item.isDone);
       }
-      // if (catItems.length === 0) return; // 空カテゴリも表示する
+
+      // 検索フィルター適用
+      if (searchQuery) {
+        catItems = catItems.filter(item => (item.name || '').toLowerCase().includes(searchQuery));
+        // カテゴリ名もマッチしなければ、アイテムが0件なら非表示
+        const catNameMatch = cat.name.toLowerCase().includes(searchQuery);
+        if (catItems.length === 0 && !catNameMatch) return;
+      }
       
       const catDiv = document.createElement('div');
       catDiv.className = 'category-section';
@@ -458,6 +494,11 @@ input { -webkit-appearance: none; appearance: none; }
       addItemBtn.onclick = async (e) => {
         e.stopPropagation();
         try {
+          // 折りたたまれていたら解除する
+          if (collapsedCategories.has(cat.id)) {
+            collapsedCategories.delete(cat.id);
+            saveCollapsedCategories();
+          }
           const id = await addItemToCategory(cat.id, '');
           if (id) {
             // フラグを立てて renderList 側で編集用 input を表示させる
@@ -471,76 +512,68 @@ input { -webkit-appearance: none; appearance: none; }
 
       
 
-      // カテゴリの完了表示トグル用アイコン（目/目に斜線）を挿入
-      const toggleDoneBtn = document.createElement('button');
-      toggleDoneBtn.className = 'cat-toggle-btn';
-      const isHidden = hiddenDoneCategories.has(cat.id);
-      toggleDoneBtn.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
+      // 先に + ボタンを配置
+      actionsWrap.appendChild(addItemBtn);
 
-      const iconWrap = document.createElement('span');
-      iconWrap.className = 'toggle-icon' + (isHidden ? ' hidden' : '');
-      iconWrap.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <g class="eye">
-            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path>
-            <circle cx="12" cy="12" r="3"></circle>
-          </g>
-          <g class="eye-slash">
-            <path d="M2 2l20 20"></path>
-          </g>
-        </svg>
-      `;
-      toggleDoneBtn.title = isHidden ? '完了済みを表示' : '完了済みを非表示';
-      toggleDoneBtn.appendChild(iconWrap);
-
-      toggleDoneBtn.onclick = (e) => {
+      // ⋯メニュー（目・🗑️・✖をまとめる）
+      const menuWrap = document.createElement('div');
+      menuWrap.className = 'cat-menu-wrap';
+      const menuBtn = document.createElement('button');
+      menuBtn.className = 'cat-menu-btn';
+      menuBtn.textContent = '⋯';
+      menuBtn.onclick = (e) => {
         e.stopPropagation();
-        const willHide = !hiddenDoneCategories.has(cat.id);
-        if (willHide) {
-          hiddenDoneCategories.add(cat.id);
-          iconWrap.classList.add('hidden');
-          toggleDoneBtn.setAttribute('aria-pressed', 'true');
-        } else {
+        // 他のメニューを閉じる
+        document.querySelectorAll('.cat-menu-dropdown.open').forEach(d => { if (d !== dropdown) d.classList.remove('open'); });
+        dropdown.classList.toggle('open');
+      };
+      const dropdown = document.createElement('div');
+      dropdown.className = 'cat-menu-dropdown';
+
+      const isHidden = hiddenDoneCategories.has(cat.id);
+
+      // 完了済み表示トグル
+      const toggleMenuItem = document.createElement('div');
+      toggleMenuItem.className = 'cat-menu-item';
+      toggleMenuItem.textContent = isHidden ? '👁 完了済みを表示' : '👁‍🗨 完了済みを非表示';
+      toggleMenuItem.onclick = (e) => {
+        e.stopPropagation();
+        dropdown.classList.remove('open');
+        if (hiddenDoneCategories.has(cat.id)) {
           hiddenDoneCategories.delete(cat.id);
-          iconWrap.classList.remove('hidden');
-          toggleDoneBtn.setAttribute('aria-pressed', 'false');
+        } else {
+          hiddenDoneCategories.add(cat.id);
         }
         saveHiddenDoneCategories();
-        // アイコンアニメーションを見せてから再描画（軽い遅延）
-        setTimeout(renderList, 220);
+        renderList();
       };
-      // 先に + ボタンを配置してから目アイコンを追加（+ は目の左に表示される）
-      actionsWrap.appendChild(addItemBtn);
-      actionsWrap.appendChild(toggleDoneBtn);
+      dropdown.appendChild(toggleMenuItem);
 
-      
+      // 完了済み削除
+      const clearMenuItem = document.createElement('div');
+      clearMenuItem.className = 'cat-menu-item danger';
+      clearMenuItem.textContent = '🗑️ 完了済みを削除';
+      clearMenuItem.onclick = (e) => {
+        e.stopPropagation();
+        dropdown.classList.remove('open');
+        clearDoneInCategory(cat.id);
+      };
+      dropdown.appendChild(clearMenuItem);
 
-      // このカテゴリ内の完了済みアイテムを削除するボタン
-      const clearCatBtn = document.createElement('button');
-      clearCatBtn.innerHTML = '🗑️';
-      clearCatBtn.title = 'このカテゴリの完了済みを削除';
-      clearCatBtn.style.background = 'none';
-      clearCatBtn.style.border = 'none';
-      clearCatBtn.style.fontSize = '1.0em';
-      clearCatBtn.style.cursor = 'pointer';
-      clearCatBtn.style.padding = '4px 8px';
-      clearCatBtn.style.color = '#d32f2f';
-      clearCatBtn.onclick = (e) => { e.stopPropagation(); clearDoneInCategory(cat.id); };
-      actionsWrap.appendChild(clearCatBtn);
+      // カテゴリ削除
+      const deleteMenuItem = document.createElement('div');
+      deleteMenuItem.className = 'cat-menu-item danger';
+      deleteMenuItem.textContent = '✖ カテゴリを削除';
+      deleteMenuItem.onclick = (e) => {
+        e.stopPropagation();
+        dropdown.classList.remove('open');
+        deleteCategory(cat.id, cat.name);
+      };
+      dropdown.appendChild(deleteMenuItem);
 
-      // カテゴリ削除ボタン
-      const delBtn = document.createElement('button');
-      delBtn.className = 'delete-btn';
-      delBtn.innerHTML = '✖';
-      delBtn.title = 'このカテゴリを削除';
-      delBtn.style.background = 'none';
-      delBtn.style.border = 'none';
-      delBtn.style.fontSize = '1.2em';
-      delBtn.style.cursor = 'pointer';
-      delBtn.style.padding = '4px 8px';
-      delBtn.style.color = '#d32f2f';
-      delBtn.onclick = (e) => { e.stopPropagation(); deleteCategory(cat.id, cat.name); };
-      actionsWrap.appendChild(delBtn);
+      menuWrap.appendChild(menuBtn);
+      menuWrap.appendChild(dropdown);
+      actionsWrap.appendChild(menuWrap);
 
       titleWrap.appendChild(titleLeft);
       titleWrap.appendChild(actionsWrap);
@@ -951,12 +984,10 @@ input { -webkit-appearance: none; appearance: none; }
   }
 
   async function deleteItem(id) {
-    if (!confirm('このアイテムを削除しますか？')) return;
     try {
       await deleteDoc(doc(db, "shopping_list", id));
     } catch(e) {
       console.error(e);
-      alert('削除に失敗しました');
     }
   }
 
