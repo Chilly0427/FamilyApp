@@ -240,7 +240,7 @@ input:focus, select:focus {
 
     window.clearSettled = async () => {
       if (confirm('「精算済」の項目を一括で削除しますか？')) {
-        const settledItems = items.filter(it => it.isSettled);
+        const settledItems = items.filter(it => it.isSettled && it.date && it.date.startsWith(window.currentMonthStr));
         for (const it of settledItems) {
           await deleteDoc(doc(db, "kakei_items", it.id));
         }
