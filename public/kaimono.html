@@ -78,6 +78,20 @@ input:focus, select:focus {
 .toggle-icon .eye-slash { opacity: 0; transform: scale(0.8) rotate(8deg); }
 .toggle-icon.hidden .eye-slash { opacity: 1; transform: none; }
 
+/* Hide native clear/cancel buttons inside inputs across browsers */
+input::-ms-clear,
+input::-ms-expand {
+  display: none;
+}
+input::-webkit-search-decoration,
+input::-webkit-search-cancel-button,
+input::-webkit-search-results-button,
+input::-webkit-search-results-decoration,
+input::-webkit-clear-button,
+input::-webkit-contacts-auto-fill-button {
+  display: none !important;
+}
+input { -webkit-appearance: none; appearance: none; }
 
 </style>
 </head>
@@ -128,6 +142,7 @@ input:focus, select:focus {
   let collapsedCategories = new Set();
   let newlyCreatedItemIds = new Set(); // +で作った未編集の新規アイテムIDを保持
   let newlyCreatedCategoryIds = new Set(); // 新規作成して編集中のカテゴリIDを保持
+  let editingItemIds = new Set(); // 現在インライン編集中のアイテムIDを保持
   // カテゴリの折りたたみ状態を localStorage に保存して再現する
   const COLLAPSED_KEY = 'kaimono.collapsedCats';
   try {
@@ -445,7 +460,9 @@ input:focus, select:focus {
         try {
           const id = await addItemToCategory(cat.id, '');
           if (id) {
-            waitForRowAndStartEdit(id).catch(err => console.error('waitForRowAndStartEdit failed', err));
+            // フラグを立てて renderList 側で編集用 input を表示させる
+            editingItemIds.add(id);
+            // snapshot の反映を待って入力にフォーカスされるはず
           }
         } catch (err) {
           console.error('addItemBtn error', err);
@@ -558,11 +575,6 @@ input:focus, select:focus {
         nameSpanContainer.style.flexDirection = 'column';
         nameSpanContainer.style.justifyContent = 'center';
 
-        const nameSpan = document.createElement('div');
-        nameSpan.textContent = item.name;
-        // 名前をタップしたらインライン編集を開始（鉛筆アイコンではなく直接タップで編集）
-        nameSpanContainer.onclick = (e) => { e.stopPropagation(); startEditingItem(item, { isNew: newlyCreatedItemIds.has(item.id) }); };
-        
         const dateSpan = document.createElement('div');
         dateSpan.style.fontSize = '0.7em';
         dateSpan.style.color = '#888';
@@ -575,9 +587,120 @@ input:focus, select:focus {
           dateSpan.textContent = "🔁 更新日時なし";
         }
 
-        nameSpanContainer.appendChild(nameSpan);
-        nameSpanContainer.appendChild(dateSpan);
-        
+        const isNew = newlyCreatedItemIds.has(item.id);
+        const isEditing = editingItemIds.has(item.id) || isNew;
+
+        if (isEditing) {
+          // 編集状態を記録しておく
+          editingItemIds.add(item.id);
+
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.value = item.name || '';
+          input.setAttribute('list', 'item-history');
+          input.autocomplete = 'off';
+          input.style.padding = '8px';
+          input.style.fontSize = '1em';
+          input.style.border = '1px solid #ccc';
+          input.style.borderRadius = '6px';
+          input.style.width = '100%';
+          input.style.boxSizing = 'border-box';
+
+          let committed = false;
+          async function commitEdit() {
+            if (committed) return;
+            committed = true;
+            const newName = input.value.trim();
+            try {
+              if (!newName) {
+                if (isNew) {
+                  await deleteDoc(doc(db, 'shopping_list', item.id));
+                  newlyCreatedItemIds.delete(item.id);
+                }
+              } else {
+                await updateDoc(doc(db, 'shopping_list', item.id), { name: newName, updatedAt: serverTimestamp() });
+                if (newlyCreatedItemIds.has(item.id)) newlyCreatedItemIds.delete(item.id);
+              }
+            } catch (err) {
+              console.error(err);
+            } finally {
+              editingItemIds.delete(item.id);
+              renderList();
+            }
+          }
+
+          input.addEventListener('keydown', async (e) => {
+            if (e.key === 'Enter') { await commitEdit(); input.blur(); }
+            else if (e.key === 'Escape') {
+              committed = true;
+              try {
+                if (isNew) { await deleteDoc(doc(db, 'shopping_list', item.id)); newlyCreatedItemIds.delete(item.id); }
+              } catch (err) { console.error('cancel delete failed', err); }
+              editingItemIds.delete(item.id);
+              renderList();
+            }
+          });
+
+          let _delTimer = null;
+          input.addEventListener('focus', () => { if (_delTimer) { clearTimeout(_delTimer); _delTimer = null; } });
+          input.addEventListener('input', () => { if (_delTimer) { clearTimeout(_delTimer); _delTimer = null; } });
+          input.addEventListener('blur', async () => {
+            const val = input.value.trim();
+            if (isNew && !val) {
+              _delTimer = setTimeout(async () => {
+                try {
+                  const rowNow = document.querySelector(`.item-row[data-id="${item.id}"]`);
+                  const currentInput = rowNow ? rowNow.querySelector('input') : null;
+                  if (currentInput && currentInput.value.trim() !== '') { await commitEdit(); return; }
+                } catch (e) { console.error('check current input failed', e); }
+                try { if (newlyCreatedItemIds.has(item.id)) { await deleteDoc(doc(db, 'shopping_list', item.id)); newlyCreatedItemIds.delete(item.id); } } catch (e) { console.error('delete new item failed', e); }
+                editingItemIds.delete(item.id);
+                renderList();
+              }, 400);
+            } else {
+              await commitEdit();
+            }
+          });
+
+          // 編集用の行要素を組み立て
+          const editingRow = document.createElement('div');
+          editingRow.style.display = 'flex';
+          editingRow.style.alignItems = 'center';
+          editingRow.style.gap = '8px';
+          editingRow.style.flexWrap = 'nowrap';
+
+          const inputWrap = document.createElement('div');
+          inputWrap.style.position = 'relative';
+          inputWrap.style.flex = '1 1 auto';
+          inputWrap.style.minWidth = '0';
+          inputWrap.style.border = '1px solid #ccc';
+          inputWrap.style.borderRadius = '6px';
+          inputWrap.style.background = '#fff';
+          inputWrap.style.overflow = 'hidden';
+
+          input.style.width = '100%';
+          input.style.maxWidth = '100%';
+          input.style.padding = '8px 10px';
+          input.style.boxSizing = 'border-box';
+          input.style.border = 'none';
+          input.style.background = 'transparent';
+          input.style.appearance = 'textfield';
+          input.style.webkitAppearance = 'none';
+
+          inputWrap.appendChild(input);
+          editingRow.appendChild(inputWrap);
+
+          nameSpanContainer.appendChild(editingRow);
+          if (dateSpan) nameSpanContainer.appendChild(dateSpan);
+        } else {
+          const nameSpan = document.createElement('div');
+          nameSpan.textContent = item.name;
+          nameSpan.style.cursor = 'pointer';
+          nameSpan.onclick = (e) => { e.stopPropagation(); editingItemIds.add(item.id); renderList(); setTimeout(() => { const ip = document.querySelector(`.item-row[data-id="${item.id}"] input`); if (ip) ip.focus(); }, 50); };
+          nameSpanContainer.appendChild(nameSpan);
+          nameSpanContainer.appendChild(dateSpan);
+        }
+
         const itemDelBtn = document.createElement('button');
         itemDelBtn.innerHTML = '✖';
         itemDelBtn.className = 'item-del-btn';
@@ -587,27 +710,20 @@ input:focus, select:focus {
         itemDelBtn.style.fontSize = '1.2em';
         itemDelBtn.style.cursor = 'pointer';
         itemDelBtn.style.padding = '0 8px';
+        itemDelBtn.style.zIndex = '1';
         itemDelBtn.onclick = (e) => { e.stopPropagation(); deleteItem(item.id); };
+
         
+
         row.appendChild(handle);
         row.appendChild(checkIcon);
         row.appendChild(nameSpanContainer);
         row.appendChild(itemDelBtn);
         itemList.appendChild(row);
 
-        // 新規作成（+）で作られた一時アイテムは、レンダリング後に自動で編集モードに移行する
-        if (newlyCreatedItemIds.has(item.id)) {
-          // 非同期で呼ぶことで render 中の置換競合を避ける
-          setTimeout(() => {
-            try {
-              const r = document.querySelector(`.item-row[data-id="${item.id}"]`);
-              if (r && !r.querySelector('input')) {
-                startEditingItem(item, { isNew: true });
-              }
-            } catch (e) {
-              console.error('auto startEditingItem failed', e);
-            }
-          }, 50);
+        // 編集モードなら少し遅延して入力にフォーカス
+        if (isEditing) {
+          setTimeout(() => { try { const ip = row.querySelector('input'); if (ip) ip.focus(); } catch (e) { /* ignore */ } }, 60);
         }
       });
       
@@ -949,6 +1065,9 @@ input:focus, select:focus {
     const nameContainer = row.querySelector('.item-name');
     if (!nameContainer) return;
 
+    // 編集フラグを立てて renderList による置換を抑制する
+    editingItemIds.add(item.id);
+
     // 入力フィールドを作る
     const input = document.createElement('input');
     input.type = 'text';
@@ -983,6 +1102,7 @@ input:focus, select:focus {
       } catch (err) {
         console.error(err);
       } finally {
+        editingItemIds.delete(item.id);
         renderList();
       }
     }
@@ -1002,6 +1122,7 @@ input:focus, select:focus {
         } catch (err) {
           console.error('cancel delete failed', err);
         } finally {
+          editingItemIds.delete(item.id);
           renderList();
         }
       }
@@ -1011,7 +1132,7 @@ input:focus, select:focus {
     const editBtn = row.querySelector('.item-edit-btn');
     const delBtn = row.querySelector('.item-del-btn');
     if (editBtn) editBtn.style.display = 'none';
-    if (delBtn) delBtn.style.display = 'none';
+    // keep delBtn visible during editing
 
     // 既存内容を置き換え（date はそのまま残すため一旦クリアして input を入れる）
     const dateSpan = nameContainer.querySelector('div:nth-child(2)');
@@ -1029,30 +1150,22 @@ input:focus, select:focus {
     inputWrap.style.position = 'relative';
     inputWrap.style.flex = '1 1 auto';
     inputWrap.style.minWidth = '0';
+    inputWrap.style.border = '1px solid #ccc';
+    inputWrap.style.borderRadius = '6px';
+    inputWrap.style.background = '#fff';
+    inputWrap.style.overflow = 'hidden';
 
-    // 入力幅をやや狭め、右側に余地を確保
+    // 入力幅を幅いっぱいにして余白を戻す
     input.style.width = '100%';
-    input.style.maxWidth = '320px';
-    input.style.paddingRight = '36px';
+    input.style.maxWidth = '100%';
+    input.style.padding = '8px 10px';
     input.style.boxSizing = 'border-box';
-
-    // クリアボタンは入力内の右端に絶対配置
-    const clearInputBtn = document.createElement('button');
-    clearInputBtn.innerHTML = '✖';
-    clearInputBtn.style.position = 'absolute';
-    clearInputBtn.style.right = '8px';
-    clearInputBtn.style.top = '50%';
-    clearInputBtn.style.transform = 'translateY(-50%)';
-    clearInputBtn.style.border = 'none';
-    clearInputBtn.style.background = 'none';
-    clearInputBtn.style.fontSize = '0.95em';
-    clearInputBtn.style.cursor = 'pointer';
-    clearInputBtn.style.color = '#777';
-    clearInputBtn.style.padding = '0';
-    clearInputBtn.addEventListener('click', (e) => { e.stopPropagation(); input.value = ''; input.focus(); });
+    input.style.border = 'none';
+    input.style.background = 'transparent';
+    input.style.appearance = 'textfield';
+    input.style.webkitAppearance = 'none';
 
     inputWrap.appendChild(input);
-    inputWrap.appendChild(clearInputBtn);
 
     // アクション（保存・キャンセル）を入力と同列に配置して折り返しを防ぐ
     const actionWrap = document.createElement('div');
