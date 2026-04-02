@@ -218,7 +218,8 @@ input:focus, select:focus {
     }
 
     window.toggleAllSettled = async () => {
-      const unsettledItems = items.filter(it => !it.isSettled);
+      const currentMonthItems = items.filter(it => it.date && it.date.startsWith(window.currentMonthStr));
+      const unsettledItems = currentMonthItems.filter(it => !it.isSettled);
       if (unsettledItems.length > 0) {
         if (confirm('まだ精算済になっていない項目を、すべて「精算済」にしますか？')) {
           for (const it of unsettledItems) {
@@ -226,7 +227,7 @@ input:focus, select:focus {
           }
         }
       } else {
-        const settledItems = items.filter(it => it.isSettled);
+        const settledItems = currentMonthItems.filter(it => it.isSettled);
         if (settledItems.length > 0) {
           if (confirm('すべての「精算済」を解除して未精算に戻しますか？')) {
             for (const it of settledItems) {
@@ -410,6 +411,8 @@ input:focus, select:focus {
     let sharedH = 0, sharedW = 0, transH = 0, transW = 0;
     
     const currentMonthItems = items.filter(it => it.date && it.date.startsWith(window.currentMonthStr));
+    const unsettledCurrentMonthItems = currentMonthItems.filter(it => !it.isSettled);
+    const allCurrentMonthSettled = currentMonthItems.length > 0 && unsettledCurrentMonthItems.length === 0;
     currentMonthItems.forEach(it => {
       if (it.isSettled) return;
       if (it.type === 'shared') {
@@ -427,7 +430,10 @@ input:focus, select:focus {
     const final = diffShared + diffTransfer;
     
     const finalEl = document.getElementById('finalResult');
-    if (final > 0) {
+    if (allCurrentMonthSettled) {
+      finalEl.innerHTML = `<span style="font-size:0.8em; color:#666;">今月の最終精算額</span><br>✅ 全て精算済です`;
+      finalEl.style.backgroundColor = '#e8f5e9';
+    } else if (final > 0) {
       finalEl.innerHTML = `<span style="font-size:0.8em; color:#666;">今月の最終精算額</span><br>👩 妻 が 👨 夫 に<br><span style="font-size:1.5em; color:#d32f2f;">${format(final)} 払う</span>`;
       finalEl.style.backgroundColor = '#ffebee';
     } else if (final < 0) {
@@ -440,8 +446,7 @@ input:focus, select:focus {
 
     const toggleAllBtn = document.getElementById('toggleAllBtn');
     if (toggleAllBtn) {
-      const unsettledExists = items.some(it => !it.isSettled);
-      if (unsettledExists || items.length === 0) {
+      if (unsettledCurrentMonthItems.length > 0 || currentMonthItems.length === 0) {
         toggleAllBtn.innerHTML = '✅ 全て「済」にする';
         toggleAllBtn.style.color = '#1976d2';
       } else {
