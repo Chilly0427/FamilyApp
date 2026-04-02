@@ -1,7 +1,7 @@
 export function initGlobalNav(activePageName) {
   // If we are on a page, save it as the last opened page
   if (activePageName && activePageName !== 'index') {
-    localStorage.setItem('lastOpenedPage', activePageName + '.html');
+    localStorage.setItem('lastOpenedPage', activePageName === 'kaimono' ? 'list.html' : activePageName + '.html');
   }
 
   const css = `
@@ -22,6 +22,10 @@ export function initGlobalNav(activePageName) {
       align-items: center;
       z-index: 9999;
       padding-bottom: env(safe-area-inset-bottom);
+      transition: transform 0.3s ease;
+    }
+    .bottom-nav-container.nav-hidden {
+      transform: translateY(100%);
     }
     .nav-item {
       text-decoration: none;
@@ -48,6 +52,29 @@ export function initGlobalNav(activePageName) {
     .nav-item.active .icon {
       transform: scale(1.1);
     }
+    /* トップ戻るボタン */
+    .back-to-top-btn {
+      position: fixed;
+      bottom: 80px;
+      right: 16px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #1976d2;
+      color: #fff;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      z-index: 9998;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.3s;
+    }
+    .back-to-top-btn.visible {
+      display: flex;
+    }
   `;
 
   if (!document.getElementById('global-nav-style')) {
@@ -67,8 +94,8 @@ export function initGlobalNav(activePageName) {
         <span class="icon">🏷️</span>
         <span>底値帳</span>
       </a>
-      <a href="kaimono.html" class="nav-item ${activePageName === 'kaimono' ? 'active' : ''}">
-        <span class="icon">🛒</span>
+      <a href="list.html" class="nav-item ${activePageName === 'list' || activePageName === 'kaimono' ? 'active' : ''}">
+        <span class="icon">📋</span>
         <span>リスト</span>
       </a>
       <div id="nav-logout-btn" class="nav-item" style="cursor:pointer;">
@@ -76,6 +103,7 @@ export function initGlobalNav(activePageName) {
         <span>ログアウト</span>
       </div>
     </div>
+    <button class="back-to-top-btn" id="back-to-top-btn" title="トップへ戻る">↑</button>
   `;
 
   // Place it directly into body, ignoring global-nav-placeholder which was in <header>
@@ -90,6 +118,43 @@ export function initGlobalNav(activePageName) {
   const oldPlaceholder = document.getElementById('global-nav-placeholder');
   if (oldPlaceholder) {
     oldPlaceholder.style.display = 'none';
+  }
+
+  // スクロール時ナビ隠し + トップ戻るボタン
+  let lastScrollY = window.scrollY;
+  let scrollTicking = false;
+  const nav = document.querySelector('.bottom-nav-container');
+  const backToTopBtn = document.getElementById('back-to-top-btn');
+
+  window.addEventListener('scroll', () => {
+    if (!scrollTicking) {
+      window.requestAnimationFrame(() => {
+        const currentScrollY = window.scrollY;
+        if (nav) {
+          if (currentScrollY > lastScrollY && currentScrollY > 60) {
+            nav.classList.add('nav-hidden');
+          } else {
+            nav.classList.remove('nav-hidden');
+          }
+        }
+        if (backToTopBtn) {
+          if (currentScrollY > 200) {
+            backToTopBtn.classList.add('visible');
+          } else {
+            backToTopBtn.classList.remove('visible');
+          }
+        }
+        lastScrollY = currentScrollY;
+        scrollTicking = false;
+      });
+      scrollTicking = true;
+    }
+  });
+
+  if (backToTopBtn) {
+    backToTopBtn.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   }
 
   // Logic for logout

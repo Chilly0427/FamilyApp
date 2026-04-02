@@ -475,7 +475,13 @@ input:focus, select:focus {
     
     const finalEl = document.getElementById('finalResult');
     if (allCurrentMonthSettled) {
-      finalEl.innerHTML = `<span style="font-size:0.8em; color:#666;">今月の最終精算額</span><br>✅ 全て精算済です`;
+      // 精算済みでも金額の内訳を残す
+      const settledMsg = final > 0
+        ? `👩 妻 → 👨 夫 ${format(final)}`
+        : final < 0
+        ? `👨 夫 → 👩 妻 ${format(-final)}`
+        : '±0 全員平等';
+      finalEl.innerHTML = `<span style="font-size:0.8em; color:#666;">今月の最終精算額</span><br><span style="font-size:0.9em; color:#666;">${settledMsg}</span><br>✅ 全て精算済です`;
       finalEl.style.backgroundColor = '#e8f5e9';
     } else if (final > 0) {
       finalEl.innerHTML = `<span style="font-size:0.8em; color:#666;">今月の最終精算額</span><br>👩 妻 が 👨 夫 に<br><span style="font-size:1.5em; color:#d32f2f;">${format(final)} 払う</span>`;

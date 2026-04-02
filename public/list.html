@@ -1,0 +1,1880 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>🛒 買い物メモ - FamilyApp</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="/favicon-16x16.png" sizes="16x16" type="image/png">
+<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+<meta name="theme-color" content="#1976d2">
+<!-- SortableJS -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<style>
+body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif; margin: 0; background: #f5f6f8; color: #333; padding-bottom: 80px; }
+header { position: sticky; top: 0; background: #fff; padding: 16px 20px; border-bottom: 1px solid #e0e0e0; box-shadow: 0 2px 8px rgba(0,0,0,0.05); z-index: 10; display: flex; justify-content: space-between; align-items: center; }
+header h1 { margin: 0; font-size: 1.25em; color: #2c3e50; }
+main { padding: 16px; }
+
+.input-section { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px; }
+.input-group { margin-bottom: 16px; }
+.input-group label { display: block; font-size: 0.9em; color: #666; margin-bottom: 8px; font-weight: bold; }
+.input-group input[type="text"], .input-group select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; box-sizing: border-box; background: white; }
+
+.btn-primary { background: #1976d2; color: white; border: none; padding: 12px; border-radius: 4px; font-size: 1em; font-weight: bold; cursor: pointer; display: block; width: 100%; text-align: center; }
+.btn-danger { background: #d32f2f; color: white; border: none; padding: 12px; border-radius: 4px; font-size: 1em; font-weight: bold; cursor: pointer; display: block; width: 100%; text-align: center; margin-top: 24px; }
+.btn-outline { background: #fff; color: #1976d2; border: 1px solid #1976d2; padding: 12px; border-radius: 4px; font-size: 1em; font-weight: bold; cursor: pointer; display: block; width: 100%; text-align: center; margin-top: 8px;}
+
+.category-section { margin-bottom: 24px; }
+.category-title { font-size: 1.1em; font-weight: bold; color: #1976d2; border-bottom: 2px solid #e3f2fd; padding-bottom: 4px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;}
+.item-list { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; min-height: 10px; }
+.item-row { display: flex; align-items: center; padding: 8px 10px; border-bottom: 1px solid #f0f0f0; transition: background 0.2s; background: #fff; }
+.item-row:last-child { border-bottom: none; }
+.item-row:active { background: #f9f9f9; }
+.drag-handle { padding: 0 8px 0 0; color: #aaa; cursor: grab; font-size: 1em; user-select: none; }
+.item-name { flex: 1; font-size: 1.0em; margin-left: 8px; cursor: pointer; }
+.item-row.done .item-name { text-decoration: line-through; color: #999; }
+.checkbox-icon { width: 20px; height: 20px; border: 2px solid #ccc; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; cursor: pointer; }
+.item-row.done .checkbox-icon { background: #1976d2; border-color: #1976d2; color: white; }
+.item-row.done .checkbox-icon::after { content: '✓'; }
+
+.cat-row { display: flex; align-items: center; background: #fff; padding: 12px 16px; border-bottom: 1px solid #eee; }
+.cat-row:last-child { border-bottom: none; }
+.cat-row .cat-name { flex: 1; font-size: 1em; font-weight: bold; }
+.cat-row .delete-btn { color: #d32f2f; background: none; border: none; font-size: 1.2em; cursor: pointer; padding: 4px 8px; }
+
+.chip-container { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { padding: 8px 16px; background: #e0e0e0; color: #555; border-radius: 20px; font-size: 0.9em; cursor: pointer; transition: background 0.2s, font-weight 0.2s; user-select: none; }
+.chip.active { background: #1976d2; color: white; font-weight: bold; }
+
+/* スマホでのタップハイライトを消す */
+* { -webkit-tap-highlight-color: transparent; }
+
+/* カテゴリアクションボタン */
+.cat-action-btn { background: none; border: none; font-size: 1.1em; cursor: pointer; padding: 4px 5px; color: #666; border-radius: 4px; line-height: 1; -webkit-tap-highlight-color: transparent; transition: background 0.15s; }
+.cat-action-btn:active { background: #f0f0f0; }
+.cat-action-btn.danger { color: #d32f2f; }
+.cat-action-btn.warn { color: #e65100; }
+/* 履歴候補削除ボタン */
+.history-del-btn { background: none; border: none; color: #bbb; font-size: 0.85em; cursor: pointer; padding: 2px 6px; }
+.history-del-btn:active { color: #d32f2f; }
+/* カテゴリソートセレクト */
+.cat-sort-select { font-size: 0.8em; padding: 4px 8px; border-radius: 6px; border: 1px solid #ddd; background: #fff; color: #555; cursor: pointer; outline: none; }
+
+/* --- Focus & Interaction Styles --- */
+input:focus, select:focus {
+  border-color: #1976d2 !important;
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.2) !important;
+  background-color: #f4fafe !important;
+  outline: none !important;
+  transition: all 0.2s ease;
+}
+.row, .item-row, .input-section, .group-container {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.row:focus-within, .item-row:focus-within, .input-section:focus-within, .group-container:focus-within {
+  box-shadow: 0 0 0 2px #1976d2, 0 4px 12px rgba(25, 118, 210, 0.2) !important;
+  transform: translateY(-1px);
+}
+
+/* カテゴリの完了表示トグル（目/斜線） */
+.cat-toggle-btn { background: none; border: none; padding: 4px 8px; cursor: pointer; display: inline-flex; align-items: center; }
+.toggle-icon { display: inline-block; width: 20px; height: 20px; line-height: 0; }
+.toggle-icon svg { width: 20px; height: 20px; display: block; color: #1976d2; }
+.toggle-icon .eye, .toggle-icon .eye-slash { transition: opacity 180ms ease, transform 180ms ease; transform-origin: center; }
+.toggle-icon .eye { opacity: 1; }
+.toggle-icon.hidden .eye { opacity: 0; transform: scale(0.85) rotate(-8deg); }
+.toggle-icon .eye-slash { opacity: 0; transform: scale(0.8) rotate(8deg); }
+.toggle-icon.hidden .eye-slash { opacity: 1; transform: none; }
+
+/* Hide native clear/cancel buttons inside inputs across browsers */
+input::-ms-clear,
+input::-ms-expand {
+  display: none;
+}
+input::-webkit-search-decoration,
+input::-webkit-search-cancel-button,
+input::-webkit-search-results-button,
+input::-webkit-search-results-decoration,
+input::-webkit-clear-button,
+input::-webkit-contacts-auto-fill-button {
+  display: none !important;
+}
+input { -webkit-appearance: none; appearance: none; }
+
+/* ===== マルチリスト タブバー ===== */
+.tabs-bar { display: flex; overflow-x: auto; gap: 0; padding: 0 12px; background: #fff; border-bottom: 2px solid #e0e0e0; scrollbar-width: none; flex-shrink: 0; }
+.tabs-bar::-webkit-scrollbar { display: none; }
+.tab-item { flex-shrink: 0; display: flex; align-items: center; gap: 4px; padding: 10px 14px; cursor: pointer; font-size: 0.9em; font-weight: bold; border-bottom: 3px solid transparent; margin-bottom: -2px; color: #666; white-space: nowrap; transition: 0.15s; user-select: none; }
+.tab-item.active { color: #1976d2; border-bottom-color: #1976d2; }
+.tabs-bar.tabs-sorting .tab-item { cursor: grab; border: 2px dashed #bbdefb; border-radius: 6px; margin: 2px; background: #e3f2fd !important; }
+.tab-badge { background: #1976d2; color: #fff; border-radius: 10px; font-size: 0.75em; padding: 1px 6px; min-width: 18px; text-align: center; margin-left: 4px; }
+.tab-add-btn { flex-shrink: 0; padding: 8px 12px; background: none; border: none; font-size: 1.3em; cursor: pointer; color: #1976d2; }
+
+/* ===== モーダル共通 ===== */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 200; overflow-y: auto; }
+.modal-overlay.open { display: block; }
+.modal-box { max-width: 480px; margin: 40px auto 24px; background: #fff; border-radius: 16px; padding: 20px; position: relative; }
+.modal-title { font-size: 1.1em; font-weight: bold; color: #2c3e50; margin: 0 0 16px; }
+.modal-close-btn { position: absolute; right: 14px; top: 14px; background: none; border: none; font-size: 1.4em; cursor: pointer; color: #888; padding: 0; line-height: 1; }
+
+/* リスト設定モーダル内の行 */
+.list-meta-row { display: flex; align-items: center; gap: 6px; padding: 10px 4px; border-bottom: 1px solid #f0f0f0; }
+.list-meta-row:last-child { border-bottom: none; }
+.list-shared-badge { font-size: 0.8em; padding: 3px 9px; border-radius: 10px; background: #e3f2fd; color: #1976d2; font-weight: bold; cursor: pointer; white-space: nowrap; border: none; }
+.list-shared-badge.private { background: #fce4ec; color: #c2185b; }
+/* 共有/個人トグル */
+.shared-toggle { display: flex; gap: 4px; }
+.shared-toggle-btn { font-size: 0.8em; padding: 5px 10px; border-radius: 8px; border: 2px solid transparent; cursor: pointer; font-weight: bold; white-space: nowrap; background: #f0f0f0; color: #999; transition: 0.15s; }
+.shared-toggle-btn.active-shared { background: #e3f2fd; color: #1976d2; border-color: #1976d2; }
+.shared-toggle-btn.active-private { background: #fce4ec; color: #c2185b; border-color: #c2185b; }
+/* 絵文字検索 */
+.emoji-search { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 1em; box-sizing: border-box; margin-bottom: 8px; }
+.emoji-picker { display: flex; flex-wrap: wrap; gap: 4px; max-height: 200px; overflow-y: auto; }
+.emoji-opt { font-size: 1.5em; padding: 5px 8px; border: 2px solid transparent; border-radius: 8px; cursor: pointer; transition: 0.15s; }
+.emoji-opt.selected { border-color: #1976d2; background: #e3f2fd; }
+.emoji-opt:active { background: #bbdefb; }
+
+</style>
+</head>
+<body style="display: none;">
+<div id="loading-overlay" style="position:fixed;inset:0;background:#f5f6f8;display:flex;align-items:center;justify-content:center;z-index:9999;">
+  <div style="text-align:center;color:#888;"><div style="font-size:2em;margin-bottom:8px;">🛒</div>読み込み中...</div>
+</div>
+
+<header>
+  <h1 id="page-title" style="margin: 0; font-size: 1.15em; color: #2c3e50;">📋 リスト管理</h1>
+  <div style="display:flex;align-items:center;gap:6px;">
+    <button id="list-settings-btn" style="padding:6px 10px; font-size:0.9em; background:#fff; border:1px solid #ccc; border-radius:6px; cursor:pointer; font-weight:bold;">⚙ リスト</button>
+    <div id="global-nav-placeholder"></div>
+  </div>
+</header>
+<div id="tabs-bar" class="tabs-bar"></div>
+
+<main>
+  <div style="margin-bottom:12px;">
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+      <input type="text" id="search-filter" placeholder="🔍 アイテムを検索..." style="flex:1; padding:10px 12px; border:1px solid #ccc; border-radius:8px; font-size:16px; box-sizing:border-box; background:#fff;">
+      <select id="cat-sort-select" class="cat-sort-select" title="カテゴリの並び順">
+        <option value="manual">☰ 手動</option>
+        <option value="name">🔤 名前順</option>
+        <option value="recent">🕒 更新順</option>
+      </select>
+    </div>
+    <button id="add-category-top-btn" style="width:100%; padding:9px; background:#e8f5e9; color:#2e7d32; border:2px dashed #a5d6a7; border-radius:8px; font-size:0.9em; font-weight:bold; cursor:pointer;">＋ カテゴリを追加</button>
+    <div style="display:flex; gap:6px; margin-top:8px;">
+      <button onclick="importCurrentList()" style="flex:1; padding:7px; background:#fff; border:1px solid #ccc; border-radius:6px; font-size:0.85em; cursor:pointer;">📂 読込</button>
+      <button onclick="exportCurrentList()" style="flex:1; padding:7px; background:#fff; border:1px solid #ccc; border-radius:6px; font-size:0.85em; cursor:pointer;">💾 保存</button>
+      <button onclick="openHistoryModal()" style="flex:1; padding:7px; background:#fff; border:1px solid #ccc; border-radius:6px; font-size:0.85em; cursor:pointer;">📜 履歴</button>
+    </div>
+  </div>
+  <div id="lists-container">
+    <!-- カテゴリごとのリストがここに動的に追加される -->
+  </div>
+
+  <!-- 入力履歴の datalist（スクリプトが参照するため必須） -->
+  <datalist id="item-history"></datalist>
+
+  <button id="clear-done-btn" class="btn-danger" style="display: none; margin-bottom: 16px;">🗑️ 完了済みを一括削除</button>
+
+</main>
+
+<script type="module">
+  import { initGlobalNav } from './nav.js?v=000310';
+  initGlobalNav('list');
+</script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+  import { 
+    getFirestore, collection, onSnapshot, doc, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, orderBy, query, limit
+  } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+  import { firebaseConfig, ALLOWED_EMAILS } from "./firebase-config.js";
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  let shoppingCategories = [];
+  let shoppingItems = [];
+  let sortableInstances = [];
+  let catSortableInstance = null;
+  let selectedCategoryId = null;
+  let collapsedCategories = new Set();
+  let newlyCreatedItemIds = new Set(); // +で作った未編集の新規アイテムIDを保持
+  let newlyCreatedCategoryIds = new Set(); // 新規作成して編集中のカテゴリIDを保持
+  let editingItemIds = new Set(); // 現在インライン編集中のアイテムIDを保持
+  // マルチリスト管理
+  let allLists = [];
+  let currentListId = 'default';
+  let currentUserEmail = '';
+  // カテゴリの折りたたみ状態を localStorage に保存して再現する
+  const COLLAPSED_KEY = 'kaimono.collapsedCats';
+  try {
+    const storedCollapsed = localStorage.getItem(COLLAPSED_KEY);
+    if (storedCollapsed) {
+      const arr = JSON.parse(storedCollapsed);
+      if (Array.isArray(arr)) collapsedCategories = new Set(arr);
+    }
+  } catch (e) {
+    console.error('load collapsedCategories', e);
+  }
+  function saveCollapsedCategories() { try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify(Array.from(collapsedCategories))); } catch (e) { console.error('saveCollapsedCategories', e); } }
+  // カテゴリごとに完了済み表示を切り替える（localStorage に保存してページリロード後も維持）
+  const HIDDEN_DONE_KEY = 'kaimono.hiddenDone';
+  let hiddenDoneCategories = new Set();
+  try {
+    const stored = localStorage.getItem(HIDDEN_DONE_KEY);
+    if (stored) {
+      const arr = JSON.parse(stored);
+      if (Array.isArray(arr)) hiddenDoneCategories = new Set(arr);
+    }
+  } catch (e) {
+    console.error('load hiddenDoneCategories', e);
+  }
+  function saveHiddenDoneCategories() {
+    try { localStorage.setItem(HIDDEN_DONE_KEY, JSON.stringify(Array.from(hiddenDoneCategories))); } catch (e) { console.error('saveHiddenDoneCategories', e); }
+  }
+
+  // カテゴリ並び替えモード
+  const CAT_SORT_KEY = 'list.catSortMode';
+  function getCatSortMode() {
+    return localStorage.getItem(CAT_SORT_KEY) || 'manual';
+  }
+  function setCatSortMode(mode) {
+    localStorage.setItem(CAT_SORT_KEY, mode);
+    const sel = document.getElementById('cat-sort-select');
+    if (sel) sel.value = mode;
+    renderList();
+  }
+  window.setCatSortMode = setCatSortMode;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    onAuthStateChanged(auth, (user) => {
+      if (user && ALLOWED_EMAILS.includes(user.email)) {
+        document.body.style.display = 'block';
+        const lo = document.getElementById('loading-overlay'); if(lo) lo.style.display='none';
+        currentUserEmail = user.email;
+        initApp();
+      } else if (!user) {
+        window.location.href = "index.html";
+      }
+    });
+  });
+
+  function initApp() {
+    setupListeners();
+    document.getElementById('clear-done-btn').addEventListener('click', clearDoneItems);
+    const addCatTopBtn = document.getElementById('add-category-top-btn');
+    if (addCatTopBtn) addCatTopBtn.addEventListener('click', addCategoryPrompt);
+    const catSortSelect = document.getElementById('cat-sort-select');
+    if (catSortSelect) {
+      catSortSelect.value = getCatSortMode();
+      catSortSelect.addEventListener('change', (e) => setCatSortMode(e.target.value));
+    }
+    const listSettingsBtn = document.getElementById('list-settings-btn');
+    if (listSettingsBtn) listSettingsBtn.addEventListener('click', openListSettingsModal);
+    // 検索フィルター
+    const searchInput = document.getElementById('search-filter');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => { renderList(); });
+    }
+  }
+
+  function setupListeners() {
+    // カテゴリ取得
+    onSnapshot(collection(db, "shopping_categories"), (snapshot) => {
+      shoppingCategories = [];
+      snapshot.forEach(docSnap => {
+        shoppingCategories.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      // order でソート (なければ後ろへ)
+      shoppingCategories.sort((a, b) => (a.order || 0) - (b.order || 0));
+      
+      // 初回デフォルトカテゴリ作成
+      if (shoppingCategories.length === 0 && snapshot.metadata.fromCache === false) {
+        seedDefaultCategories();
+      } else {
+        renderCategoriesUI();
+        renderList();
+      }
+    });
+
+    // アイテム取得
+    onSnapshot(collection(db, "shopping_list"), (snapshot) => {
+      shoppingItems = [];
+      snapshot.forEach(docSnap => {
+        shoppingItems.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      // order でソート
+      shoppingItems.sort((a, b) => (a.order || 0) - (b.order || 0));
+      renderList();
+    });
+
+    // 履歴取得（入力推測候補用） 最新の100件を候補に出す
+    let historyItems = []; // 削除用に保持
+    const hQuery = query(collection(db, "shopping_history"), orderBy("lastUsed", "desc"), limit(100));
+    onSnapshot(hQuery, (snapshot) => {
+      const datalist = document.getElementById('item-history');
+      if (!datalist) { console.warn('item-history datalist element not found'); return; }
+      datalist.innerHTML = '';
+      historyItems = [];
+      const uniqueNames = new Set();
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        historyItems.push({ id: docSnap.id, ...data });
+        if (data.name && !uniqueNames.has(data.name)) {
+          uniqueNames.add(data.name);
+          const option = document.createElement('option');
+          option.value = data.name;
+          datalist.appendChild(option);
+        }
+      });
+    });
+
+    // 履歴モーダル操作
+    window.openHistoryModal = function() {
+      const modal = document.getElementById('history-modal');
+      modal.classList.add('open');
+      renderHistoryModal();
+    };
+    window.closeHistoryModal = function() {
+      document.getElementById('history-modal').classList.remove('open');
+    };
+    window.renderHistoryModal = function() {
+      const list = document.getElementById('history-modal-list');
+      list.innerHTML = '';
+      if (historyItems.length === 0) {
+        list.innerHTML = '<div style="color:#aaa; text-align:center; padding:16px;">履歴がありません</div>';
+        return;
+      }
+      historyItems.forEach(h => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;';
+        const name = document.createElement('span');
+        name.style.flex = '1';
+        name.textContent = h.name || '';
+        const delBtn = document.createElement('button');
+        delBtn.className = 'history-del-btn';
+        delBtn.textContent = '🗑';
+        delBtn.onclick = async () => {
+          try { await deleteDoc(doc(db, 'shopping_history', h.id)); } catch (e) { console.error(e); }
+        };
+        row.appendChild(name);
+        row.appendChild(delBtn);
+        list.appendChild(row);
+      });
+    };
+    window.clearAllHistory = async function() {
+      if (historyItems.length === 0) return;
+      const batch = writeBatch(db);
+      historyItems.forEach(h => batch.delete(doc(db, 'shopping_history', h.id)));
+      await batch.commit().catch(e => console.error('clearAllHistory failed', e));
+      closeHistoryModal();
+    };
+
+    // list_meta 取得（リスト管理）
+    onSnapshot(collection(db, "list_meta"), (snapshot) => {
+      allLists = [];
+      snapshot.forEach(docSnap => {
+        allLists.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      allLists.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+      // defaultリストが存在しない場合は自動作成
+      if (!snapshot.metadata.fromCache && !allLists.find(l => l.id === 'default')) {
+        setDoc(doc(db, 'list_meta', 'default'), {
+          name: '買い物', emoji: '🛒', shared: true, ownerId: currentUserEmail, order: 0
+        }).catch(e => console.error('create default list failed', e));
+      }
+
+      renderTabs();
+      renderList();
+      if (document.getElementById('list-settings-modal').classList.contains('open')) {
+        renderListSettingsContent();
+      }
+    });
+  }
+
+  async function seedDefaultCategories() {
+    const defaults = ["スーパー", "ドラッグストア", "100均", "その他"];
+    const batch = writeBatch(db);
+    defaults.forEach((name, index) => {
+      const newRef = doc(collection(db, "shopping_categories"));
+      batch.set(newRef, { name, order: index, listId: 'default' });
+    });
+    await batch.commit();
+  }
+
+  // カテゴリに直接アイテムを追加するユーティリティ（ダイアログから使う）
+  async function addItemToCategory(categoryId, name = '') {
+    // name が空文字でもプレースホルダとしてアイテムを作成する（+ ボタン用）
+    const nm = (name === undefined || name === null) ? '' : String(name).trim();
+    const category = shoppingCategories.find(c => c.id === categoryId);
+    const categoryName = category ? category.name : 'Unknown';
+    const catItems = shoppingItems.filter(item => item.categoryId === categoryId || item.category === categoryName);
+    const maxOrder = catItems.length > 0 ? Math.max(...catItems.map(i => i.order || 0)) : -1;
+    try {
+      const docRef = await addDoc(collection(db, 'shopping_list'), {
+        name: nm,
+        categoryId: categoryId,
+        category: categoryName,
+        listId: currentListId,
+        isDone: false,
+        order: maxOrder + 1,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      // 新規作成フラグを保持しておき、キャンセル時に削除できるようにする
+      if (docRef && docRef.id) newlyCreatedItemIds.add(docRef.id);
+      // 名前が入っている場合は履歴へ保存
+      if (nm) {
+        const historyId = encodeURIComponent(nm).replace(/\./g, '%2E');
+        await setDoc(doc(db, 'shopping_history', historyId), { name: nm, lastUsed: serverTimestamp() }, { merge: true });
+      }
+      return docRef.id;
+    } catch (e) {
+      console.error('addItemToCategory error', e);
+      alert('アイテムの追加に失敗しました');
+      return null;
+    }
+  }
+
+  // 新規作成した行が DOM に現れるのを待ってから編集モードを開始する
+  function waitForRowAndStartEdit(id, timeout = 3000) {
+    return new Promise((resolve, reject) => {
+      const start = Date.now();
+      (function check() {
+        const row = document.querySelector(`.item-row[data-id="${id}"]`);
+        if (row) {
+          const item = shoppingItems.find(it => it.id === id) || { id, name: '' };
+          const isNew = newlyCreatedItemIds.has(id);
+          startEditingItem(item, { isNew });
+          resolve(item);
+          return;
+        }
+        if (Date.now() - start > timeout) {
+          reject(new Error('row not found'));
+          return;
+        }
+        setTimeout(check, 100);
+      })();
+    });
+  }
+
+  // 新規作成したカテゴリが DOM に現れるのを待ってから編集モードを開始する
+  function waitForCategoryAndStartEdit(id, timeout = 3000) {
+    return new Promise((resolve, reject) => {
+      const start = Date.now();
+      (function check() {
+        const el = document.querySelector(`.category-section[data-id="${id}"]`);
+        if (el) {
+          const cat = shoppingCategories.find(c => c.id === id) || { id, name: '' };
+          startEditingCategory(cat);
+          resolve(cat);
+          return;
+        }
+        if (Date.now() - start > timeout) {
+          reject(new Error('category row not found'));
+          return;
+        }
+        setTimeout(check, 100);
+      })();
+    });
+  }
+
+  function renderCategoriesUI() {
+    const container = document.getElementById('category-chips');
+    if (!container) {
+      // 上部のカテゴリチップが存在しない場合は何もしない（カテゴリは下部リストで操作可能）
+      // ただし選択状態は最初のカテゴリへフォールバックしておく
+      if (shoppingCategories.length > 0 && !selectedCategoryId) selectedCategoryId = shoppingCategories[0].id;
+      if (shoppingCategories.length > 0 && !shoppingCategories.some(cat => cat.id === selectedCategoryId)) selectedCategoryId = shoppingCategories[0].id;
+      return;
+    }
+    container.innerHTML = '';
+    
+    // 現在の選択を維持（またはデフォルトをセット）
+    if (shoppingCategories.length > 0 && !selectedCategoryId) {
+      selectedCategoryId = shoppingCategories[0].id;
+    }
+    // もし選択中のカテゴリが削除されていれば、先頭を選択
+    if (shoppingCategories.length > 0 && !shoppingCategories.some(cat => cat.id === selectedCategoryId)) {
+      selectedCategoryId = shoppingCategories[0].id;
+    }
+
+    shoppingCategories.forEach(cat => {
+      const chip = document.createElement('div');
+      chip.className = 'chip ' + (cat.id === selectedCategoryId ? 'active' : '');
+      chip.textContent = cat.name;
+      chip.onclick = () => {
+        selectedCategoryId = cat.id;
+        renderCategoriesUI(); // 再描画してactiveクラスの付け替え
+      };
+      container.appendChild(chip);
+    });
+    
+  }
+
+  function renderList() {
+    renderTabs();
+
+    const container = document.getElementById('lists-container');
+    container.innerHTML = '';
+    sortableInstances.forEach(inst => inst.destroy());
+    sortableInstances = [];
+
+    // 検索フィルター
+    const searchInput = document.getElementById('search-filter');
+    const searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+    // グローバルで完了済みが存在するか（ボタン表示制御用）
+    let hasDoneItems = shoppingItems.some(item => item.isDone);
+
+    // カテゴリ並び替えモードに応じてソート
+    const catSortMode = getCatSortMode();
+    const sortedCategories = [...shoppingCategories].filter(cat => (cat.listId || 'default') === currentListId);
+    if (catSortMode === 'name') {
+      sortedCategories.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ja'));
+    } else if (catSortMode === 'recent') {
+      sortedCategories.sort((a, b) => {
+        const aTime = shoppingItems.filter(i => i.categoryId === a.id).reduce((mx, i) => Math.max(mx, i.updatedAt?.seconds || 0), 0);
+        const bTime = shoppingItems.filter(i => i.categoryId === b.id).reduce((mx, i) => Math.max(mx, i.updatedAt?.seconds || 0), 0);
+        return bTime - aTime;
+      });
+    } else {
+      sortedCategories.sort((a, b) => (a.order || 0) - (b.order || 0));
+    }
+
+    sortedCategories.forEach(cat => {
+      let catItems = shoppingItems.filter(item => item.categoryId === cat.id || (!item.categoryId && item.category === cat.name));
+      // 未完了アイテムを先頭に表示する（同一ステータス内は order 順）
+      catItems.sort((a, b) => {
+        if ((a.isDone ? 1 : 0) === (b.isDone ? 1 : 0)) {
+          return (a.order || 0) - (b.order || 0);
+        }
+        return a.isDone ? 1 : -1;
+      });
+
+      // 完了済みを非表示にしているカテゴリなら完了済みを除外する
+      const hideDone = hiddenDoneCategories.has(cat.id);
+      if (hideDone) {
+        catItems = catItems.filter(item => !item.isDone);
+      }
+
+      // 検索フィルター適用
+      if (searchQuery) {
+        catItems = catItems.filter(item => (item.name || '').toLowerCase().includes(searchQuery));
+        // カテゴリ名もマッチしなければ、アイテムが0件なら非表示
+        const catNameMatch = cat.name.toLowerCase().includes(searchQuery);
+        if (catItems.length === 0 && !catNameMatch) return;
+      }
+      
+      const catDiv = document.createElement('div');
+      catDiv.className = 'category-section';
+      catDiv.dataset.id = cat.id;
+      
+      const titleWrap = document.createElement('div');
+      titleWrap.className = 'category-title';
+      titleWrap.style.display = 'flex';
+      titleWrap.style.justifyContent = 'space-between';
+      titleWrap.style.alignItems = 'center';
+
+      const titleLeft = document.createElement('div');
+      titleLeft.style.display = 'flex';
+      titleLeft.style.alignItems = 'center';
+
+      const catHandle = document.createElement('div');
+      catHandle.className = 'cat-drag-handle';
+      catHandle.innerHTML = '☰';
+      catHandle.style.cursor = 'grab';
+      catHandle.style.marginRight = '12px';
+      catHandle.style.color = '#aaa';
+
+      const collapseToggle = document.createElement('div');
+      collapseToggle.style.cursor = 'pointer';
+      collapseToggle.style.marginRight = '8px';
+      collapseToggle.style.width = '20px';
+      collapseToggle.style.textAlign = 'center';
+      const isCollapsed = collapsedCategories.has(cat.id);
+      collapseToggle.textContent = isCollapsed ? '▶' : '▼';
+      
+      collapseToggle.onclick = () => {
+        if (collapsedCategories.has(cat.id)) {
+          collapsedCategories.delete(cat.id);
+        } else {
+          collapsedCategories.add(cat.id);
+        }
+        saveCollapsedCategories();
+        renderList();
+      };
+
+      const activeCount = catItems.filter(item => !item.isDone).length;
+      const catNameSpan = document.createElement('span');
+      catNameSpan.className = 'cat-name';
+      catNameSpan.textContent = cat.name + (activeCount > 0 ? ' (' + activeCount + ')' : ' (0)');
+      catNameSpan.style.cursor = 'pointer';
+      // 名前をタップしたらカテゴリ名をインライン編集にする
+      catNameSpan.onclick = (e) => { e.stopPropagation(); startEditingCategory(cat); };
+
+      titleLeft.appendChild(catHandle);
+      titleLeft.appendChild(collapseToggle);
+      titleLeft.appendChild(catNameSpan);
+
+      const actionsWrap = document.createElement('div');
+      actionsWrap.style.display = 'flex';
+      actionsWrap.style.alignItems = 'center';
+
+      // カテゴリ単位でアイテムを追加するボタン（＋）
+      const addItemBtn = document.createElement('button');
+      addItemBtn.className = 'cat-action-btn';
+      addItemBtn.innerHTML = '➕';
+      addItemBtn.title = 'アイテムを追加';
+      addItemBtn.onclick = async (e) => {
+        e.stopPropagation();
+        try {
+          if (collapsedCategories.has(cat.id)) {
+            collapsedCategories.delete(cat.id);
+            saveCollapsedCategories();
+          }
+          const id = await addItemToCategory(cat.id, '');
+          if (id) { editingItemIds.add(id); }
+        } catch (err) { console.error('addItemBtn error', err); }
+      };
+      actionsWrap.appendChild(addItemBtn);
+
+      // 完了済み表示トグルボタン
+      const isHidden = hiddenDoneCategories.has(cat.id);
+      const toggleBtn = document.createElement('button');
+      toggleBtn.className = 'cat-action-btn';
+      toggleBtn.innerHTML = isHidden ? '👁' : '🙈';
+      toggleBtn.title = isHidden ? '完了済みを表示' : '完了済みを非表示';
+      toggleBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (hiddenDoneCategories.has(cat.id)) { hiddenDoneCategories.delete(cat.id); } else { hiddenDoneCategories.add(cat.id); }
+        saveHiddenDoneCategories();
+        renderList();
+      };
+      actionsWrap.appendChild(toggleBtn);
+
+      // 完了済み削除ボタン（✅×）
+      const clearDoneBtn = document.createElement('button');
+      clearDoneBtn.className = 'cat-action-btn warn';
+      clearDoneBtn.innerHTML = '☑✖';
+      clearDoneBtn.title = '完了済みを削除';
+      clearDoneBtn.style.fontSize = '0.9em';
+      clearDoneBtn.onclick = (e) => { e.stopPropagation(); clearDoneInCategory(cat.id); };
+      actionsWrap.appendChild(clearDoneBtn);
+
+      // カテゴリ削除ボタン（❌）
+      const deleteCatBtn = document.createElement('button');
+      deleteCatBtn.className = 'cat-action-btn danger';
+      deleteCatBtn.innerHTML = '❌';
+      deleteCatBtn.title = 'カテゴリを削除';
+      deleteCatBtn.onclick = (e) => { e.stopPropagation(); deleteCategory(cat.id, cat.name); };
+      actionsWrap.appendChild(deleteCatBtn);
+
+      titleWrap.appendChild(titleLeft);
+      titleWrap.appendChild(actionsWrap);
+      catDiv.appendChild(titleWrap);
+      
+      const itemList = document.createElement('div');
+      itemList.className = 'item-list';
+      itemList.dataset.catId = cat.id;
+      itemList.style.minHeight = '20px';
+      if (isCollapsed) {
+        itemList.style.display = 'none';
+      }
+      
+      catItems.forEach((item) => {
+        if (item.isDone) hasDoneItems = true;
+
+        const row = document.createElement('div');
+        row.className = 'item-row ' + (item.isDone ? 'done' : '');
+        row.dataset.id = item.id;
+
+        const handle = document.createElement('div');
+        handle.className = 'drag-handle';
+        handle.innerHTML = '☰';
+        
+        const checkIcon = document.createElement('div');
+        checkIcon.className = 'checkbox-icon';
+        checkIcon.onclick = () => toggleDone(item.id, item.isDone);
+        
+        const nameSpanContainer = document.createElement('div');
+        nameSpanContainer.className = 'item-name';
+        nameSpanContainer.style.display = 'flex';
+        nameSpanContainer.style.flexDirection = 'column';
+        nameSpanContainer.style.justifyContent = 'center';
+
+        const dateSpan = document.createElement('div');
+        dateSpan.style.fontSize = '0.7em';
+        dateSpan.style.color = '#888';
+        dateSpan.style.marginTop = '4px';
+        const updatedTime = item.updatedAt || item.createdAt;
+        if (updatedTime && typeof updatedTime.toDate === 'function') {
+          const d = updatedTime.toDate();
+          dateSpan.textContent = "🔁 " + d.getFullYear() + '/' + (d.getMonth()+1).toString().padStart(2, '0') + '/' + d.getDate().toString().padStart(2, '0') + ' ' + d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+        } else {
+          dateSpan.textContent = "🔁 更新日時なし";
+        }
+
+        const isNew = newlyCreatedItemIds.has(item.id);
+        const isEditing = editingItemIds.has(item.id) || isNew;
+
+        if (isEditing) {
+          // 編集状態を記録しておく
+          editingItemIds.add(item.id);
+
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.value = item.name || '';
+          input.setAttribute('list', 'item-history');
+          input.autocomplete = 'off';
+          input.style.padding = '8px';
+          input.style.fontSize = '1em';
+          input.style.border = '1px solid #ccc';
+          input.style.borderRadius = '6px';
+          input.style.width = '100%';
+          input.style.boxSizing = 'border-box';
+
+          let committed = false;
+          async function commitEdit() {
+            if (committed) return;
+            committed = true;
+            const newName = input.value.trim();
+            try {
+              if (!newName) {
+                if (isNew) {
+                  await deleteDoc(doc(db, 'shopping_list', item.id));
+                  newlyCreatedItemIds.delete(item.id);
+                }
+              } else {
+                await updateDoc(doc(db, 'shopping_list', item.id), { name: newName, updatedAt: serverTimestamp() });
+                if (newlyCreatedItemIds.has(item.id)) newlyCreatedItemIds.delete(item.id);
+              }
+            } catch (err) {
+              console.error(err);
+            } finally {
+              editingItemIds.delete(item.id);
+              renderList();
+            }
+          }
+
+          input.addEventListener('keydown', async (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              const val = input.value.trim();
+              await commitEdit();
+              input.blur();
+              // 内容があった場合は次のアイテムを連続追加
+              if (val) {
+                try {
+                  const newId = await addItemToCategory(item.categoryId || cat.id, '');
+                  if (newId) { editingItemIds.add(newId); }
+                } catch (err) { console.error('continuous add failed', err); }
+              }
+            } else if (e.key === 'Escape') {
+              committed = true;
+              try {
+                if (isNew) { await deleteDoc(doc(db, 'shopping_list', item.id)); newlyCreatedItemIds.delete(item.id); }
+              } catch (err) { console.error('cancel delete failed', err); }
+              editingItemIds.delete(item.id);
+              renderList();
+            }
+          });
+
+          let _delTimer = null;
+          input.addEventListener('focus', () => { if (_delTimer) { clearTimeout(_delTimer); _delTimer = null; } });
+          input.addEventListener('input', () => { if (_delTimer) { clearTimeout(_delTimer); _delTimer = null; } });
+          input.addEventListener('blur', async () => {
+            const val = input.value.trim();
+            if (isNew && !val) {
+              _delTimer = setTimeout(async () => {
+                try {
+                  const rowNow = document.querySelector(`.item-row[data-id="${item.id}"]`);
+                  const currentInput = rowNow ? rowNow.querySelector('input') : null;
+                  if (currentInput && currentInput.value.trim() !== '') { await commitEdit(); return; }
+                } catch (e) { console.error('check current input failed', e); }
+                try { if (newlyCreatedItemIds.has(item.id)) { await deleteDoc(doc(db, 'shopping_list', item.id)); newlyCreatedItemIds.delete(item.id); } } catch (e) { console.error('delete new item failed', e); }
+                editingItemIds.delete(item.id);
+                renderList();
+              }, 400);
+            } else {
+              await commitEdit();
+            }
+          });
+
+          // 編集用の行要素を組み立て
+          const editingRow = document.createElement('div');
+          editingRow.style.display = 'flex';
+          editingRow.style.alignItems = 'center';
+          editingRow.style.gap = '8px';
+          editingRow.style.flexWrap = 'nowrap';
+
+          const inputWrap = document.createElement('div');
+          inputWrap.style.position = 'relative';
+          inputWrap.style.flex = '1 1 auto';
+          inputWrap.style.minWidth = '0';
+          inputWrap.style.border = '1px solid #ccc';
+          inputWrap.style.borderRadius = '6px';
+          inputWrap.style.background = '#fff';
+          inputWrap.style.overflow = 'hidden';
+
+          input.style.width = '100%';
+          input.style.maxWidth = '100%';
+          input.style.padding = '8px 10px';
+          input.style.boxSizing = 'border-box';
+          input.style.border = 'none';
+          input.style.background = 'transparent';
+          input.style.appearance = 'textfield';
+          input.style.webkitAppearance = 'none';
+
+          inputWrap.appendChild(input);
+          editingRow.appendChild(inputWrap);
+
+          nameSpanContainer.appendChild(editingRow);
+          if (dateSpan) nameSpanContainer.appendChild(dateSpan);
+        } else {
+          const nameSpan = document.createElement('div');
+          nameSpan.textContent = item.name;
+          nameSpan.style.cursor = 'pointer';
+          nameSpan.onclick = (e) => { e.stopPropagation(); editingItemIds.add(item.id); renderList(); setTimeout(() => { const ip = document.querySelector(`.item-row[data-id="${item.id}"] input`); if (ip) ip.focus(); }, 50); };
+          nameSpanContainer.appendChild(nameSpan);
+          nameSpanContainer.appendChild(dateSpan);
+        }
+
+        const itemDelBtn = document.createElement('button');
+        itemDelBtn.innerHTML = '✖';
+        itemDelBtn.className = 'item-del-btn';
+        itemDelBtn.style.color = '#aaa';
+        itemDelBtn.style.background = 'none';
+        itemDelBtn.style.border = 'none';
+        itemDelBtn.style.fontSize = '1.2em';
+        itemDelBtn.style.cursor = 'pointer';
+        itemDelBtn.style.padding = '0 8px';
+        itemDelBtn.style.zIndex = '1';
+        itemDelBtn.onclick = (e) => { e.stopPropagation(); deleteItem(item.id); };
+
+        
+
+        row.appendChild(handle);
+        row.appendChild(checkIcon);
+        row.appendChild(nameSpanContainer);
+        row.appendChild(itemDelBtn);
+        itemList.appendChild(row);
+
+        // 編集モードなら少し遅延して入力にフォーカス
+        if (isEditing) {
+          setTimeout(() => { try { const ip = row.querySelector('input'); if (ip) ip.focus(); } catch (e) { /* ignore */ } }, 60);
+        }
+      });
+      
+      if (catItems.length === 0) {
+        const emptyMsg = document.createElement('div');
+        emptyMsg.textContent = 'アイテムなし';
+        emptyMsg.style.color = '#ccc';
+        emptyMsg.style.padding = '12px';
+        emptyMsg.style.textAlign = 'center';
+        emptyMsg.style.fontSize = '0.9em';
+        itemList.appendChild(emptyMsg);
+      }
+
+      catDiv.appendChild(itemList);
+      container.appendChild(catDiv);
+
+      // アイテムの並び替え Sortable 初期化
+      const sortable = Sortable.create(itemList, {
+        handle: '.drag-handle',
+        group: 'shared', // 異なるカテゴリ間でもドラッグ移動可能にする
+        animation: 150,
+        onEnd: async (evt) => {
+          const newCatId = evt.to.dataset.catId;
+          const newRows = Array.from(evt.to.children).filter(el => el.classList.contains('item-row'));
+          
+          const batch = writeBatch(db);
+          // 移動先のリストの順番をすべて更新
+          newRows.forEach((row, index) => {
+            const id = row.dataset.id;
+            batch.update(doc(db, "shopping_list", id), { 
+              order: index,
+              categoryId: newCatId,
+              updatedAt: serverTimestamp()
+            });
+          });
+          await batch.commit();
+        }
+      });
+      sortableInstances.push(sortable);
+    });
+
+    const clearBtn = document.getElementById('clear-done-btn');
+    clearBtn.style.display = hasDoneItems ? 'block' : 'none';
+
+    // カテゴリの並び替え Sortable 初期化
+    if (catSortableInstance) catSortableInstance.destroy();
+    catSortableInstance = Sortable.create(container, {
+      handle: '.cat-drag-handle',
+      animation: 150,
+      onEnd: async (evt) => {
+        const rows = Array.from(container.children);
+        const batch = writeBatch(db);
+        rows.forEach((row, index) => {
+          const id = row.dataset.id;
+          if (id) {
+            batch.update(doc(db, "shopping_categories", id), { order: index });
+          }
+        });
+        await batch.commit();
+      }
+    });
+  }
+
+  async function addItem() {
+    const nameInput = document.getElementById('item-name');
+    if (!nameInput) {
+      console.warn('addItem: top item input not present; use per-category + button');
+      return;
+    }
+    const name = nameInput.value.trim();
+    if (!name) return;
+    
+    if (!selectedCategoryId) {
+      alert('カテゴリが存在しません。カテゴリを追加してください。');
+      return;
+    }
+    const categoryId = selectedCategoryId;
+    const category = shoppingCategories.find(c => c.id === categoryId);
+    const categoryName = category ? category.name : 'Unknown';
+    
+    // UIブロック
+    nameInput.value = '';
+    const addBtn = document.getElementById('add-btn');
+    if (addBtn) { addBtn.disabled = true; addBtn.innerHTML = '⋯'; }
+    
+    // 現在のカテゴリの最大orderを取得
+    const catItems = shoppingItems.filter(item => item.categoryId === categoryId || item.category === categoryName);
+    const maxOrder = catItems.length > 0 ? Math.max(...catItems.map(i => i.order || 0)) : -1;
+    
+    try {
+      // アイテム追加
+      await addDoc(collection(db, "shopping_list"), {
+        name: name,
+        categoryId: categoryId,
+        category: categoryName, // 後方互換のため
+        isDone: false,
+        order: maxOrder + 1,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      
+      // 履歴に保存（サジェスト用）
+      // docIDを名入れにすると重複を避けられ、lastUsedが更新される。記号対策で安全にencodeする
+      const historyId = encodeURIComponent(name).replace(/\./g, '%2E'); 
+      await setDoc(doc(db, "shopping_history", historyId), {
+        name: name,
+        lastUsed: serverTimestamp()
+      }, { merge: true });
+
+    } catch(e) {
+      console.error(e);
+      alert('エラーが発生しました');
+    } finally {
+      if (addBtn) { addBtn.disabled = false; addBtn.innerHTML = '追加する'; }
+      nameInput.focus();
+    }
+  }
+
+  async function addCategoryPrompt() {
+    // 新しいカテゴリドキュメントを作成してレンダリング後にインライン編集を開始する
+    try {
+      const maxOrder = shoppingCategories.length > 0 ? Math.max(...shoppingCategories.map(c => c.order || 0)) : -1;
+      const docRef = await addDoc(collection(db, 'shopping_categories'), { name: '', order: maxOrder + 1, listId: currentListId });
+      if (docRef && docRef.id) {
+        newlyCreatedCategoryIds.add(docRef.id);
+        selectedCategoryId = docRef.id;
+        // 新規カテゴリは折りたたまれないようにし、状態を保存
+        if (collapsedCategories.has(docRef.id)) collapsedCategories.delete(docRef.id);
+        saveCollapsedCategories();
+        // DOMに反映されるのを待ってから編集モードへ
+        waitForCategoryAndStartEdit(docRef.id).catch(err => console.error('waitForCategoryAndStartEdit failed', err));
+      }
+    } catch (err) {
+      console.error('addCategoryPrompt failed', err);
+      alert('カテゴリの追加に失敗しました');
+    }
+  }
+
+  async function deleteCategory(id, name) {
+    const inUse = shoppingItems.some(i => i.categoryId === id || i.category === name);
+    if (inUse) {
+      alert('このカテゴリにはまだアイテムが存在するため削除できません。先にアイテムを削除または移動してください。');
+      return;
+    }
+    
+    if (!confirm(`カテゴリ「${name}」を削除しますか？`)) return;
+    
+    try {
+      await deleteDoc(doc(db, "shopping_categories", id));
+    } catch(e) {
+      console.error(e);
+    }
+  }
+
+  async function toggleDone(id, currentStatus) {
+    try {
+      await updateDoc(doc(db, "shopping_list", id), {
+        isDone: !currentStatus,
+        updatedAt: serverTimestamp()
+      });
+      // 状態を反映したあと、該当カテゴリ内で未完了→完了の順に並び直し、order を書き換える
+      const item = shoppingItems.find(it => it.id === id);
+      let catId = null;
+      if (item) {
+        catId = item.categoryId || null;
+        if (!catId && item.category) {
+          const cat = shoppingCategories.find(c => c.name === item.category);
+          catId = cat ? cat.id : null;
+        }
+      }
+      if (catId) await resortCategory(catId);
+    } catch(e) {
+      console.error(e);
+    }
+  }
+
+  async function clearDoneItems() {
+    if (!confirm('完了済みのアイテムをすべて削除しますか？')) return;
+    
+    const doneItems = shoppingItems.filter(item => item.isDone);
+    if(doneItems.length === 0) return;
+    
+    try {
+      const batch = writeBatch(db);
+      doneItems.forEach(item => {
+        batch.delete(doc(db, "shopping_list", item.id));
+      });
+      await batch.commit();
+    } catch(e) {
+      console.error(e);
+      alert('削除に失敗しました');
+    }
+  }
+
+  // 指定カテゴリ内の完了済みアイテムのみ削除し、残ったアイテムの order を詰める
+  async function clearDoneInCategory(categoryId) {
+    const category = shoppingCategories.find(c => c.id === categoryId);
+    const categoryName = category ? category.name : null;
+    if (!confirm(`カテゴリ「${categoryName || ''}」の完了済みアイテムを削除しますか？`)) return;
+
+    const doneItems = shoppingItems.filter(item => (item.categoryId === categoryId || (!item.categoryId && item.category === categoryName)) && item.isDone);
+    if (doneItems.length === 0) return;
+
+    try {
+      const batch = writeBatch(db);
+      // 完了済みの削除
+      doneItems.forEach(item => batch.delete(doc(db, 'shopping_list', item.id)));
+
+      // 残った未完了アイテムの order を詰める
+      const remaining = shoppingItems.filter(item => (item.categoryId === categoryId || (!item.categoryId && item.category === categoryName)) && !item.isDone);
+      remaining.sort((a, b) => (a.order || 0) - (b.order || 0));
+      remaining.forEach((it, idx) => {
+        if ((it.order || 0) !== idx) {
+          batch.update(doc(db, 'shopping_list', it.id), { order: idx });
+        }
+      });
+
+      await batch.commit();
+    } catch (e) {
+      console.error(e);
+      alert('削除に失敗しました');
+    }
+  }
+
+  async function deleteItem(id) {
+    try {
+      await deleteDoc(doc(db, "shopping_list", id));
+    } catch(e) {
+      console.error(e);
+    }
+  }
+
+  function startEditingCategory(cat) {
+    const catDiv = document.querySelector(`.category-section[data-id="${cat.id}"]`);
+    if (!catDiv) return;
+    const nameSpan = catDiv.querySelector('.cat-name');
+    if (!nameSpan) return;
+    const oldName = cat.name || '';
+
+    const isNew = newlyCreatedCategoryIds.has(cat.id);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = oldName;
+    input.autocomplete = 'off';
+    input.style.padding = '6px';
+    input.style.fontSize = '1em';
+    input.style.border = '1px solid #ccc';
+    input.style.borderRadius = '6px';
+    input.style.width = '220px';
+
+    // 置換して focus
+    nameSpan.replaceWith(input);
+    input.focus();
+
+    // 編集中は削除ボタンを隠す（誤操作防止）
+    const delBtn = catDiv.querySelector('.delete-btn');
+    if (delBtn) delBtn.style.display = 'none';
+
+    let committed = false;
+    async function commit() {
+      if (committed) return;
+      committed = true;
+      const newName = input.value.trim();
+      try {
+        if (newName && newName !== oldName) {
+          await updateDoc(doc(db, 'shopping_categories', cat.id), { name: newName });
+          if (isNew) newlyCreatedCategoryIds.delete(cat.id);
+        } else if (!newName && isNew) {
+          // 新規カテゴリで名前が空のまま確定された場合は削除
+          try { await deleteDoc(doc(db, 'shopping_categories', cat.id)); } catch (e) { console.error('delete new category failed', e); }
+          newlyCreatedCategoryIds.delete(cat.id);
+        }
+      } catch (err) {
+        console.error('rename category failed', err);
+        alert('カテゴリ名の変更に失敗しました');
+      } finally {
+        renderList();
+      }
+    }
+
+    input.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        await commit();
+        input.blur();
+      } else if (e.key === 'Escape') {
+        committed = true;
+        // 新規カテゴリ作成直後で Escape の場合は削除して元に戻す
+        if (isNew) {
+          try { await deleteDoc(doc(db, 'shopping_categories', cat.id)); } catch (e) { console.error('cancel delete category failed', e); }
+          newlyCreatedCategoryIds.delete(cat.id);
+        }
+        renderList();
+      }
+    });
+
+    input.addEventListener('blur', async () => {
+      await commit();
+    });
+  }
+
+  // 指定カテゴリ内で未完了アイテムを先に、その後に完了アイテムを並べ替え、order を更新する
+  async function resortCategory(categoryId) {
+    try {
+      const category = shoppingCategories.find(c => c.id === categoryId);
+      const categoryName = category ? category.name : null;
+      const items = shoppingItems.filter(item => item.categoryId === categoryId || (!item.categoryId && item.category === categoryName));
+      if (items.length === 0) return;
+
+      items.sort((a, b) => {
+        if ((a.isDone ? 1 : 0) === (b.isDone ? 1 : 0)) return (a.order || 0) - (b.order || 0);
+        return a.isDone ? 1 : -1;
+      });
+
+      const batch = writeBatch(db);
+      items.forEach((it, idx) => {
+        // 既に順序が同じなら更新しない（不要な書き込みやupdatedAt更新を避ける）
+        if ((it.order || 0) !== idx) {
+          batch.update(doc(db, 'shopping_list', it.id), { order: idx });
+        }
+      });
+      await batch.commit();
+      // snapshot で自動的に renderList が呼ばれるはずだが、念のため再描画のトリガー
+      renderList();
+    } catch (err) {
+      console.error('resortCategory error', err);
+    }
+  }
+
+  // アイテム名のインライン編集を開始する
+  async function startEditingItem(item, options = {}) {
+    const isNew = options.isNew === true;
+    const row = document.querySelector(`.item-row[data-id="${item.id}"]`);
+    if (!row) return;
+    const nameContainer = row.querySelector('.item-name');
+    if (!nameContainer) return;
+
+    // 編集フラグを立てて renderList による置換を抑制する
+    editingItemIds.add(item.id);
+
+    // 入力フィールドを作る
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = item.name || '';
+    // 編集時も履歴候補を表示させる
+    input.setAttribute('list', 'item-history');
+    input.autocomplete = 'off';
+    input.style.padding = '8px';
+    input.style.fontSize = '1em';
+    input.style.border = '1px solid #ccc';
+    input.style.borderRadius = '6px';
+    input.style.width = '100%';
+    input.style.boxSizing = 'border-box';
+
+    let committed = false;
+    async function commit() {
+      if (committed) return;
+      committed = true;
+      const newName = input.value.trim();
+      try {
+        if (!newName) {
+          if (isNew) {
+            await deleteDoc(doc(db, 'shopping_list', item.id));
+            newlyCreatedItemIds.delete(item.id);
+          } else {
+            // 既存アイテムで空にされた場合は何もしない（元の値に戻す）
+          }
+        } else {
+          await updateDoc(doc(db, 'shopping_list', item.id), { name: newName, updatedAt: serverTimestamp() });
+          if (newlyCreatedItemIds.has(item.id)) newlyCreatedItemIds.delete(item.id);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        editingItemIds.delete(item.id);
+        renderList();
+      }
+    }
+
+    input.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        await commit();
+        input.blur();
+      } else if (e.key === 'Escape') {
+        committed = true;
+        // 新規作成アイテムはキャンセルで削除、既存は単に再描画で元に戻す
+        try {
+          if (isNew) {
+            await deleteDoc(doc(db, 'shopping_list', item.id));
+            newlyCreatedItemIds.delete(item.id);
+          }
+        } catch (err) {
+          console.error('cancel delete failed', err);
+        } finally {
+          editingItemIds.delete(item.id);
+          renderList();
+        }
+      }
+    });
+
+    // 隠すべきボタン
+    const editBtn = row.querySelector('.item-edit-btn');
+    const delBtn = row.querySelector('.item-del-btn');
+    if (editBtn) editBtn.style.display = 'none';
+    // keep delBtn visible during editing
+
+    // 既存内容を置き換え（date はそのまま残すため一旦クリアして input を入れる）
+    const dateSpan = nameContainer.querySelector('div:nth-child(2)');
+    nameContainer.innerHTML = '';
+
+    // 行全体のラッパー（入力 + アクション）
+    const editingRow = document.createElement('div');
+    editingRow.style.display = 'flex';
+    editingRow.style.alignItems = 'center';
+    editingRow.style.gap = '8px';
+    editingRow.style.flexWrap = 'nowrap';
+
+    // 入力ラッパー（右端にクリアボタンを絶対配置）
+    const inputWrap = document.createElement('div');
+    inputWrap.style.position = 'relative';
+    inputWrap.style.flex = '1 1 auto';
+    inputWrap.style.minWidth = '0';
+    inputWrap.style.border = '1px solid #ccc';
+    inputWrap.style.borderRadius = '6px';
+    inputWrap.style.background = '#fff';
+    inputWrap.style.overflow = 'hidden';
+
+    // 入力幅を幅いっぱいにして余白を戻す
+    input.style.width = '100%';
+    input.style.maxWidth = '100%';
+    input.style.padding = '8px 10px';
+    input.style.boxSizing = 'border-box';
+    input.style.border = 'none';
+    input.style.background = 'transparent';
+    input.style.appearance = 'textfield';
+    input.style.webkitAppearance = 'none';
+
+    inputWrap.appendChild(input);
+
+    // アクション（保存・キャンセル）を入力と同列に配置して折り返しを防ぐ
+    const actionWrap = document.createElement('div');
+    actionWrap.style.display = 'flex';
+    actionWrap.style.gap = '8px';
+    actionWrap.style.flex = '0 0 auto';
+    actionWrap.style.alignItems = 'center';
+
+    editingRow.appendChild(inputWrap);
+    editingRow.appendChild(actionWrap);
+
+    nameContainer.appendChild(editingRow);
+    if (dateSpan) nameContainer.appendChild(dateSpan);
+    input.focus();
+
+    // 編集確定はフォーカスが外れたとき（blur）に自動で行う
+    let _delTimer = null;
+    input.addEventListener('focus', () => {
+      if (_delTimer) { clearTimeout(_delTimer); _delTimer = null; }
+    });
+    input.addEventListener('input', () => {
+      if (_delTimer) { clearTimeout(_delTimer); _delTimer = null; }
+    });
+    input.addEventListener('blur', async () => {
+      const val = input.value.trim();
+      if (isNew && !val) {
+        // 新規作成アイテムが空のままフォーカスを失った場合、即削除せず短時間待つ（リレンダリング競合対策）
+        _delTimer = setTimeout(async () => {
+          try {
+            const rowNow = document.querySelector(`.item-row[data-id="${item.id}"]`);
+            const currentInput = rowNow ? rowNow.querySelector('input') : null;
+            if (currentInput && currentInput.value.trim() !== '') {
+              // ユーザが値を入力していた -> 通常コミット
+              await commit();
+              return;
+            }
+          } catch (e) {
+            console.error('check current input failed', e);
+          }
+          // まだ空なら削除
+          try {
+            if (newlyCreatedItemIds.has(item.id)) {
+              await deleteDoc(doc(db, 'shopping_list', item.id));
+              newlyCreatedItemIds.delete(item.id);
+            }
+          } catch (e) { console.error('delete new item failed', e); }
+          renderList();
+        }, 400);
+      } else {
+        await commit();
+      }
+    });
+  }
+
+  // ========== マルチリスト機能 ==========
+  const LIST_EMOJIS = [
+    // 食べ物・飲み物
+    {e:'🍎',k:'りんご 果物'},{ e:'🍌',k:'バナナ 果物'},{e:'🍅',k:'とまと 野菜'},{e:'🥕',k:'にんじん 野菜'},{e:'🧅',k:'たまねぎ'},{e:'🧄',k:'にんにく'},{e:'🌽',k:'とうもろこし'},{e:'🥦',k:'ブロッコリー'},{e:'🍄',k:'きのこ'},{e:'🍞',k:'パン パン屋'},{e:'🍙',k:'おにぎり'},{e:'🍱',k:'お弁当'},{e:'🍜',k:'ラーメン'},{e:'🍣',k:'寿司'},{e:'🍕',k:'ピザ'},{e:'🍔',k:'ハンバーガー'},{e:'🧁',k:'ケーキ'},{e:'🍩',k:'ドーナツ'},{e:'🍫',k:'チョコレート'},{e:'☕',k:'コーヒー'},{e:'🧃',k:'ジュース'},{e:'🍺',k:'ビール'},
+    // 日用品・買い物
+    {e:'🛒',k:'ショッピング 買い物 カート'},{e:'🧴',k:'シャンプー 洗剤'},{e:'🧹',k:'はけ 掃除'},{e:'🧺',k:'洗濤物'},{e:'🧻',k:'トイレットペーパー'},{e:'🪥',k:'歯ブラシ'},{e:'🪣',k:'バケツ'},{e:'🔋',k:'電池'},{e:'💊',k:'薬 ドラッグ'},{e:'🩹',k:'譆帯'},{e:'🧼',k:'せっけん ソープ'},{e:'🪴',k:'植物 花'},
+    // 生活・ファッション
+    {e:'👔',k:'シャツ 服'},{e:'👕',k:'Tシャツ'},{e:'👗',k:'ワンピース 服'},{e:'👟',k:'靴'},{e:'👜',k:'バッグ カバン'},{e:'🧣',k:'マフラー'},{e:'🕶',k:'サングラス'},
+    // レジャー・趣味
+    {e:'🎒',k:'リュックサック カバン 豊'},{e:'⭐',k:'はお おおお ウィッシュ 欲しい'},{e:'🎬',k:'映画 ムービー ウォッチリスト'},{e:'📚',k:'本 読書 図書館'},{e:'🎮',k:'ゲーム'},{e:'🎵',k:'音楽 コンサート'},{e:'🎨',k:'絵 アート'},{e:'📷',k:'写真 カメラ'},{e:'🏀',k:'バスケットボール'},{e:'⚽',k:'サッカー'},{e:'🏊',k:'水泳'},{e:'🏃',k:'ランニング ジョギング'},{e:'🧘',k:'ヨガ'},{e:'🎁',k:'プレゼント 赈り物'},{e:'🎉',k:'パーティー 祀い'},{e:'🃏',k:'カード トランプ'},
+    // 旅行・外出
+    {e:'✈️',k:'飛行機 旅行'},{e:'🧳',k:'スーツケース 旅行'},{e:'🏖',k:'海水浴 ビーチ'},{e:'🏕',k:'キャンプ'},{e:'🗺',k:'地図 旅行'},{e:'🚗',k:'車 ドライブ'},{e:'🚌',k:'バス'},{e:'🚂',k:'電車'},{e:'🚁',k:'ヘリコプター'},
+    // 仕事・学校
+    {e:'💼',k:'仕事 ビジネス'},{e:'📋',k:'リスト メモ クリップボード'},{e:'📝',k:'メモ ノート 作業'},{e:'📅',k:'カレンダー 予定'},{e:'⏰',k:'閘警時計 時間'},{e:'💡',k:'アイデア'},{e:'📐',k:'情報 記録'},{e:'🏫',k:'学校'},{e:'🎓',k:'卒業 勉強'},{e:'🔬',k:'実験 研究'},{e:'📐',k:'数学'},{e:'✏️',k:'邉筆 学習 べんきょう'},
+    // 家・生活
+    {e:'🏠',k:'家 ホーム'},{e:'🏥',k:'病院 医画'},{e:'🏪',k:'コンビニ ストア'},{e:'🏗',k:'工事 リフォーム'},{e:'🛠',k:'ツール 修理'},{e:'🪟',k:'窓'},{e:'🛏',k:'べっど 寝具'},
+    // 動物
+    {e:'🐶',k:'いぬ ペット'},{e:'🐱',k:'ねこ ペット'},{e:'🐰',k:'うさぎ'},{e:'🐾',k:'ペット 動物 足跡'},
+    // その他
+    {e:'💰',k:'お金 費用 財布'},{e:'💳',k:'カード 支払い'},{e:'🎯',k:'目標 ターゲット'},{e:'📦',k:'荷物 配送'},{e:'🗑',k:'ゴミ筒'},{e:'🔑',k:'鍵'},{e:'🧲',k:'磁石'},{e:'🌟',k:'お気に入り おすすめ'},{e:'❤️',k:'恋が'},{e:'🌈',k:'第一強 リスト'},{e:'🌙',k:'夜 咄前'},
+  ];
+  let _newListEmoji = '📋';
+
+  let tabsSortable = null;
+
+  function renderTabs() {
+    const tabsBar = document.getElementById('tabs-bar');
+    if (!tabsBar) return;
+
+    const visibleLists = allLists.filter(l => l.shared || l.ownerId === currentUserEmail);
+    // default を先頭に、それ以外は order 順
+    visibleLists.sort((a, b) => {
+      if (a.id === 'default') return -1;
+      if (b.id === 'default') return 1;
+      return (a.order || 0) - (b.order || 0);
+    });
+
+    // currentListId が非表示リストなら default にフォールバック
+    if (visibleLists.length > 0 && !visibleLists.find(l => l.id === currentListId)) {
+      currentListId = visibleLists[0].id;
+    }
+
+    tabsBar.innerHTML = '';
+
+    visibleLists.forEach(list => {
+      const tab = document.createElement('div');
+      tab.className = 'tab-item' + (list.id === currentListId ? ' active' : '');
+      tab.dataset.listId = list.id;
+
+      const sharedIcon = list.shared ? '👥' : '🔒';
+      const catIdsInList = shoppingCategories.filter(c => (c.listId || 'default') === list.id).map(c => c.id);
+      const countUndone = shoppingItems.filter(i => {
+        const inList = i.listId ? i.listId === list.id : catIdsInList.includes(i.categoryId);
+        return inList && !i.isDone;
+      }).length;
+
+      tab.innerHTML = `<span>${list.emoji || '📋'}</span><span style="margin-left:4px;">${list.name}</span><span style="font-size:0.7em; opacity:0.6; margin-left:3px;">${sharedIcon}</span>`;
+      if (countUndone > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'tab-badge';
+        badge.textContent = countUndone;
+        tab.appendChild(badge);
+      }
+
+      tab.onclick = () => {
+        if (tabsBar.classList.contains('tabs-sorting')) return; // 並び替えモード中はクリック無効
+        currentListId = list.id;
+        const pt = document.getElementById('page-title');
+        if (pt) pt.textContent = (list.emoji || '📋') + ' ' + list.name;
+        renderTabs();
+        renderList();
+      };
+
+      // 長押し並び替えモード
+      let longPressTimer = null;
+      const startLongPress = () => {
+        longPressTimer = setTimeout(() => {
+          tabsBar.classList.add('tabs-sorting');
+          if (tabsSortable) tabsSortable.option('disabled', false);
+          tab.style.background = '#e3f2fd';
+        }, 500);
+      };
+      const cancelLongPress = () => { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } };
+      tab.addEventListener('mousedown', startLongPress);
+      tab.addEventListener('touchstart', startLongPress, { passive: true });
+      tab.addEventListener('mouseup', cancelLongPress);
+      tab.addEventListener('touchend', cancelLongPress);
+      tab.addEventListener('mouseleave', cancelLongPress);
+
+      tabsBar.appendChild(tab);
+    });
+
+    // ＋ボタン
+    const addBtn = document.createElement('button');
+    addBtn.className = 'tab-add-btn';
+    addBtn.textContent = '＋';
+    addBtn.title = '新しいリストを作成';
+    addBtn.onclick = (e) => { e.stopPropagation(); openCreateListModal(); };
+    tabsBar.appendChild(addBtn);
+
+    // タブソータブル初期化（長押しで有効化）
+    if (tabsSortable) tabsSortable.destroy();
+    tabsSortable = Sortable.create(tabsBar, {
+      draggable: '.tab-item',
+      animation: 150,
+      disabled: true,
+      onEnd: async (evt) => {
+        tabsBar.classList.remove('tabs-sorting');
+        tabsBar.querySelectorAll('.tab-item').forEach(t => t.style.background = '');
+        if (tabsSortable) tabsSortable.option('disabled', true);
+        // order を更新（default は常に先頭のため書き換えない）
+        const tabEls = Array.from(tabsBar.querySelectorAll('.tab-item'));
+        const batch = writeBatch(db);
+        tabEls.forEach((el, index) => {
+          const lid = el.dataset.listId;
+          if (lid && lid !== 'default') {
+            batch.update(doc(db, 'list_meta', lid), { order: index });
+          }
+        });
+        await batch.commit().catch(e => console.error('tab order update failed', e));
+      }
+    });
+
+    // 並び替えモード中に外側タップで解除
+    if (!tabsBar._sortExitBound) {
+      tabsBar._sortExitBound = true;
+      document.addEventListener('click', (e) => {
+        if (!tabsBar.contains(e.target) && tabsBar.classList.contains('tabs-sorting')) {
+          tabsBar.classList.remove('tabs-sorting');
+          tabsBar.querySelectorAll('.tab-item').forEach(t => t.style.background = '');
+          if (tabsSortable) tabsSortable.option('disabled', true);
+        }
+      });
+    }
+
+    // ページタイトルを現在のリストに合わせる
+    const currentList = visibleLists.find(l => l.id === currentListId);
+    const pt = document.getElementById('page-title');
+    if (pt && currentList) pt.textContent = (currentList.emoji || '📋') + ' ' + currentList.name;
+  }
+
+  function openListSettingsModal() {
+    document.getElementById('list-settings-modal').classList.add('open');
+    renderListSettingsContent();
+  }
+
+  function closeListSettingsModal() {
+    document.getElementById('list-settings-modal').classList.remove('open');
+  }
+
+  function renderListSettingsContent() {
+    const visibleLists = allLists.filter(l => l.shared || l.ownerId === currentUserEmail);
+    visibleLists.sort((a, b) => {
+      if (a.id === 'default') return -1;
+      if (b.id === 'default') return 1;
+      return (a.order || 0) - (b.order || 0);
+    });
+
+    const container = document.getElementById('list-settings-content');
+    container.innerHTML = '';
+
+    visibleLists.forEach(list => {
+      const row = document.createElement('div');
+      row.className = 'list-meta-row';
+      row.style.flexWrap = 'wrap';
+      row.dataset.listId = list.id;
+
+      // リスト名（タップで直接編集）
+      const nameSpan = document.createElement('span');
+      nameSpan.style.cssText = 'flex:1; font-weight:bold; font-size:1em; cursor:pointer; padding:4px 2px; border-bottom: 1px dashed transparent;';
+      nameSpan.textContent = (list.emoji || '📋') + ' ' + list.name;
+      nameSpan.title = 'タップして名前変更';
+      if (list.id !== 'default') {
+        nameSpan.style.borderBottomColor = '#ccc';
+        nameSpan.onclick = () => startEditingListName(list, row);
+      }
+      row.appendChild(nameSpan);
+
+      // 共有/個人 トグルボタン
+      const toggleWrap = document.createElement('div');
+      toggleWrap.className = 'shared-toggle';
+
+      const sharedBtn = document.createElement('button');
+      sharedBtn.className = 'shared-toggle-btn' + (list.shared ? ' active-shared' : '');
+      sharedBtn.textContent = '👥 共有';
+      const privateBtn = document.createElement('button');
+      privateBtn.className = 'shared-toggle-btn' + (!list.shared ? ' active-private' : '');
+      privateBtn.textContent = '🔒 個人';
+
+      if (list.id !== 'default') {
+        sharedBtn.onclick = async () => {
+          if (!list.shared) { try { await updateDoc(doc(db, 'list_meta', list.id), { shared: true }); } catch (e) { console.error(e); } }
+        };
+        privateBtn.onclick = async () => {
+          if (list.shared) { try { await updateDoc(doc(db, 'list_meta', list.id), { shared: false }); } catch (e) { console.error(e); } }
+        };
+      } else {
+        sharedBtn.style.opacity = '0.7'; sharedBtn.style.cursor = 'default';
+        privateBtn.style.opacity = '0.5'; privateBtn.style.cursor = 'default';
+      }
+      toggleWrap.appendChild(sharedBtn);
+      toggleWrap.appendChild(privateBtn);
+      row.appendChild(toggleWrap);
+
+      // 削除ボタン（defaultリストは不可）
+      if (list.id !== 'default') {
+        const delBtn = document.createElement('button');
+        delBtn.innerHTML = '🗑';
+        delBtn.style.cssText = 'background:none;border:none;font-size:1.1em;cursor:pointer;color:#d32f2f;padding:4px 6px;';
+        delBtn.onclick = () => openDeleteListModal(list);
+        row.appendChild(delBtn);
+      }
+
+      // ドラッグハンドル（default以外）
+      if (list.id !== 'default') {
+        const dragHandle = document.createElement('span');
+        dragHandle.className = 'list-drag-handle';
+        dragHandle.innerHTML = '☰';
+        dragHandle.style.cssText = 'color:#bbb; cursor:grab; padding:4px 6px; font-size:1.1em;';
+        dragHandle.title = 'ドラッグで並び替え';
+        row.appendChild(dragHandle);
+      }
+
+      container.appendChild(row);
+    });
+
+    // Sortableでリスト順変更
+    if (window._listSettingsSortable) window._listSettingsSortable.destroy();
+    window._listSettingsSortable = Sortable.create(container, {
+      handle: '.list-drag-handle',
+      animation: 150,
+      onEnd: async (evt) => {
+        const rows = Array.from(container.children);
+        const batch = writeBatch(db);
+        rows.forEach((row, index) => {
+          const listId = row.dataset.listId;
+          if (listId && listId !== 'default') {
+            batch.update(doc(db, 'list_meta', listId), { order: index });
+          }
+        });
+        await batch.commit().catch(e => console.error('list order update failed', e));
+      }
+    });
+  }
+
+  function startEditingListName(list, rowEl) {
+    const nameSpan = rowEl.querySelector('span:first-child');
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = list.name;
+    input.style.cssText = 'flex:1; padding:6px 8px; border:1px solid #ccc; border-radius:6px; font-size:0.95em; font-weight:bold; min-width:0; width:100%;';
+    nameSpan.replaceWith(input);
+    input.focus();
+
+    async function commit() {
+      const newName = input.value.trim();
+      if (newName && newName !== list.name) {
+        try { await updateDoc(doc(db, 'list_meta', list.id), { name: newName }); } catch (err) { console.error(err); }
+      }
+      renderListSettingsContent();
+    }
+
+    input.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') { await commit(); }
+      else if (e.key === 'Escape') renderListSettingsContent();
+    });
+    input.addEventListener('blur', commit);
+  }
+
+  function openDeleteListModal(list) {
+    const modal = document.getElementById('list-delete-confirm-modal');
+    document.getElementById('delete-list-name-display').textContent = `「${list.name}」`;
+    document.getElementById('delete-list-name-input').value = '';
+    document.getElementById('delete-list-name-error').textContent = '';
+    modal.dataset.listId = list.id;
+    modal.dataset.listName = list.name;
+    modal.classList.add('open');
+  }
+
+  window.closeDeleteListModal = function() {
+    document.getElementById('list-delete-confirm-modal').classList.remove('open');
+  };
+
+  window.executeDeleteList = async function() {
+    const modal = document.getElementById('list-delete-confirm-modal');
+    const id = modal.dataset.listId;
+    const name = modal.dataset.listName;
+    const inputVal = document.getElementById('delete-list-name-input').value.trim();
+
+    if (inputVal !== name) {
+      document.getElementById('delete-list-name-error').textContent = 'リスト名が一致しません';
+      return;
+    }
+    document.getElementById('delete-list-name-error').textContent = '';
+
+    try {
+      const batch = writeBatch(db);
+      shoppingCategories.filter(c => (c.listId || 'default') === id).forEach(c => batch.delete(doc(db, 'shopping_categories', c.id)));
+      shoppingItems.filter(i => {
+        if (i.listId) return i.listId === id;
+        const cat = shoppingCategories.find(c => c.id === i.categoryId);
+        return cat && (cat.listId || 'default') === id;
+      }).forEach(i => batch.delete(doc(db, 'shopping_list', i.id)));
+      batch.delete(doc(db, 'list_meta', id));
+      await batch.commit();
+
+      if (currentListId === id) currentListId = 'default';
+      closeDeleteListModal();
+      closeListSettingsModal();
+    } catch (err) {
+      console.error(err);
+      alert('削除に失敗しました: ' + err.message);
+    }
+  };
+
+  window.openCreateListModal = openCreateListModal;
+  function openCreateListModal() {
+    _newListEmoji = '📋';
+    document.getElementById('new-list-name').value = '';
+    document.getElementById('new-list-name-error').textContent = '';
+    setNewListShared(true);
+    renderEmojiPicker('');
+    document.getElementById('emoji-search-input').value = '';
+    document.getElementById('list-create-modal').classList.add('open');
+    setTimeout(() => document.getElementById('new-list-name').focus(), 100);
+  }
+
+  window.renderEmojiPicker = renderEmojiPicker;
+  window.setNewListShared = function(isShared) {
+    const yesBtn = document.getElementById('new-list-shared-yes');
+    const noBtn = document.getElementById('new-list-shared-no');
+    if (isShared) {
+      yesBtn.className = 'shared-toggle-btn active-shared';
+      noBtn.className = 'shared-toggle-btn';
+    } else {
+      yesBtn.className = 'shared-toggle-btn';
+      noBtn.className = 'shared-toggle-btn active-private';
+    }
+    yesBtn.dataset.active = isShared ? '1' : '0';
+  };
+
+  function renderEmojiPicker(query) {
+    const pickerEl = document.getElementById('emoji-picker-container');
+    pickerEl.innerHTML = '';
+    const q = (query || '').trim().toLowerCase();
+    const filtered = q
+      ? LIST_EMOJIS.filter(o => o.k.includes(q) || o.e.includes(q))
+      : LIST_EMOJIS;
+    filtered.forEach(o => {
+      const btn = document.createElement('span');
+      btn.className = 'emoji-opt' + (o.e === _newListEmoji ? ' selected' : '');
+      btn.textContent = o.e;
+      btn.title = o.k;
+      btn.onclick = () => {
+        _newListEmoji = o.e;
+        pickerEl.querySelectorAll('.emoji-opt').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+      };
+      pickerEl.appendChild(btn);
+    });
+  }
+
+  window.closeCreateListModal = function() {
+    document.getElementById('list-create-modal').classList.remove('open');
+  };
+
+  window.createNewList = async function() {
+    const name = document.getElementById('new-list-name').value.trim();
+    if (!name) {
+      document.getElementById('new-list-name-error').textContent = 'リスト名を入力してください';
+      document.getElementById('new-list-name').focus();
+      return;
+    }
+    const shared = document.getElementById('new-list-shared-yes').dataset.active === '1';
+    const maxOrder = allLists.length > 0 ? Math.max(...allLists.map(l => l.order || 0)) : 0;
+
+    try {
+      const docRef = await addDoc(collection(db, 'list_meta'), {
+        name, emoji: _newListEmoji, shared, ownerId: currentUserEmail,
+        order: maxOrder + 1, createdAt: serverTimestamp()
+      });
+      currentListId = docRef.id;
+      closeCreateListModal();
+    } catch (err) {
+      console.error(err);
+      alert('リストの作成に失敗しました');
+    }
+  };
+
+  // ===== JSON エクスポート / インポート =====
+  // 現在のリストのアイテムのみエクスポート
+  window.exportCurrentList = function() {
+    const catIds = shoppingCategories.filter(c => (c.listId || 'default') === currentListId).map(c => c.id);
+    const items = shoppingItems.filter(i => catIds.includes(i.categoryId));
+    const cats = shoppingCategories.filter(c => (c.listId || 'default') === currentListId);
+    const currentList = allLists.find(l => l.id === currentListId);
+    const data = { listName: currentList?.name || 'list', categories: cats, items };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `list_${(currentList?.name || 'list').replace(/\s/g,'_')}_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // 全リストデータをエクスポート
+  window.exportAllLists = function() {
+    const data = { lists: allLists, categories: shoppingCategories, items: shoppingItems };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lists_all_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // 現在のリストにJSONからアイテムをインポート
+  window.importCurrentList = function() {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          const items = Array.isArray(data) ? data : (data.items || []);
+          const batch = writeBatch(db);
+          // カテゴリマップ (name→id) - 現在のリスト
+          const catMap = {};
+          shoppingCategories.filter(c => (c.listId||'default')===currentListId).forEach(c => { catMap[c.name] = c.id; });
+          let added = 0;
+          for (const item of items) {
+            if (!item.name) continue;
+            let catId = item.categoryId && shoppingCategories.find(c=>c.id===item.categoryId) ? item.categoryId : (catMap[item.category] || null);
+            if (!catId && shoppingCategories.length > 0) catId = shoppingCategories.find(c=>(c.listId||'default')===currentListId)?.id || null;
+            const ref = doc(collection(db, 'shopping_list'));
+            batch.set(ref, { name: item.name, categoryId: catId, isDone: false, order: added, listId: currentListId, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+            added++;
+          }
+          await batch.commit();
+          alert(`${added}件インポートしました`);
+        } catch (err) { console.error(err); alert('インポートに失敗しました: ' + err.message); }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+</script>
+
+<!-- ===== リスト設定モーダル ===== -->
+<div id="list-settings-modal" class="modal-overlay">
+  <div class="modal-box">
+    <button class="modal-close-btn" onclick="document.getElementById('list-settings-modal').classList.remove('open')">✕</button>
+    <p class="modal-title">⚙ リスト管理</p>
+    <div id="list-settings-content"></div>
+    <button onclick="openCreateListModal()" style="margin-top:12px; width:100%; padding:12px; background:#4caf50; color:#fff; border:none; border-radius:8px; font-size:1em; font-weight:bold; cursor:pointer;">＋ 新しいリストを作成</button>
+    <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+      <button onclick="exportAllLists()" style="flex:1; padding:9px; background:#fff; border:1px solid #ccc; border-radius:6px; font-size:0.9em; cursor:pointer;">💾 全リスト保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== リスト作成モーダル ===== -->
+<div id="list-create-modal" class="modal-overlay">
+  <div class="modal-box">
+    <button class="modal-close-btn" onclick="closeCreateListModal()">✕</button>
+    <p class="modal-title">➕ 新しいリストを作成</p>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:0.9em; color:#666; display:block; margin-bottom:6px; font-weight:bold;">リスト名</label>
+      <input id="new-list-name" type="text" placeholder="例: 持ち物リスト" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:1em; box-sizing:border-box;">
+      <div id="new-list-name-error" style="color:#d32f2f; font-size:0.85em; min-height:18px; margin-top:4px;"></div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:0.9em; color:#666; display:block; margin-bottom:6px; font-weight:bold;">絵文字</label>
+      <input id="emoji-search-input" class="emoji-search" type="text" placeholder="キーワードで検索（例: 食べ物、旅行）" oninput="renderEmojiPicker(this.value)">
+      <div id="emoji-picker-container" class="emoji-picker"></div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:0.9em; color:#666; display:block; margin-bottom:8px; font-weight:bold;">共有設定</label>
+      <div class="shared-toggle">
+        <button type="button" id="new-list-shared-yes" class="shared-toggle-btn active-shared" onclick="setNewListShared(true)">👥 共有（家族全員）</button>
+        <button type="button" id="new-list-shared-no" class="shared-toggle-btn" onclick="setNewListShared(false)">🔒 個人（自分だけ）</button>
+      </div>
+    </div>
+    <button onclick="createNewList()" style="width:100%; padding:12px; background:#1976d2; color:#fff; border:none; border-radius:8px; font-size:1em; font-weight:bold; cursor:pointer;">作成する</button>
+  </div>
+</div>
+
+<!-- ===== リスト削除確認モーダル ===== -->
+<div id="list-delete-confirm-modal" class="modal-overlay">
+  <div class="modal-box">
+    <button class="modal-close-btn" onclick="closeDeleteListModal()">✕</button>
+    <p class="modal-title">🗑 リストの削除</p>
+    <p style="font-size:0.95em; margin-bottom:12px;"><strong id="delete-list-name-display" style="color:#d32f2f;"></strong> を削除します。<br><span style="color:#666;">カテゴリとアイテムもすべて削除されます。</span></p>
+    <label style="font-size:0.9em; color:#666; font-weight:bold; display:block; margin-bottom:6px;">確認のためリスト名を入力してください:</label>
+    <input id="delete-list-name-input" type="text" placeholder="リスト名を入力" style="width:100%; padding:10px; border:2px solid #d32f2f; border-radius:6px; font-size:1em; box-sizing:border-box; margin-bottom:4px;">
+    <div id="delete-list-name-error" style="color:#d32f2f; font-size:0.85em; min-height:20px; margin-bottom:12px;"></div>
+    <button id="delete-list-confirm-btn" onclick="executeDeleteList()" style="width:100%; padding:12px; background:#d32f2f; color:#fff; border:none; border-radius:8px; font-size:1em; font-weight:bold; cursor:pointer;">削除する</button>
+  </div>
+</div>
+
+<!-- ===== 入力履歴管理モーダル ===== -->
+<div id="history-modal" class="modal-overlay">
+  <div class="modal-box">
+    <button class="modal-close-btn" onclick="closeHistoryModal()">✕</button>
+    <p class="modal-title">📜 入力履歴</p>
+    <button onclick="clearAllHistory()" style="width:100%; padding:9px; background:#ffebee; color:#d32f2f; border:1px solid #ef9a9a; border-radius:6px; font-size:0.9em; font-weight:bold; cursor:pointer; margin-bottom:12px;">🗑 履歴を全削除</button>
+    <div id="history-modal-list" style="max-height:280px; overflow-y:auto;"></div>
+  </div>
+</div>
+
+</body>
+</html>

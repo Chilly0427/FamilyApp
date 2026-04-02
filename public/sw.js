@@ -5,6 +5,7 @@ const urlsToCache = [
   '/kakei.html',
   '/sokone.html',
   '/kaimono.html',
+  '/list.html',
   '/nav.js',
   '/firebase-config.js',
   '/manifest.json',
