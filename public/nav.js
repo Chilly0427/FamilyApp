@@ -44,6 +44,10 @@ export function initGlobalNav(activePageName) {
       font-size: 24px;
       margin-bottom: 4px;
       transition: transform 0.2s;
+      line-height: 1;
+    }
+    .nav-item .icon.material-icons {
+      font-size: 26px;
     }
     .nav-item.active {
       color: #1976d2;
@@ -87,23 +91,23 @@ export function initGlobalNav(activePageName) {
   const navHtml = `
     <div class="bottom-nav-container">
       <a href="kakei.html" class="nav-item ${activePageName === 'kakei' ? 'active' : ''}">
-        <span class="icon">💰</span>
+        <span class="icon material-icons">account_balance_wallet</span>
         <span>家計簿</span>
       </a>
       <a href="sokone.html" class="nav-item ${activePageName === 'sokone' ? 'active' : ''}">
-        <span class="icon">🏷️</span>
+        <span class="icon material-icons">local_offer</span>
         <span>底値帳</span>
       </a>
       <a href="list.html" class="nav-item ${activePageName === 'list' || activePageName === 'kaimono' ? 'active' : ''}">
-        <span class="icon">📋</span>
+        <span class="icon material-icons">checklist</span>
         <span>リスト</span>
       </a>
       <div id="nav-logout-btn" class="nav-item" style="cursor:pointer;">
-        <span class="icon" style="color:#d32f2f;">🚪</span>
+        <span class="icon material-icons" style="color:#d32f2f;">logout</span>
         <span>ログアウト</span>
       </div>
     </div>
-    <button class="back-to-top-btn" id="back-to-top-btn" title="トップへ戻る">↑</button>
+    <button class="back-to-top-btn" id="back-to-top-btn" title="トップへ戻る"><span class="material-icons" style="font-size:20px;">arrow_upward</span></button>
   `;
 
   // Place it directly into body, ignoring global-nav-placeholder which was in <header>

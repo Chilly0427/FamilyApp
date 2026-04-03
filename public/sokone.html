@@ -3,13 +3,14 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>🛒 底値帳 - FamilyApp</title>
+<title>底値帳 - FamilyApp</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png">
 <link rel="icon" href="/favicon-16x16.png" sizes="16x16" type="image/png">
 <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
 <meta name="theme-color" content="#1976d2">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
 body{font-family:'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;margin:0;background:#f5f6f8;color:#333}
 header{position:sticky;top:0;background:#fff;padding:16px 20px;border-bottom:1px solid #e0e0e0;box-shadow:0 2px 8px rgba(0,0,0,0.05);z-index:10; display:flex; justify-content:space-between; align-items:center;}
@@ -93,11 +94,11 @@ input:focus, select:focus {
 </head>
 <body style="display: none;">
 <div id="loading-overlay" style="position:fixed;inset:0;background:#f5f6f8;display:flex;align-items:center;justify-content:center;z-index:9999;">
-  <div style="text-align:center;color:#888;"><div style="font-size:2em;margin-bottom:8px;">📉</div>読み込み中...</div>
+  <div style="text-align:center;color:#888;"><div style="font-size:2em;margin-bottom:8px;"><span class="material-icons" style="font-size:2rem;">local_offer</span></div>読み込み中...</div>
 </div>
 
 <header style="position:relative; display:flex; justify-content:space-between; align-items:center;">
-  <h1 style="margin: 0; font-size: 1.25em; color: #2c3e50;">📉 底値メモ</h1>
+  <h1 style="margin: 0; font-size: 1.25em; color: #2c3e50;"><span class="material-icons" style="vertical-align:middle;">local_offer</span> 底値メモ</h1>
   <div id="global-nav-placeholder"></div>
 </header>
 
@@ -109,23 +110,23 @@ input:focus, select:focus {
 <main>
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:8px; flex-wrap:wrap;">
     <div style="display:flex; gap:6px;">
-      <button onclick="document.getElementById('importFile').click()" style="padding:6px; border:none; border-radius:4px; font-weight:bold; cursor:pointer; background:#fff; border:1px solid #ccc; font-size: 0.9em;">📂 読込</button>
-      <button onclick="exportData()" style="padding:6px; border:none; border-radius:4px; font-weight:bold; cursor:pointer; background:#fff; border:1px solid #ccc; font-size: 0.9em;">💾 保存</button>
-      <button onclick="openOcrModal()" style="padding:6px; border:none; border-radius:4px; font-weight:bold; cursor:pointer; background:#e8f5e9; border:1px solid #a5d6a7; font-size: 0.9em; color:#2e7d32;">📷 読取</button>
+      <button onclick="document.getElementById('importFile').click()" style="padding:8px; border:none; border-radius:4px; font-weight:bold; cursor:pointer; background:#eee; font-size: 0.9em;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">folder_open</span> 読込</button>
+      <button onclick="exportData()" style="padding:8px; border:none; border-radius:4px; font-weight:bold; cursor:pointer; background:#eee; font-size: 0.9em;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">save</span> 保存</button>
+      <button onclick="openOcrModal()" style="padding:8px; border:none; border-radius:4px; font-weight:bold; cursor:pointer; background:#e8f5e9; border:1px solid #a5d6a7; font-size: 0.9em; color:#2e7d32;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">photo_camera</span> 読取</button>
       <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
     </div>
     
     <select id="sortModeSelect" onchange="setSortMode(this.value)" style="padding:8px; border-radius:8px; border:1px solid #cfd8dc; background:#fff; font-weight:bold; color:#2e7d32; outline:none;">
-      <option value="manual">☰ 手動並べ替え</option>
-      <option value="name">🔤 名前順(自動)</option>
-      <option value="recent">🕒 更新順(自動)</option>
+      <option value="manual">手動並べ替え</option>
+      <option value="name">名前順(自動)</option>
+      <option value="recent">更新順(自動)</option>
     </select>
   </div>
 
-  <input type="text" id="sokone-search" placeholder="🔍 商品を検索..." style="width:100%;padding:10px 14px;border:1px solid #cfd8dc;border-radius:10px;box-sizing:border-box;font-size:1em;margin-bottom:12px;background:#fff;">
+  <input type="text" id="sokone-search" placeholder="商品を検索..." style="width:100%;padding:10px 14px;border:1px solid #cfd8dc;border-radius:10px;box-sizing:border-box;font-size:1em;margin-bottom:12px;background:#fff;">
   <div id="list"></div>
   <div style="text-align:center;margin:30px 0">
-    <button class="btn-add" onclick="addRow()">➕ 新しい商品グループ</button>
+    <button class="btn-add" onclick="addRow()"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">add</span> 新しい商品グループ</button>
   </div>
 
   </main>
@@ -140,12 +141,12 @@ input:focus, select:focus {
 <!-- OCR モーダル -->
 <div id="ocr-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; overflow-y:auto;">
   <div style="max-width:560px; margin:24px auto; background:#fff; border-radius:16px; padding:20px; position:relative;">
-    <button onclick="closeOcrModal()" style="position:absolute; right:12px; top:12px; background:none; border:none; font-size:1.4em; cursor:pointer;">✕</button>
-    <h2 style="margin:0 0 12px; font-size:1.15em; color:#2e7d32;">📷 レシート読み取り</h2>
+    <button onclick="closeOcrModal()" style="position:absolute; right:12px; top:12px; background:none; border:none; cursor:pointer;"><span class="material-icons">close</span></button>
+    <h2 style="margin:0 0 12px; font-size:1.15em; color:#2e7d32;"><span class="material-icons" style="vertical-align:middle;">レシート読み取り</span></h2>
 
     <div id="ocr-upload-area" style="text-align:center; padding:16px;">
       <input type="file" id="ocr-file" accept="image/*" capture="environment" style="display:none;" onchange="handleOcrFile(event)">
-      <button onclick="document.getElementById('ocr-file').click()" style="padding:14px 24px; background:#4caf50; color:#fff; border:none; border-radius:12px; font-size:1em; font-weight:bold; cursor:pointer; margin:4px;">📸 撮影 / 画像を選択</button>
+      <button onclick="document.getElementById('ocr-file').click()" style="padding:14px 24px; background:#4caf50; color:#fff; border:none; border-radius:12px; font-size:1em; font-weight:bold; cursor:pointer; margin:4px;"><span class="material-icons" style="vertical-align:middle; font-size:1.2em;">photo_camera</span> 撮影 / 画像を選択</button>
       <p style="font-size:0.85em; color:#888; margin-top:8px;">レシートの写真から商品名・価格を自動検出します</p>
     </div>
 
@@ -164,11 +165,11 @@ input:focus, select:focus {
       <h3 style="margin:12px 0 8px; font-size:1em; color:#333;">検出結果 <span id="ocr-result-count" style="font-size:0.85em; color:#78909c;"></span></h3>
       <div id="ocr-items-list"></div>
       <div id="ocr-raw-toggle" style="margin-top:8px;">
-        <button onclick="document.getElementById('ocr-raw-text').style.display = document.getElementById('ocr-raw-text').style.display === 'none' ? 'block' : 'none'" style="font-size:0.8em; background:none; border:1px solid #ccc; border-radius:6px; padding:4px 10px; color:#888; cursor:pointer;">📄 生テキスト表示</button>
+        <button onclick="document.getElementById('ocr-raw-text').style.display = document.getElementById('ocr-raw-text').style.display === 'none' ? 'block' : 'none'" style="font-size:0.8em; background:none; border:1px solid #ccc; border-radius:6px; padding:4px 10px; color:#888; cursor:pointer;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">article</span> 生テキスト表示</button>
         <pre id="ocr-raw-text" style="display:none; font-size:0.75em; background:#f5f5f5; padding:10px; border-radius:8px; max-height:150px; overflow-y:auto; white-space:pre-wrap; word-break:break-all; margin-top:6px;"></pre>
       </div>
       <div style="margin-top:16px; text-align:center;">
-        <button onclick="importOcrItems()" style="padding:12px 30px; background:#4caf50; color:#fff; border:none; border-radius:12px; font-size:1.05em; font-weight:bold; cursor:pointer; width:80%;">✅ 選択した項目を登録</button>
+        <button onclick="importOcrItems()" style="padding:12px 30px; background:#4caf50; color:#fff; border:none; border-radius:12px; font-size:1.05em; font-weight:bold; cursor:pointer; width:80%;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">check_circle</span> 選択した項目を登録</button>
       </div>
     </div>
   </div>
@@ -463,7 +464,7 @@ input:focus, select:focus {
         const unitPriceStr = (Math.round(best.unitPrice * 10) / 10).toFixed(1);
         rankingHtml = `
           <div class="best-price-row">
-            👑 1位: ${escHtml(best.storeName) || '店名未入力'} 
+            <span class="material-icons" style="font-size:0.85em;vertical-align:middle;color:#f57c00;">looks_one</span> 1位: ${escHtml(best.storeName) || '店名未入力'} 
             <strong style="color:#d32f2f; font-size:1.1em;">${unitPriceStr}円</strong>/1${escHtml(groupUnit)}
             <span style="color:#888; font-size:0.8em;">(${bestDateStr})</span>
           </div>
@@ -478,13 +479,13 @@ input:focus, select:focus {
 
       groupDiv.innerHTML = `
         <div class="group-header">
-          <div class="drag-handle" style="display:${sortMode === 'manual' ? 'block' : 'none'}">☰</div>
+          <div class="drag-handle" style="display:${sortMode === 'manual' ? 'block' : 'none'}"><span class="material-icons" style="font-size:1.2em;">drag_handle</span></div>
           <div class="group-title-area">
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;" onclick="event.stopPropagation()">
               <input type="text" value="${(groupName === '未分類の商品' || groupName.startsWith('未設定_')) ? '' : gnAttr}" placeholder="商品名を入力..." list="item-list" onblur="updateGroupName('${gnEsc}', this.value)" style="flex:1; font-size:1.2em; padding:8px 12px; font-weight:bold; color:#2e7d32; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.05); min-width:120px;">
               <div style="font-size:0.95em; color:#78909c; font-weight:bold; white-space:nowrap;">(${realItems.length}件)</div>
               <input type="text" value="${escHtml(groupUnit)}" placeholder="単位" list="unit-list" onblur="updateGroupUnit('${gnEsc}', this.value)" style="width:85px; font-size:1.0em; padding:8px; border:1px solid #cfd8dc; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); text-align:center;">
-              <button class="del-btn" style="padding:10px 12px; font-size:1.1em;" onclick="event.stopPropagation(); deleteGroup('${gnEsc}')">✖</button>
+              <button class="del-btn" style="padding:10px 12px; font-size:1.1em;" onclick="event.stopPropagation(); deleteGroup('${gnEsc}')" title="グループを削除"><span class="material-icons" style="font-size:1em;">close</span></button>
             </div>
             <div style="cursor:pointer;" onclick="toggleGroup('${gnEsc}')">${rankingHtml}</div>
           </div>
@@ -492,7 +493,7 @@ input:focus, select:focus {
         </div>
         <div class="group-content" style="display: ${isExpanded ? 'block' : 'none'};">
           <div class="items-list"></div>
-          <button class="btn-add-small" onclick="addItemToGroup('${gnEsc}')">➕ サブ価格情報を追加</button>
+          <button class="btn-add-small" onclick="addItemToGroup('${gnEsc}')"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">add</span> サブ価格情報を追加</button>
         </div>
       `;
 
@@ -519,13 +520,13 @@ input:focus, select:focus {
         let rowClass = "list-row";
 
         if (it._isLatestForStore) {
-          if (it._rank === 1) rankBadge = "👑 1位";
-          else if (it._rank === 2) rankBadge = "🥈 2位";
-          else if (it._rank === 3) rankBadge = "🥉 3位";
+          if (it._rank === 1) rankBadge = "<span class=\"material-icons\" style=\"font-size:0.8em;vertical-align:middle;color:#f57c00;\">looks_one</span> 1位";
+          else if (it._rank === 2) rankBadge = "<span class=\"material-icons\" style=\"font-size:0.8em;vertical-align:middle;color:#607d8b;\">looks_two</span> 2位";
+          else if (it._rank === 3) rankBadge = "<span class=\"material-icons\" style=\"font-size:0.8em;vertical-align:middle;color:#8d6e63;\">looks_3</span> 3位";
           else if (it._rank > 0) rankBadge = `${it._rank}位`;
         } else {
           // 古い履歴の場合はグレーアウト等のクラスを付与し、履歴として示す
-          rankBadge = "🕒 過去価格";
+          rankBadge = "<span class=\"material-icons\" style=\"font-size:0.8em;vertical-align:middle;\">access_time</span> 過去価格";
           rowClass += " history-row";
         }
 
@@ -537,7 +538,7 @@ input:focus, select:focus {
               <span style="font-weight:bold; color:#f57c00; font-size:1.0em; min-width:54px;">${rankBadge}</span>
               <input type="date" value="${dateVal}" onblur="updateItem('${it.id}', 'recordedDate', this.value)" style="max-width:160px;">
             </div>
-            <button class="del-btn" style="padding:8px; font-size:1em;" onclick="deleteItem('${it.id}')">🗑</button>
+            <button class="del-btn" style="padding:8px; font-size:1em;" onclick="deleteItem('${it.id}')" title="削除"><span class="material-icons" style="font-size:1em;">delete</span></button>
           </div>
 
           <div class="row-middle" style="margin-top:8px;">
@@ -568,7 +569,7 @@ input:focus, select:focus {
 
           <div class="row-calc">
             <div class="unit-price">
-              ✨単価: <strong>${unitPriceStr}</strong> 円 / 1${escHtml(groupUnit)}
+              単価: <strong>${unitPriceStr}</strong> 円 / 1${escHtml(groupUnit)}
             </div>
           </div>
         `;
@@ -620,7 +621,7 @@ input:focus, select:focus {
           </div>
           
           <div style="margin-top:12px; text-align:center;">
-             <button class="btn-add" style="padding:12px 30px; font-size:1.1em; width:80%;" onclick="saveDraft('${gnEsc}')">✅ 登録する</button>
+             <button class="btn-add" style="padding:12px 30px; font-size:1.1em; width:80%;" onclick="saveDraft('${gnEsc}')"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">check_circle</span> 登録する</button>
           </div>
         `;
         itemsListEl.appendChild(draftDiv);
@@ -1033,7 +1034,7 @@ input:focus, select:focus {
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
           <input type="checkbox" ${item.selected ? 'checked' : ''} onchange="ocrDetectedItems[${idx}].selected=this.checked; renderOcrResults();" style="width:20px; height:20px; accent-color:#4caf50;">
           <input type="text" value="${escHtml(item.itemName)}" placeholder="商品名" oninput="ocrDetectedItems[${idx}].itemName=this.value" list="item-list" style="flex:1; padding:8px; border:1px solid #cfd8dc; border-radius:6px; font-size:0.95em; font-weight:bold;">
-          <button onclick="ocrDetectedItems.splice(${idx},1); renderOcrResults();" style="background:none; border:none; font-size:1.1em; cursor:pointer; color:#d32f2f;">✕</button>
+          <button onclick="ocrDetectedItems.splice(${idx},1); renderOcrResults();" style="background:none; border:none; cursor:pointer; color:#d32f2f;"><span class="material-icons" style="font-size:1em;">close</span></button>
         </div>
         <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
           <input type="text" value="${escHtml(item.storeName)}" placeholder="店名" oninput="ocrDetectedItems[${idx}].storeName=this.value" list="store-list" style="flex:1; min-width:100px; padding:6px; border:1px solid #cfd8dc; border-radius:6px; font-size:0.9em;">

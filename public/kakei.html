@@ -10,6 +10,7 @@
   <link rel="icon" href="/favicon-16x16.png" sizes="16x16" type="image/png">
   <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
 <meta name="theme-color" content="#1976d2">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
 body{font-family:sans-serif;margin:0;background:#fafafa;color:#333}
 header{position:sticky;top:0;background:#fff;padding:16px;border-bottom:1px solid #ddd;box-shadow:0 2px 4px rgba(0,0,0,0.05);z-index:10}
@@ -51,7 +52,7 @@ input:focus, select:focus {
 </head>
 <body style="display: none;">
 <div id="loading-overlay" style="position:fixed;inset:0;background:#fafafa;display:flex;align-items:center;justify-content:center;z-index:9999;">
-  <div style="text-align:center;color:#888;"><div style="font-size:2em;margin-bottom:8px;">🏠</div>読み込み中...</div>
+  <div style="text-align:center;color:#888;"><div style="font-size:2em;margin-bottom:8px;"><span class="material-icons" style="font-size:2rem;">account_balance_wallet</span></div>読み込み中...</div>
 </div>
 
 <script type="module">
@@ -127,10 +128,10 @@ input:focus, select:focus {
     const toggle = document.getElementById('header-accordion-toggle');
     if (acc.style.display === 'none') {
       acc.style.display = 'block';
-      toggle.textContent = '⚙️ 設定・操作 ▲';
+      toggle.innerHTML = '<span class="material-icons" style="font-size:0.9em;vertical-align:middle;">settings</span> 設定・操作 ▲';
     } else {
       acc.style.display = 'none';
-      toggle.textContent = '⚙️ 設定・操作 ▼';
+      toggle.innerHTML = '<span class="material-icons" style="font-size:0.9em;vertical-align:middle;">settings</span> 設定・操作 ▼';
     }
   };
 
@@ -300,7 +301,7 @@ input:focus, select:focus {
 
       const handle = document.createElement('div');
       handle.className = 'drag-handle';
-      handle.textContent = '☰';
+      handle.innerHTML = '<span class="material-icons" style="font-size:20px;">drag_handle</span>';
       if (it.isSettled) handle.style.cursor = 'default';
 
       const cb = document.createElement('input');
@@ -312,7 +313,7 @@ input:focus, select:focus {
 
       const flag = document.createElement('button');
       flag.className = 'type-btn';
-      flag.textContent = it.type === 'shared' ? '🏠 家計' : '💸 立替';
+      flag.innerHTML = it.type === 'shared' ? '<span class="material-icons" style="font-size:0.85em;vertical-align:middle;">home</span> 家計' : '<span class="material-icons" style="font-size:0.85em;vertical-align:middle;">payments</span> 立替';
       flag.disabled = it.isSettled;
       flag.onclick = () => toggleType(it.id, it.type);
 
@@ -324,7 +325,7 @@ input:focus, select:focus {
       const h = document.createElement('input');
       h.id = hId;
       h.type = 'number';
-      h.placeholder = (it.w > 0 && !it.isSettled) ? '妻が入力済' : '👨夫支払い分';
+      h.placeholder = (it.w > 0 && !it.isSettled) ? '妻が入力済' : '夫の支払い分';
       h.value = it.h || '';
       h.disabled = it.isSettled || (it.w > 0);
       if (it.w > 0 && !it.isSettled) h.classList.add('blocked-input');
@@ -342,7 +343,7 @@ input:focus, select:focus {
       const w = document.createElement('input');
       w.id = wId;
       w.type = 'number';
-      w.placeholder = (it.h > 0 && !it.isSettled) ? '夫が入力済' : '👩妻支払い分';
+      w.placeholder = (it.h > 0 && !it.isSettled) ? '夫が入力済' : '妻の支払い分';
       w.value = it.w || '';
       w.disabled = it.isSettled || (it.h > 0);
       if (it.h > 0 && !it.isSettled) w.classList.add('blocked-input');
@@ -356,7 +357,7 @@ input:focus, select:focus {
         it.h = Number(e.target.value) || 0; 
         w.disabled = it.isSettled || (it.h > 0);
         if (it.h > 0 && !it.isSettled) { w.classList.add('blocked-input'); w.placeholder = '夫が入力済'; }
-        else { w.classList.remove('blocked-input'); w.placeholder = '👩妻支払い分'; }
+        else { w.classList.remove('blocked-input'); w.placeholder = '妻の支払い分'; }
         
         hClear.style.display = (!it.isSettled && it.h > 0) ? 'flex' : 'none';
 
@@ -374,7 +375,7 @@ input:focus, select:focus {
         it.w = Number(e.target.value) || 0; 
         h.disabled = it.isSettled || (it.w > 0);
         if (it.w > 0 && !it.isSettled) { h.classList.add('blocked-input'); h.placeholder = '妻が入力済'; }
-        else { h.classList.remove('blocked-input'); h.placeholder = '👨夫支払い分'; }
+        else { h.classList.remove('blocked-input'); h.placeholder = '夫の支払い分'; }
 
         wClear.style.display = (!it.isSettled && it.w > 0) ? 'flex' : 'none';
 
@@ -403,7 +404,7 @@ input:focus, select:focus {
       const name = document.createElement('input');
       name.id = nameId;
       name.type = 'text';
-      name.placeholder = '📝 内容';
+      name.placeholder = '内容';
       name.value = it.name || '';
       name.disabled = it.isSettled;
       name.style.flex = "1";
@@ -422,7 +423,7 @@ input:focus, select:focus {
 
       const del = document.createElement('button');
       del.className = 'del-btn';
-      del.textContent = '🗑';
+      del.innerHTML = '<span class="material-icons" style="font-size:1.1em;vertical-align:middle;">delete</span>';
       del.onclick = () => removeRow(it.id);
 
       div.append(handle, cb, flag, hWrapper, wWrapper);
@@ -450,57 +451,70 @@ input:focus, select:focus {
     const r = ratioSlider.value / 100;
     const wifeRatio = 1 - r;
     
-    ratioLabel.textContent = `👨夫${ratioSlider.value}% / 👩妻${Math.round(wifeRatio * 100)}%`;
+    ratioLabel.innerHTML = `<span class="material-icons" style="font-size:0.85em;vertical-align:middle;">man</span>夫${ratioSlider.value}% / <span class="material-icons" style="font-size:0.85em;vertical-align:middle;">woman</span>妻${Math.round(wifeRatio * 100)}%`;
 
     let sharedH = 0, sharedW = 0, transH = 0, transW = 0;
-    
+    let settledSharedH = 0, settledSharedW = 0, settledTransH = 0, settledTransW = 0;
+
     const currentMonthItems = items.filter(it => it.date && it.date.startsWith(window.currentMonthStr));
     const unsettledCurrentMonthItems = currentMonthItems.filter(it => !it.isSettled);
+    const settledCurrentMonthItems = currentMonthItems.filter(it => it.isSettled);
     const allCurrentMonthSettled = currentMonthItems.length > 0 && unsettledCurrentMonthItems.length === 0;
     currentMonthItems.forEach(it => {
-      if (it.isSettled) return;
-      if (it.type === 'shared') {
-        sharedH += it.h;
-        sharedW += it.w;
+      if (it.isSettled) {
+        if (it.type === 'shared') { settledSharedH += it.h; settledSharedW += it.w; }
+        else { settledTransH += it.h; settledTransW += it.w; }
       } else {
-        transH += it.h;
-        transW += it.w;
+        if (it.type === 'shared') { sharedH += it.h; sharedW += it.w; }
+        else { transH += it.h; transW += it.w; }
       }
     });
 
     const totalShared = sharedH + sharedW;
     const diffShared = (totalShared * wifeRatio) - sharedW;
     const diffTransfer = transH - transW;
-    const final = diffShared + diffTransfer;
-    
+    const final = diffShared + diffTransfer; // 未精算分
+
+    const totalSettledShared = settledSharedH + settledSharedW;
+    const diffSettledShared = (totalSettledShared * wifeRatio) - settledSharedW;
+    const diffSettledTransfer = settledTransH - settledTransW;
+    const settledFinal = diffSettledShared + diffSettledTransfer; // 精算済み分
+
+    const hasSettled = settledCurrentMonthItems.length > 0;
+    const settledBadge = hasSettled
+    ? `<div style="margin-top:6px; font-size:0.8em; color:#2e7d32; background:#e8f5e9; border-radius:6px; padding:3px 8px; display:inline-block;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">check_circle</span> 精算済 ${settledFinal > 0 ? `妻→夫 ${format(settledFinal)}` : settledFinal < 0 ? `夫→妻 ${format(-settledFinal)}` : '±0'}</div>`
+      : '';
+
     const finalEl = document.getElementById('finalResult');
     if (allCurrentMonthSettled) {
-      // 精算済みでも金額の内訳を残す
-      const settledMsg = final > 0
-        ? `👩 妻 → 👨 夫 ${format(final)}`
-        : final < 0
-        ? `👨 夫 → 👩 妻 ${format(-final)}`
-        : '±0 全員平等';
-      finalEl.innerHTML = `<span style="font-size:0.8em; color:#666;">今月の最終精算額</span><br><span style="font-size:0.9em; color:#666;">${settledMsg}</span><br>✅ 全て精算済です`;
+      const settledDir = settledFinal > 0
+        ? `<span class="material-icons" style="font-size:0.85em;vertical-align:middle;">woman</span> 妻 が <span class="material-icons" style="font-size:0.85em;vertical-align:middle;">man</span> 夫 に`
+        : settledFinal < 0
+        ? `<span class="material-icons" style="font-size:0.85em;vertical-align:middle;">man</span> 夫 が <span class="material-icons" style="font-size:0.85em;vertical-align:middle;">woman</span> 妻 に`
+        : '';
+      const settledAmt = settledFinal !== 0
+        ? `<span style="font-size:1.5em; color:#2e7d32;">${format(Math.abs(settledFinal))}</span>`
+        : `<span style="font-size:1.1em;">±0 全員平等</span>`;
+      finalEl.innerHTML = `<span style="font-size:0.8em; color:#666;">今月の精算額</span><br>${settledDir}<br>${settledAmt}<br><span style="font-size:0.85em; color:#2e7d32;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">check_circle</span> 全て精算済です</span>`;
       finalEl.style.backgroundColor = '#e8f5e9';
     } else if (final > 0) {
-      finalEl.innerHTML = `<span style="font-size:0.8em; color:#666;">今月の最終精算額</span><br>👩 妻 が 👨 夫 に<br><span style="font-size:1.5em; color:#d32f2f;">${format(final)} 払う</span>`;
+      finalEl.innerHTML = `<span style="font-size:0.8em; color:#666;">今月の最終精算額</span><br><span class="material-icons" style="font-size:0.85em;vertical-align:middle;">woman</span> 妻 が <span class="material-icons" style="font-size:0.85em;vertical-align:middle;">man</span> 夫 に<br><span style="font-size:1.5em; color:#d32f2f;">${format(final)} 払う</span>${settledBadge}`;
       finalEl.style.backgroundColor = '#ffebee';
     } else if (final < 0) {
-      finalEl.innerHTML = `<span style="font-size:0.8em; color:#666;">今月の最終精算額</span><br>👨 夫 が 👩 妻 に<br><span style="font-size:1.5em; color:#1976d2;">${format(-final)} 払う</span>`;
+      finalEl.innerHTML = `<span style="font-size:0.8em; color:#666;">今月の最終精算額</span><br><span class="material-icons" style="font-size:0.85em;vertical-align:middle;">man</span> 夫 が <span class="material-icons" style="font-size:0.85em;vertical-align:middle;">woman</span> 妻 に<br><span style="font-size:1.5em; color:#1976d2;">${format(-final)} 払う</span>${settledBadge}`;
       finalEl.style.backgroundColor = '#e3f2fd';
     } else {
-      finalEl.innerHTML = `<span style="font-size:0.8em; color:#666;">今月の最終精算額</span><br>±0 全員平等です`;
+      finalEl.innerHTML = `<span style="font-size:0.8em; color:#666;">今月の最終精算額</span><br>±0 全員平等です${settledBadge}`;
       finalEl.style.backgroundColor = '#e8f5e9';
     }
 
     const toggleAllBtn = document.getElementById('toggleAllBtn');
     if (toggleAllBtn) {
       if (unsettledCurrentMonthItems.length > 0 || currentMonthItems.length === 0) {
-        toggleAllBtn.innerHTML = '✅ 全て「済」にする';
+        toggleAllBtn.innerHTML = '<span class="material-icons" style="font-size:0.9em;vertical-align:middle;">check_circle</span> 全て「済」にする';
         toggleAllBtn.style.color = '#1976d2';
       } else {
-        toggleAllBtn.innerHTML = '🔄 全て「未」に戻す';
+        toggleAllBtn.innerHTML = '<span class="material-icons" style="font-size:0.9em;vertical-align:middle;">refresh</span> 全て「未」に戻す';
         toggleAllBtn.style.color = '#ff9800';
       }
     }
@@ -631,7 +645,7 @@ input:focus, select:focus {
 
 <header>
   <div style="display:flex; justify-content:space-between; align-items:center; position:relative;">
-    <h1 style="margin: 0; font-size: 1.25em; color: #2c3e50;">🏠 家計精算</h1>
+    <h1 style="margin: 0; font-size: 1.25em; color: #2c3e50;"><span class="material-icons" style="vertical-align:middle;">account_balance_wallet</span> 家計精算</h1>
     <div id="global-nav-placeholder"></div>
   </div>
   
@@ -651,21 +665,21 @@ input:focus, select:focus {
   <div class="big" id="finalResult">計算中...</div>
   
   <div id="header-accordion-toggle" onclick="toggleHeaderAccordion()" style="text-align:center; padding:6px 0; cursor:pointer; color:#1976d2; font-size:0.85em; user-select:none; border-top:1px solid #eee; margin-top:4px;">
-    ⚙️ 設定・操作 ▼
+    <span class="material-icons" style="vertical-align:middle;">settings</span> 設定・操作 ▼
   </div>
   <div id="header-accordion" style="display:none; transition: all 0.2s;">
-    <div style="margin-top:6px">⚖️ <span id="ratioLabel">夫70% / 妻30%</span></div>
+    <span class="material-icons" style="font-size:1em;vertical-align:middle;">balance</span> <span id="ratioLabel">夫70% / 妻30%</span>
     <input type="range" min="0" max="100" value="70" id="ratio" style="width:100%;margin:10px 0" />
     
     <div style="display:flex;justify-content:space-between;margin-top:10px; flex-wrap:wrap; gap:8px;">
       <div style="display:flex; gap:6px; flex-wrap:wrap;">
-        <button id="toggleAllBtn" onclick="toggleAllSettled()" style="color:#1976d2;">✅ 全て「済」にする</button>
-        <button onclick="clearSettled()" style="color:#d32f2f">🗑 「済」を削除</button>
+        <button id="toggleAllBtn" onclick="toggleAllSettled()" style="color:#1976d2;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">check_circle</span> 全て「済」にする</button>
+        <button onclick="clearSettled()" style="color:#d32f2f"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">delete</span> 「済」を削除</button>
       </div>
       <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:4px;">
-        <button onclick="importJSON()">📂 読込</button>
-        <button onclick="exportJSON()">💾 保存</button>
-        <button onclick="exportImage()">📷 スクリーンショット</button>
+        <button onclick="importJSON()"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">folder_open</span> 読込</button>
+        <button onclick="exportJSON()"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">save</span> 保存</button>
+        <button onclick="exportImage()"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">photo_camera</span> スクリーンショット</button>
       </div>
     </div>
   </div>
@@ -674,7 +688,7 @@ input:focus, select:focus {
 <main>
   <div id="list"></div>
   <div style="text-align:center;margin:20px 0">
-    <button class="btn-add" onclick="addRow()">➕ 項目を追加</button>
+    <button class="btn-add" onclick="addRow()"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">add</span> 項目を追加</button>
   </div>
 </main>
 

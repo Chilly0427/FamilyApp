@@ -9,6 +9,7 @@
   <link rel="icon" href="/favicon-16x16.png" sizes="16x16" type="image/png">
   <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
 <meta name="theme-color" content="#1976d2">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
 body{font-family:sans-serif;margin:0;background:#f5f5f5}
 header{padding:16px;background:#ffffff;border-bottom:1px solid #ddd;font-weight:bold}
@@ -21,7 +22,7 @@ main{padding:14px;display:grid;gap:12px}
 </head>
 <body>
   <div id="login-screen" style="display: none; padding: 40px 20px; text-align: center;">
-    <h2>🏠 家族専用アプリ</h2>
+    <h2><span class="material-icons" style="vertical-align:middle;">home</span> 家族専用アプリ</h2>
     <p>Googleアカウントでログインしてください</p>
     <button id="login-btn" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">Googleでログイン</button>
     <p id="auth-error-msg" style="color: red; margin-top: 15px;"></p>
@@ -29,7 +30,7 @@ main{padding:14px;display:grid;gap:12px}
 
   <div id="main-content" style="display: none;">
     <header style="display: flex; justify-content: space-between; align-items: center; position:relative;">
-      <span>📱 マイツール</span>
+      <span><span class="material-icons" style="vertical-align:middle; font-size:1em;">apps</span> マイツール</span>
       <div id="global-nav-placeholder"></div>
     </header>
     <script type="module">
@@ -37,15 +38,15 @@ main{padding:14px;display:grid;gap:12px}
       initGlobalNav('index');
     </script>
     <main><a class="card" href="kakei.html">
-      <div class="title">🏠 家計精算</div>
+      <div class="title"><span class="material-icons" style="vertical-align:middle; font-size:1em;">account_balance_wallet</span> 家計精算</div>
       <div class="desc">夫婦の支払いを割合で自動計算</div>
     </a>
     <a class="card" href="sokone.html">
-      <div class="title">📉 底値メモ</div>
+      <div class="title"><span class="material-icons" style="vertical-align:middle; font-size:1em;">local_offer</span> 底値メモ</div>
       <div class="desc">商品の最安値をまとめて管理</div>
     </a>
     <a class="card" href="list.html">
-      <div class="title">📋 買い物メモ</div>
+      <div class="title"><span class="material-icons" style="vertical-align:middle; font-size:1em;">checklist</span> 買い物メモ</div>
       <div class="desc">ストック確認と買い物リスト</div>
     </a>
     <!-- 追加したいアプリはこの下にコピーして増やす --><!--

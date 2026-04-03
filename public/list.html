@@ -3,13 +3,14 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>🛒 買い物メモ - FamilyApp</title>
+<title>買い物メモ - FamilyApp</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png">
 <link rel="icon" href="/favicon-16x16.png" sizes="16x16" type="image/png">
 <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
 <meta name="theme-color" content="#1976d2">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <!-- SortableJS -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 <style>
@@ -141,13 +142,13 @@ input { -webkit-appearance: none; appearance: none; }
 </head>
 <body style="display: none;">
 <div id="loading-overlay" style="position:fixed;inset:0;background:#f5f6f8;display:flex;align-items:center;justify-content:center;z-index:9999;">
-  <div style="text-align:center;color:#888;"><div style="font-size:2em;margin-bottom:8px;">🛒</div>読み込み中...</div>
+  <div style="text-align:center;color:#888;"><div style="font-size:2em;margin-bottom:8px;"><span class="material-icons" style="font-size:2em;">shopping_cart</span></div>読み込み中...</div>
 </div>
 
 <header>
-  <h1 id="page-title" style="margin: 0; font-size: 1.15em; color: #2c3e50;">📋 リスト管理</h1>
+  <h1 id="page-title" style="margin: 0; font-size: 1.15em; color: #2c3e50;"><span class="material-icons" style="vertical-align:middle;">checklist</span> リスト管理</h1>
   <div style="display:flex;align-items:center;gap:6px;">
-    <button id="list-settings-btn" style="padding:6px 10px; font-size:0.9em; background:#fff; border:1px solid #ccc; border-radius:6px; cursor:pointer; font-weight:bold;">⚙ リスト管理</button>
+    <button id="list-settings-btn" style="padding:6px 10px; font-size:0.9em; background:#fff; border:1px solid #ccc; border-radius:6px; cursor:pointer; font-weight:bold;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">settings</span> リスト管理</button>
     <div id="global-nav-placeholder"></div>
   </div>
 </header>
@@ -156,18 +157,18 @@ input { -webkit-appearance: none; appearance: none; }
 <main>
   <div style="margin-bottom:12px;">
     <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
-      <input type="text" id="search-filter" placeholder="🔍 アイテムを検索..." style="flex:1; padding:10px 12px; border:1px solid #ccc; border-radius:8px; font-size:16px; box-sizing:border-box; background:#fff;">
+      <input type="text" id="search-filter" placeholder="アイテムを検索..." style="flex:1; padding:10px 12px; border:1px solid #ccc; border-radius:8px; font-size:16px; box-sizing:border-box; background:#fff;">
       <select id="cat-sort-select" class="cat-sort-select" title="カテゴリの並び順">
-        <option value="manual">☰ 手動</option>
-        <option value="name">🔤 名前順</option>
-        <option value="recent">🕒 更新順</option>
+        <option value="manual">手動並び替え</option>
+        <option value="name">名前順(自動)</option>
+        <option value="recent">更新順(自動)</option>
       </select>
     </div>
-    <button id="add-category-top-btn" style="width:100%; padding:9px; background:#e8f5e9; color:#2e7d32; border:2px dashed #a5d6a7; border-radius:8px; font-size:0.9em; font-weight:bold; cursor:pointer;">＋ カテゴリを追加</button>
+    <button id="add-category-top-btn" style="width:100%; padding:9px; background:#e8f5e9; color:#2e7d32; border:2px dashed #a5d6a7; border-radius:8px; font-size:0.9em; font-weight:bold; cursor:pointer;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">add</span> カテゴリを追加</button>
     <div style="display:flex; gap:6px; margin-top:8px;">
-      <button onclick="importCurrentList()" style="flex:1; padding:7px; background:#fff; border:1px solid #ccc; border-radius:6px; font-size:0.85em; cursor:pointer;">📂 読込</button>
-      <button onclick="exportCurrentList()" style="flex:1; padding:7px; background:#fff; border:1px solid #ccc; border-radius:6px; font-size:0.85em; cursor:pointer;">💾 保存</button>
-      <button onclick="openHistoryModal()" style="flex:1; padding:7px; background:#fff; border:1px solid #ccc; border-radius:6px; font-size:0.85em; cursor:pointer;">📜 履歴</button>
+      <button onclick="importCurrentList()" style="padding:8px; background:#eee; border:none; border-radius:4px; font-size:0.9em; cursor:pointer;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">folder_open</span> 読込</button>
+      <button onclick="exportCurrentList()" style="padding:8px; background:#eee; border:none; border-radius:4px; font-size:0.9em; cursor:pointer;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">save</span> 保存</button>
+      <button onclick="openHistoryModal()" style="padding:8px; background:#eee; border:none; border-radius:4px; font-size:0.9em; cursor:pointer;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">history</span> 履歴</button>
     </div>
   </div>
   <div id="lists-container">
@@ -177,7 +178,7 @@ input { -webkit-appearance: none; appearance: none; }
   <!-- 入力履歴の datalist（スクリプトが参照するため必須） -->
   <datalist id="item-history"></datalist>
 
-  <button id="clear-done-btn" class="btn-danger" style="display: none; margin-bottom: 16px;">🗑️ 完了済みを一括削除</button>
+  <button id="clear-done-btn" class="btn-danger" style="display: none; margin-bottom: 16px;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">delete_sweep</span> 完了済みを一括削除</button>
 
 </main>
 
@@ -359,7 +360,7 @@ input { -webkit-appearance: none; appearance: none; }
         name.textContent = h.name || '';
         const delBtn = document.createElement('button');
         delBtn.className = 'history-del-btn';
-        delBtn.textContent = '🗑';
+        delBtn.innerHTML = '<span class="material-icons" style="font-size:1em;">delete</span>';
         delBtn.onclick = async () => {
           try { await deleteDoc(doc(db, 'shopping_history', h.id)); } catch (e) { console.error(e); }
         };
@@ -589,7 +590,7 @@ input { -webkit-appearance: none; appearance: none; }
 
       const catHandle = document.createElement('div');
       catHandle.className = 'cat-drag-handle';
-      catHandle.innerHTML = '☰';
+      catHandle.innerHTML = '<span class="material-icons">drag_handle</span>';
       catHandle.style.cursor = 'grab';
       catHandle.style.marginRight = '12px';
       catHandle.style.color = '#aaa';
@@ -631,7 +632,7 @@ input { -webkit-appearance: none; appearance: none; }
       // カテゴリ単位でアイテムを追加するボタン（＋）
       const addItemBtn = document.createElement('button');
       addItemBtn.className = 'cat-action-btn';
-      addItemBtn.innerHTML = '➕';
+      addItemBtn.innerHTML = '<span class="material-icons">add</span>';
       addItemBtn.title = 'アイテムを追加';
       addItemBtn.onclick = async (e) => {
         e.stopPropagation();
@@ -650,7 +651,7 @@ input { -webkit-appearance: none; appearance: none; }
       const isHidden = hiddenDoneCategories.has(cat.id);
       const toggleBtn = document.createElement('button');
       toggleBtn.className = 'cat-action-btn';
-      toggleBtn.innerHTML = isHidden ? '👁' : '�';
+      toggleBtn.innerHTML = isHidden ? '<span class="material-icons">visibility</span>' : '<span class="material-icons">visibility_off</span>';
       toggleBtn.title = isHidden ? '完了済みを表示' : '完了済みを非表示';
       toggleBtn.onclick = (e) => {
         e.stopPropagation();
@@ -663,7 +664,7 @@ input { -webkit-appearance: none; appearance: none; }
       // 完了済み削除ボタン（✅×）
       const clearDoneBtn = document.createElement('button');
       clearDoneBtn.className = 'cat-action-btn warn';
-      clearDoneBtn.innerHTML = '☑🗑';
+      clearDoneBtn.innerHTML = '<span class="material-icons">delete_sweep</span>';
       clearDoneBtn.title = '完了済みを削除';
       clearDoneBtn.style.fontSize = '0.9em';
       clearDoneBtn.onclick = (e) => { e.stopPropagation(); clearDoneInCategory(cat.id); };
@@ -672,7 +673,7 @@ input { -webkit-appearance: none; appearance: none; }
       // カテゴリ削除ボタン（✖）
       const deleteCatBtn = document.createElement('button');
       deleteCatBtn.className = 'cat-action-btn danger';
-      deleteCatBtn.innerHTML = '✖';
+      deleteCatBtn.innerHTML = '<span class="material-icons">close</span>';
       deleteCatBtn.title = 'カテゴリを削除';
       deleteCatBtn.onclick = (e) => { e.stopPropagation(); deleteCategory(cat.id, cat.name); };
       actionsWrap.appendChild(deleteCatBtn);
@@ -698,7 +699,7 @@ input { -webkit-appearance: none; appearance: none; }
 
         const handle = document.createElement('div');
         handle.className = 'drag-handle';
-        handle.innerHTML = '☰';
+        handle.innerHTML = '<span class="material-icons">drag_handle</span>';
         
         const checkIcon = document.createElement('div');
         checkIcon.className = 'checkbox-icon';
@@ -717,9 +718,9 @@ input { -webkit-appearance: none; appearance: none; }
         const updatedTime = item.updatedAt || item.createdAt;
         if (updatedTime && typeof updatedTime.toDate === 'function') {
           const d = updatedTime.toDate();
-          dateSpan.textContent = "🔁 " + d.getFullYear() + '/' + (d.getMonth()+1).toString().padStart(2, '0') + '/' + d.getDate().toString().padStart(2, '0') + ' ' + d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+          dateSpan.innerHTML = '<span class="material-icons" style="font-size:0.9em; vertical-align:middle;">update</span> ' + d.getFullYear() + '/' + (d.getMonth()+1).toString().padStart(2, '0') + '/' + d.getDate().toString().padStart(2, '0') + ' ' + d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
         } else {
-          dateSpan.textContent = "🔁 更新日時なし";
+          dateSpan.innerHTML = '<span class="material-icons" style="font-size:0.9em; vertical-align:middle;">update</span> 更新日時なし';
         }
 
         const isNew = newlyCreatedItemIds.has(item.id);
@@ -848,7 +849,7 @@ input { -webkit-appearance: none; appearance: none; }
         }
 
         const itemDelBtn = document.createElement('button');
-        itemDelBtn.innerHTML = '🗑';
+        itemDelBtn.innerHTML = '<span class="material-icons">delete</span>';
         itemDelBtn.className = 'item-del-btn';
         itemDelBtn.style.color = '#aaa';
         itemDelBtn.style.background = 'none';
@@ -1364,24 +1365,30 @@ input { -webkit-appearance: none; appearance: none; }
 
   // ========== マルチリスト機能 ==========
   const LIST_EMOJIS = [
-    // 食べ物・飲み物
-    {e:'🍎',k:'りんご 果物'},{ e:'🍌',k:'バナナ 果物'},{e:'🍅',k:'とまと 野菜'},{e:'🥕',k:'にんじん 野菜'},{e:'🧅',k:'たまねぎ'},{e:'🧄',k:'にんにく'},{e:'🌽',k:'とうもろこし'},{e:'🥦',k:'ブロッコリー'},{e:'🍄',k:'きのこ'},{e:'🍞',k:'パン パン屋'},{e:'🍙',k:'おにぎり'},{e:'🍱',k:'お弁当'},{e:'🍜',k:'ラーメン'},{e:'🍣',k:'寿司'},{e:'🍕',k:'ピザ'},{e:'🍔',k:'ハンバーガー'},{e:'🧁',k:'ケーキ'},{e:'🍩',k:'ドーナツ'},{e:'🍫',k:'チョコレート'},{e:'☕',k:'コーヒー'},{e:'🧃',k:'ジュース'},{e:'🍺',k:'ビール'},
-    // 日用品・買い物
-    {e:'🛒',k:'ショッピング 買い物 カート'},{e:'🧴',k:'シャンプー 洗剤'},{e:'🧹',k:'はけ 掃除'},{e:'🧺',k:'洗濤物'},{e:'🧻',k:'トイレットペーパー'},{e:'🪥',k:'歯ブラシ'},{e:'🪣',k:'バケツ'},{e:'🔋',k:'電池'},{e:'💊',k:'薬 ドラッグ'},{e:'🩹',k:'譆帯'},{e:'🧼',k:'せっけん ソープ'},{e:'🪴',k:'植物 花'},
-    // 生活・ファッション
-    {e:'👔',k:'シャツ 服'},{e:'👕',k:'Tシャツ'},{e:'👗',k:'ワンピース 服'},{e:'👟',k:'靴'},{e:'👜',k:'バッグ カバン'},{e:'🧣',k:'マフラー'},{e:'🕶',k:'サングラス'},
-    // レジャー・趣味
-    {e:'🎒',k:'リュックサック カバン 豊'},{e:'⭐',k:'はお おおお ウィッシュ 欲しい'},{e:'🎬',k:'映画 ムービー ウォッチリスト'},{e:'📚',k:'本 読書 図書館'},{e:'🎮',k:'ゲーム'},{e:'🎵',k:'音楽 コンサート'},{e:'🎨',k:'絵 アート'},{e:'📷',k:'写真 カメラ'},{e:'🏀',k:'バスケットボール'},{e:'⚽',k:'サッカー'},{e:'🏊',k:'水泳'},{e:'🏃',k:'ランニング ジョギング'},{e:'🧘',k:'ヨガ'},{e:'🎁',k:'プレゼント 赈り物'},{e:'🎉',k:'パーティー 祀い'},{e:'🃏',k:'カード トランプ'},
-    // 旅行・外出
-    {e:'✈️',k:'飛行機 旅行'},{e:'🧳',k:'スーツケース 旅行'},{e:'🏖',k:'海水浴 ビーチ'},{e:'🏕',k:'キャンプ'},{e:'🗺',k:'地図 旅行'},{e:'🚗',k:'車 ドライブ'},{e:'🚌',k:'バス'},{e:'🚂',k:'電車'},{e:'🚁',k:'ヘリコプター'},
-    // 仕事・学校
-    {e:'💼',k:'仕事 ビジネス'},{e:'📋',k:'リスト メモ クリップボード'},{e:'📝',k:'メモ ノート 作業'},{e:'📅',k:'カレンダー 予定'},{e:'⏰',k:'閘警時計 時間'},{e:'💡',k:'アイデア'},{e:'📐',k:'情報 記録'},{e:'🏫',k:'学校'},{e:'🎓',k:'卒業 勉強'},{e:'🔬',k:'実験 研究'},{e:'📐',k:'数学'},{e:'✏️',k:'邉筆 学習 べんきょう'},
-    // 家・生活
-    {e:'🏠',k:'家 ホーム'},{e:'🏥',k:'病院 医画'},{e:'🏪',k:'コンビニ ストア'},{e:'🏗',k:'工事 リフォーム'},{e:'🛠',k:'ツール 修理'},{e:'🪟',k:'窓'},{e:'🛏',k:'べっど 寝具'},
-    // 動物
-    {e:'🐶',k:'いぬ ペット'},{e:'🐱',k:'ねこ ペット'},{e:'🐰',k:'うさぎ'},{e:'🐾',k:'ペット 動物 足跡'},
+    // 野菜・果物
+    {e:'🍎',k:'りんご 果物'},{e:'🍊',k:'みかん 果物'},{e:'🍋',k:'レモン 果物'},{e:'🍇',k:'ぶどう 果物'},{e:'🍓',k:'いちご 果物'},{e:'🍌',k:'バナナ 果物'},{e:'🍅',k:'トマト 野菜'},{e:'🥕',k:'にんじん 野菜'},{e:'🧅',k:'たまねぎ'},{e:'🧄',k:'にんにく'},{e:'🌽',k:'とうもろこし'},{e:'🥦',k:'ブロッコリー'},{e:'🥬',k:'葉野菜 レタス'},{e:'🥔',k:'じゃがいも'},{e:'🍄',k:'きのこ'},
+    // 肉・魚・乳製品
+    {e:'🥩',k:'肉 ステーキ'},{e:'🐟',k:'魚 さかな'},{e:'🦐',k:'えび'},{e:'🥚',k:'たまご'},{e:'🥛',k:'牛乳 ミルク'},{e:'🧀',k:'チーズ'},{e:'🧈',k:'バター'},
+    // 加工食品・主食
+    {e:'🍞',k:'パン'},{e:'🍙',k:'おにぎり'},{e:'🍱',k:'お弁当'},{e:'🍜',k:'ラーメン 麺類'},{e:'🍣',k:'寿司'},{e:'🍕',k:'ピザ'},{e:'🍔',k:'ハンバーガー'},{e:'🍱',k:'お弁当'},{e:'🧂',k:'調味料 塩'},
+    // お菓子・飲み物
+    {e:'🧁',k:'ケーキ スイーツ'},{e:'🍩',k:'ドーナツ'},{e:'🍫',k:'チョコレート'},{e:'🍬',k:'キャンディ お菓子'},{e:'☕',k:'コーヒー'},{e:'🍵',k:'お茶'},{e:'🧃',k:'ジュース 飲み物'},{e:'🍺',k:'ビール お酒'},{e:'🍷',k:'ワイン お酒'},{e:'💧',k:'水 飲み物'},
+    // 日用品・清掃
+    {e:'🛒',k:'ショッピング 買い物 カート'},{e:'🧴',k:'シャンプー 洗剤'},{e:'🧹',k:'ほうき 掃除'},{e:'🧺',k:'洗濯物'},{e:'🧻',k:'トイレットペーパー'},{e:'🪥',k:'歯ブラシ'},{e:'🧼',k:'石けん ソープ'},{e:'🧽',k:'スポンジ'},{e:'🪣',k:'バケツ'},
+    // 薬・衛生
+    {e:'💊',k:'薬'},{e:'🩹',k:'絆創膏 バンドエイド'},{e:'🔋',k:'電池'},
+    // ファッション・衣類
+    {e:'👔',k:'シャツ 服'},{e:'👕',k:'Tシャツ'},{e:'👖',k:'ズボン パンツ'},{e:'👗',k:'ワンピース 服'},{e:'👟',k:'靴 スニーカー'},{e:'👜',k:'バッグ カバン'},{e:'🎒',k:'リュック カバン'},{e:'🧣',k:'マフラー'},{e:'🧦',k:'靴下'},{e:'🕶',k:'サングラス'},
+    // 家・インテリア
+    {e:'🏠',k:'家 ホーム'},{e:'🛠',k:'工具 修理'},{e:'🛏',k:'ベッド 寝具'},{e:'🪴',k:'植物 花'},{e:'🏪',k:'コンビニ ストア'},{e:'🏥',k:'病院 医療'},
+    // ペット
+    {e:'🐶',k:'いぬ ペット'},{e:'🐱',k:'ねこ ペット'},{e:'🐾',k:'ペット 動物'},
+    // 趣味・レジャー
+    {e:'📚',k:'本 読書'},{e:'🎮',k:'ゲーム'},{e:'🎁',k:'プレゼント 贈り物'},{e:'🎉',k:'パーティー 祝い'},{e:'🎬',k:'映画 ウォッチリスト'},{e:'✈️',k:'飛行機 旅行'},{e:'🧳',k:'スーツケース 旅行'},{e:'🚗',k:'車 ドライブ'},
+    // 仕事・タスク
+    {e:'📋',k:'リスト メモ クリップボード'},{e:'📝',k:'メモ ノート'},{e:'📅',k:'カレンダー 予定'},{e:'⏰',k:'目覚まし時計 時間'},{e:'💡',k:'アイデア'},{e:'✏️',k:'鉛筆 勉強'},
     // その他
-    {e:'💰',k:'お金 費用 財布'},{e:'💳',k:'カード 支払い'},{e:'🎯',k:'目標 ターゲット'},{e:'📦',k:'荷物 配送'},{e:'🗑',k:'ゴミ筒'},{e:'🔑',k:'鍵'},{e:'🧲',k:'磁石'},{e:'🌟',k:'お気に入り おすすめ'},{e:'❤️',k:'恋が'},{e:'🌈',k:'第一強 リスト'},{e:'🌙',k:'夜 咄前'},
+    {e:'💰',k:'お金 費用'},{e:'💳',k:'カード 支払い'},{e:'📦',k:'荷物 配送'},{e:'🔑',k:'鍵'},{e:'⭐',k:'お気に入り おすすめ'},{e:'🌟',k:'スター おすすめ'},{e:'❤️',k:'お気に入り'},
   ];
   let _newListEmoji = '📋';
 
@@ -1411,7 +1418,7 @@ input { -webkit-appearance: none; appearance: none; }
       tab.className = 'tab-item' + (list.id === currentListId ? ' active' : '');
       tab.dataset.listId = list.id;
 
-      const sharedIcon = list.shared ? '👥' : '🔒';
+      const sharedIcon = list.shared ? '<span class="material-icons" style="font-size:0.8em;">group</span>' : '<span class="material-icons" style="font-size:0.8em;">lock</span>';
       const catIdsInList = shoppingCategories.filter(c => (c.listId || 'default') === list.id).map(c => c.id);
       const countUndone = shoppingItems.filter(i => {
         const inList = i.listId ? i.listId === list.id : catIdsInList.includes(i.categoryId);
@@ -1457,7 +1464,7 @@ input { -webkit-appearance: none; appearance: none; }
     // ＋ボタン
     const addBtn = document.createElement('button');
     addBtn.className = 'tab-add-btn';
-    addBtn.textContent = '＋';
+    addBtn.innerHTML = '<span class="material-icons">add</span>';
     addBtn.title = '新しいリストを作成';
     addBtn.onclick = (e) => { e.stopPropagation(); openCreateListModal(); };
     tabsBar.appendChild(addBtn);
@@ -1529,6 +1536,16 @@ input { -webkit-appearance: none; appearance: none; }
       row.style.flexWrap = 'wrap';
       row.dataset.listId = list.id;
 
+      // ドラッグハンドル（default以外）- 先頭に追加
+      if (list.id !== 'default') {
+        const dragHandle = document.createElement('span');
+        dragHandle.className = 'list-drag-handle';
+        dragHandle.innerHTML = '<span class="material-icons">drag_handle</span>';
+        dragHandle.style.cssText = 'color:#bbb; cursor:grab; padding:4px 6px; font-size:1.1em;';
+        dragHandle.title = 'ドラッグで並び替え';
+        row.appendChild(dragHandle);
+      }
+
       // リスト名（タップで直接編集）
       const nameSpan = document.createElement('span');
       nameSpan.style.cssText = 'flex:1; font-weight:bold; font-size:1em; cursor:pointer; padding:4px 2px; border-bottom: 1px dashed transparent;';
@@ -1546,10 +1563,10 @@ input { -webkit-appearance: none; appearance: none; }
 
       const sharedBtn = document.createElement('button');
       sharedBtn.className = 'shared-toggle-btn' + (list.shared ? ' active-shared' : '');
-      sharedBtn.textContent = '👥 共有';
+      sharedBtn.innerHTML = '<span class="material-icons" style="font-size:0.85em;vertical-align:middle;">group</span> 共有';
       const privateBtn = document.createElement('button');
       privateBtn.className = 'shared-toggle-btn' + (!list.shared ? ' active-private' : '');
-      privateBtn.textContent = '🔒 個人';
+      privateBtn.innerHTML = '<span class="material-icons" style="font-size:0.85em;vertical-align:middle;">lock</span> 個人';
 
       if (list.id !== 'default') {
         sharedBtn.onclick = async () => {
@@ -1569,20 +1586,10 @@ input { -webkit-appearance: none; appearance: none; }
       // 削除ボタン（defaultリストは不可）
       if (list.id !== 'default') {
         const delBtn = document.createElement('button');
-        delBtn.innerHTML = '🗑';
-        delBtn.style.cssText = 'background:none;border:none;font-size:1.1em;cursor:pointer;color:#d32f2f;padding:4px 6px;';
+        delBtn.innerHTML = '<span class="material-icons" style="font-size:1.1em;">delete</span>';
+        delBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:#d32f2f;padding:4px 6px;';
         delBtn.onclick = () => openDeleteListModal(list);
         row.appendChild(delBtn);
-      }
-
-      // ドラッグハンドル（default以外）
-      if (list.id !== 'default') {
-        const dragHandle = document.createElement('span');
-        dragHandle.className = 'list-drag-handle';
-        dragHandle.innerHTML = '☰';
-        dragHandle.style.cssText = 'color:#bbb; cursor:grab; padding:4px 6px; font-size:1.1em;';
-        dragHandle.title = 'ドラッグで並び替え';
-        row.appendChild(dragHandle);
       }
 
       container.appendChild(row);
@@ -1817,21 +1824,18 @@ input { -webkit-appearance: none; appearance: none; }
 <!-- ===== リスト設定モーダル ===== -->
 <div id="list-settings-modal" class="modal-overlay">
   <div class="modal-box">
-    <button class="modal-close-btn" onclick="document.getElementById('list-settings-modal').classList.remove('open')">✕</button>
-    <p class="modal-title">⚙ リスト管理</p>
+    <button class="modal-close-btn" onclick="document.getElementById('list-settings-modal').classList.remove('open')"><span class="material-icons">close</span></button>
+    <p class="modal-title"><span class="material-icons" style="vertical-align:middle;">settings</span> リスト管理</p>
     <div id="list-settings-content"></div>
-    <button onclick="openCreateListModal()" style="margin-top:12px; width:100%; padding:12px; background:#4caf50; color:#fff; border:none; border-radius:8px; font-size:1em; font-weight:bold; cursor:pointer;">＋ 新しいリストを作成</button>
-    <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-      <button onclick="exportAllLists()" style="flex:1; padding:9px; background:#fff; border:1px solid #ccc; border-radius:6px; font-size:0.9em; cursor:pointer;">💾 全リスト保存</button>
-    </div>
+    <button onclick="openCreateListModal()" style="margin-top:12px; width:100%; padding:12px; background:#4caf50; color:#fff; border:none; border-radius:8px; font-size:1em; font-weight:bold; cursor:pointer;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">add</span> 新しいリストを作成</button>
   </div>
 </div>
 
 <!-- ===== リスト作成モーダル ===== -->
 <div id="list-create-modal" class="modal-overlay">
   <div class="modal-box">
-    <button class="modal-close-btn" onclick="closeCreateListModal()">✕</button>
-    <p class="modal-title">➕ 新しいリストを作成</p>
+    <button class="modal-close-btn" onclick="closeCreateListModal()"><span class="material-icons">close</span></button>
+    <p class="modal-title"><span class="material-icons" style="vertical-align:middle;">add_circle</span> 新しいリストを作成</p>
     <div style="margin-bottom:12px;">
       <label style="font-size:0.9em; color:#666; display:block; margin-bottom:6px; font-weight:bold;">リスト名</label>
       <input id="new-list-name" type="text" placeholder="例: 持ち物リスト" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:1em; box-sizing:border-box;">
@@ -1845,8 +1849,8 @@ input { -webkit-appearance: none; appearance: none; }
     <div style="margin-bottom:16px;">
       <label style="font-size:0.9em; color:#666; display:block; margin-bottom:8px; font-weight:bold;">共有設定</label>
       <div class="shared-toggle">
-        <button type="button" id="new-list-shared-yes" class="shared-toggle-btn active-shared" onclick="setNewListShared(true)">👥 共有（家族全員）</button>
-        <button type="button" id="new-list-shared-no" class="shared-toggle-btn" onclick="setNewListShared(false)">🔒 個人（自分だけ）</button>
+        <button type="button" id="new-list-shared-yes" class="shared-toggle-btn active-shared" onclick="setNewListShared(true)"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">group</span> 共有（家族全員）</button>
+        <button type="button" id="new-list-shared-no" class="shared-toggle-btn" onclick="setNewListShared(false)"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">lock</span> 個人（自分だけ）</button>
       </div>
     </div>
     <button onclick="createNewList()" style="width:100%; padding:12px; background:#1976d2; color:#fff; border:none; border-radius:8px; font-size:1em; font-weight:bold; cursor:pointer;">作成する</button>
@@ -1856,8 +1860,8 @@ input { -webkit-appearance: none; appearance: none; }
 <!-- ===== リスト削除確認モーダル ===== -->
 <div id="list-delete-confirm-modal" class="modal-overlay">
   <div class="modal-box">
-    <button class="modal-close-btn" onclick="closeDeleteListModal()">✕</button>
-    <p class="modal-title">🗑 リストの削除</p>
+    <button class="modal-close-btn" onclick="closeDeleteListModal()"><span class="material-icons">close</span></button>
+    <p class="modal-title"><span class="material-icons" style="color:#d32f2f;vertical-align:middle;">delete</span> リストの削除</p>
     <p style="font-size:0.95em; margin-bottom:12px;"><strong id="delete-list-name-display" style="color:#d32f2f;"></strong> を削除します。<br><span style="color:#666;">カテゴリとアイテムもすべて削除されます。</span></p>
     <label style="font-size:0.9em; color:#666; font-weight:bold; display:block; margin-bottom:6px;">確認のためリスト名を入力してください:</label>
     <input id="delete-list-name-input" type="text" placeholder="リスト名を入力" style="width:100%; padding:10px; border:2px solid #d32f2f; border-radius:6px; font-size:1em; box-sizing:border-box; margin-bottom:4px;">
@@ -1869,9 +1873,9 @@ input { -webkit-appearance: none; appearance: none; }
 <!-- ===== 入力履歴管理モーダル ===== -->
 <div id="history-modal" class="modal-overlay">
   <div class="modal-box">
-    <button class="modal-close-btn" onclick="closeHistoryModal()">✕</button>
-    <p class="modal-title">📜 入力履歴</p>
-    <button onclick="clearAllHistory()" style="width:100%; padding:9px; background:#ffebee; color:#d32f2f; border:1px solid #ef9a9a; border-radius:6px; font-size:0.9em; font-weight:bold; cursor:pointer; margin-bottom:12px;">🗑 履歴を全削除</button>
+    <button class="modal-close-btn" onclick="closeHistoryModal()"><span class="material-icons">close</span></button>
+    <p class="modal-title"><span class="material-icons" style="vertical-align:middle;">history</span> 入力履歴</p>
+    <button onclick="clearAllHistory()" style="width:100%; padding:9px; background:#ffebee; color:#d32f2f; border:1px solid #ef9a9a; border-radius:6px; font-size:0.9em; font-weight:bold; cursor:pointer; margin-bottom:12px;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">delete</span> 履歴を全削除</button>
     <div id="history-modal-list" style="max-height:280px; overflow-y:auto;"></div>
   </div>
 </div>
