@@ -133,12 +133,13 @@ input { -webkit-appearance: none; appearance: none; }
 .shared-toggle-btn { font-size: 0.8em; padding: 5px 10px; border-radius: 8px; border: 2px solid transparent; cursor: pointer; font-weight: bold; white-space: nowrap; background: #f0f0f0; color: #999; transition: 0.15s; }
 .shared-toggle-btn.active-shared { background: #e3f2fd; color: #1976d2; border-color: #1976d2; }
 .shared-toggle-btn.active-private { background: #fce4ec; color: #c2185b; border-color: #c2185b; }
-/* 絵文字検索 */
+/* アイコンピッカー */
 .emoji-search { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 1em; box-sizing: border-box; margin-bottom: 8px; }
 .emoji-picker { display: flex; flex-wrap: wrap; gap: 4px; max-height: 200px; overflow-y: auto; }
-.emoji-opt { font-size: 1.5em; padding: 5px 8px; border: 2px solid transparent; border-radius: 8px; cursor: pointer; transition: 0.15s; }
-.emoji-opt.selected { border-color: #1976d2; background: #e3f2fd; }
-.emoji-opt:active { background: #bbdefb; }
+.icon-opt { padding: 5px 7px; border: 2px solid transparent; border-radius: 8px; cursor: pointer; background: none; transition: 0.15s; line-height: 1; }
+.icon-opt .material-icons { font-size: 1.8em; display: block; }
+.icon-opt.selected { border-color: #1976d2; background: #e3f2fd; }
+.icon-opt:active { background: #bbdefb; }
 
 </style>
 </head>
@@ -390,7 +391,7 @@ input { -webkit-appearance: none; appearance: none; }
       // defaultリストが存在しない場合は自動作成
       if (!snapshot.metadata.fromCache && !allLists.find(l => l.id === 'default')) {
         setDoc(doc(db, 'list_meta', 'default'), {
-          name: '買い物', emoji: '🛒', shared: true, ownerId: currentUserEmail, order: 0
+          name: '買い物', emoji: 'shopping_cart', shared: true, ownerId: currentUserEmail, order: 0
         }).catch(e => console.error('create default list failed', e));
       }
 
@@ -1361,33 +1362,46 @@ input { -webkit-appearance: none; appearance: none; }
   }
 
   // ========== マルチリスト機能 ==========
-  const LIST_EMOJIS = [
-    // 野菜・果物
-    {e:'🍎',k:'りんご 果物'},{e:'🍊',k:'みかん 果物'},{e:'🍋',k:'レモン 果物'},{e:'🍇',k:'ぶどう 果物'},{e:'🍓',k:'いちご 果物'},{e:'🍌',k:'バナナ 果物'},{e:'🍅',k:'トマト 野菜'},{e:'🥕',k:'にんじん 野菜'},{e:'🧅',k:'たまねぎ'},{e:'🧄',k:'にんにく'},{e:'🌽',k:'とうもろこし'},{e:'🥦',k:'ブロッコリー'},{e:'🥬',k:'葉野菜 レタス'},{e:'🥔',k:'じゃがいも'},{e:'🍄',k:'きのこ'},
-    // 肉・魚・乳製品
-    {e:'🥩',k:'肉 ステーキ'},{e:'🐟',k:'魚 さかな'},{e:'🦐',k:'えび'},{e:'🥚',k:'たまご'},{e:'🥛',k:'牛乳 ミルク'},{e:'🧀',k:'チーズ'},{e:'🧈',k:'バター'},
-    // 加工食品・主食
-    {e:'🍞',k:'パン'},{e:'🍙',k:'おにぎり'},{e:'🍱',k:'お弁当'},{e:'🍜',k:'ラーメン 麺類'},{e:'🍣',k:'寿司'},{e:'🍕',k:'ピザ'},{e:'🍔',k:'ハンバーガー'},{e:'🍱',k:'お弁当'},{e:'🧂',k:'調味料 塩'},
-    // お菓子・飲み物
-    {e:'🧁',k:'ケーキ スイーツ'},{e:'🍩',k:'ドーナツ'},{e:'🍫',k:'チョコレート'},{e:'🍬',k:'キャンディ お菓子'},{e:'☕',k:'コーヒー'},{e:'🍵',k:'お茶'},{e:'🧃',k:'ジュース 飲み物'},{e:'🍺',k:'ビール お酒'},{e:'🍷',k:'ワイン お酒'},{e:'💧',k:'水 飲み物'},
-    // 日用品・清掃
-    {e:'🛒',k:'ショッピング 買い物 カート'},{e:'🧴',k:'シャンプー 洗剤'},{e:'🧹',k:'ほうき 掃除'},{e:'🧺',k:'洗濯物'},{e:'🧻',k:'トイレットペーパー'},{e:'🪥',k:'歯ブラシ'},{e:'🧼',k:'石けん ソープ'},{e:'🧽',k:'スポンジ'},{e:'🪣',k:'バケツ'},
-    // 薬・衛生
-    {e:'💊',k:'薬'},{e:'🩹',k:'絆創膏 バンドエイド'},{e:'🔋',k:'電池'},
-    // ファッション・衣類
-    {e:'👔',k:'シャツ 服'},{e:'👕',k:'Tシャツ'},{e:'👖',k:'ズボン パンツ'},{e:'👗',k:'ワンピース 服'},{e:'👟',k:'靴 スニーカー'},{e:'👜',k:'バッグ カバン'},{e:'🎒',k:'リュック カバン'},{e:'🧣',k:'マフラー'},{e:'🧦',k:'靴下'},{e:'🕶',k:'サングラス'},
-    // 家・インテリア
-    {e:'🏠',k:'家 ホーム'},{e:'🛠',k:'工具 修理'},{e:'🛏',k:'ベッド 寝具'},{e:'🪴',k:'植物 花'},{e:'🏪',k:'コンビニ ストア'},{e:'🏥',k:'病院 医療'},
-    // ペット
-    {e:'🐶',k:'いぬ ペット'},{e:'🐱',k:'ねこ ペット'},{e:'🐾',k:'ペット 動物'},
-    // 趣味・レジャー
-    {e:'📚',k:'本 読書'},{e:'🎮',k:'ゲーム'},{e:'🎁',k:'プレゼント 贈り物'},{e:'🎉',k:'パーティー 祝い'},{e:'🎬',k:'映画 ウォッチリスト'},{e:'✈️',k:'飛行機 旅行'},{e:'🧳',k:'スーツケース 旅行'},{e:'🚗',k:'車 ドライブ'},
+  const LIST_ICONS = [
+    // 買い物・食品
+    {n:'shopping_cart',k:'買い物 カート ショッピング'},{n:'local_grocery_store',k:'食料品店 スーパー 買い物'},{n:'lunch_dining',k:'ランチ 食事 レストラン'},{n:'restaurant',k:'レストラン 食事'},{n:'bakery_dining',k:'パン パン屋 ベーカリー'},{n:'coffee',k:'コーヒー カフェ'},{n:'local_bar',k:'バー お酒 飲み物'},{n:'ramen_dining',k:'ラーメン 麺類'},{n:'rice_bowl',k:'ご飯 定食'},{n:'fastfood',k:'ファストフード バーガー'},{n:'liquor',k:'お酒 アルコール 飲み物'},{n:'local_pizza',k:'ピザ'},{n:'takeout_dining',k:'テイクアウト 持ち帰り'},{n:'water_drop',k:'水 飲み物 ミネラルウォーター'},{n:'kitchen',k:'キッチン 台所 調理'},
+    // カテゴリ・整理
+    {n:'checklist',k:'チェックリスト リスト タスク'},{n:'category',k:'カテゴリ 分類'},{n:'folder',k:'フォルダ'},{n:'label',k:'ラベル タグ'},{n:'bookmark',k:'ブックマーク'},{n:'star',k:'スター お気に入り'},{n:'flag',k:'フラグ 旗'},{n:'task_alt',k:'タスク 完了'},{n:'playlist_add_check',k:'リスト確認 チェック'},
+    // 家・生活
+    {n:'home',k:'家 ホーム'},{n:'cleaning_services',k:'掃除 お掃除'},{n:'local_laundry_service',k:'洗濯 コインランドリー'},{n:'bathroom',k:'バスルーム 風呂'},{n:'bed',k:'ベッド 寝具'},{n:'yard',k:'庭 外'},{n:'local_hospital',k:'病院 医療'},{n:'local_pharmacy',k:'薬局 薬'},{n:'child_care',k:'子育て 育児 保育'},
     // 仕事・タスク
-    {e:'📋',k:'リスト メモ クリップボード'},{e:'📝',k:'メモ ノート'},{e:'📅',k:'カレンダー 予定'},{e:'⏰',k:'目覚まし時計 時間'},{e:'💡',k:'アイデア'},{e:'✏️',k:'鉛筆 勉強'},
-    // その他
-    {e:'💰',k:'お金 費用'},{e:'💳',k:'カード 支払い'},{e:'📦',k:'荷物 配送'},{e:'🔑',k:'鍵'},{e:'⭐',k:'お気に入り おすすめ'},{e:'🌟',k:'スター おすすめ'},{e:'❤️',k:'お気に入り'},
+    {n:'work',k:'仕事 ビジネス'},{n:'assignment',k:'課題 宿題 タスク'},{n:'business_center',k:'ビジネス ブリーフケース'},{n:'school',k:'学校 勉強'},{n:'calculate',k:'計算 数学'},{n:'science',k:'実験 研究 理科'},{n:'calendar_today',k:'カレンダー 予定 スケジュール'},{n:'alarm',k:'目覚まし 時間 アラーム'},{n:'edit_note',k:'メモ ノート 書く'},{n:'library_books',k:'本 読書 図書館'},
+    // 趣味・レジャー
+    {n:'sports_esports',k:'ゲーム'},{n:'flight',k:'飛行機 旅行'},{n:'directions_car',k:'車 ドライブ'},{n:'beach_access',k:'ビーチ 海水浴 海'},{n:'hiking',k:'ハイキング 登山 アウトドア'},{n:'fitness_center',k:'フィットネス ジム 運動'},{n:'sports_soccer',k:'サッカー スポーツ'},{n:'pool',k:'プール 水泳'},{n:'movie',k:'映画'},{n:'headphones',k:'音楽 イヤホン'},{n:'palette',k:'アート 絵 芸術'},{n:'camera_alt',k:'写真 カメラ'},{n:'luggage',k:'旅行 スーツケース'},{n:'celebration',k:'パーティー 祝い'},{n:'card_giftcard',k:'プレゼント ギフト'},
+    // ペット・自然
+    {n:'pets',k:'ペット 動物'},{n:'local_florist',k:'花 植物 フラワー'},{n:'nature',k:'自然 公園 木'},{n:'eco',k:'エコ 環境 緑'},{n:'park',k:'公園'},
   ];
-  let _newListEmoji = '📋';
+  let _newListEmoji = 'checklist';
+
+  // アイコン名か絵文字かを判定（Material Icon名はASCII小文字+数字+アンダースコア）
+  function isIconName(val) {
+    return typeof val === 'string' && /^[a-z][a-z0-9_]*$/.test(val);
+  }
+  // リストアイコンHTML文字列を返す（Material Icon名 or 絵文字フォールバック）
+  function renderIconHtml(val) {
+    const v = val || 'checklist';
+    if (isIconName(v)) {
+      return `<span class="material-icons" style="font-size:1.2em;vertical-align:middle;">${v}</span>`;
+    }
+    return `<span>${v}</span>`;
+  }
+  // アイコン表示要素を生成（DOM操作用）
+  function createIconEl(val) {
+    const v = val || 'checklist';
+    if (isIconName(v)) {
+      const s = document.createElement('span');
+      s.className = 'material-icons';
+      s.style.cssText = 'font-size:1.2em;vertical-align:middle;';
+      s.textContent = v;
+      return s;
+    }
+    return document.createTextNode(v);
+  }
 
   let tabsSortable = null;
 
@@ -1422,7 +1436,7 @@ input { -webkit-appearance: none; appearance: none; }
         return inList && !i.isDone;
       }).length;
 
-      tab.innerHTML = `<span>${list.emoji || '📋'}</span><span style="margin-left:4px;">${list.name}</span><span style="font-size:0.7em; opacity:0.6; margin-left:3px;">${sharedIcon}</span>`;
+      tab.innerHTML = `${renderIconHtml(list.emoji)}<span style="margin-left:4px;">${list.name}</span><span style="font-size:0.7em; opacity:0.6; margin-left:3px;">${sharedIcon}</span>`;
       if (countUndone > 0) {
         const badge = document.createElement('span');
         badge.className = 'tab-badge';
@@ -1434,7 +1448,7 @@ input { -webkit-appearance: none; appearance: none; }
         if (tabsBar.classList.contains('tabs-sorting')) return; // 並び替えモード中はクリック無効
         currentListId = list.id;
         const pt = document.getElementById('page-title');
-        if (pt) pt.textContent = (list.emoji || '📋') + ' ' + list.name;
+        if (pt) { pt.innerHTML = ''; pt.appendChild(createIconEl(list.emoji)); pt.appendChild(document.createTextNode(' ' + list.name)); }
         renderTabs();
         renderList();
       };
@@ -1504,7 +1518,7 @@ input { -webkit-appearance: none; appearance: none; }
     // ページタイトルを現在のリストに合わせる
     const currentList = visibleLists.find(l => l.id === currentListId);
     const pt = document.getElementById('page-title');
-    if (pt && currentList) pt.textContent = (currentList.emoji || '📋') + ' ' + currentList.name;
+    if (pt && currentList) { pt.innerHTML = ''; pt.appendChild(createIconEl(currentList.emoji)); pt.appendChild(document.createTextNode(' ' + currentList.name)); }
   }
 
   function openListSettingsModal() {
@@ -1546,7 +1560,8 @@ input { -webkit-appearance: none; appearance: none; }
       // リスト名（タップで直接編集）
       const nameSpan = document.createElement('span');
       nameSpan.style.cssText = 'flex:1; font-weight:bold; font-size:1em; cursor:pointer; padding:4px 2px; border-bottom: 1px dashed transparent;';
-      nameSpan.textContent = (list.emoji || '📋') + ' ' + list.name;
+      nameSpan.appendChild(createIconEl(list.emoji));
+      nameSpan.appendChild(document.createTextNode(' ' + list.name));
       nameSpan.title = 'タップして名前変更';
       if (list.id !== 'default') {
         nameSpan.style.borderBottomColor = '#ccc';
@@ -1623,11 +1638,17 @@ input { -webkit-appearance: none; appearance: none; }
     const inputRow = document.createElement('div');
     inputRow.style.cssText = 'display:flex; gap:6px; align-items:center;';
 
-    let editEmoji = list.emoji || '📋';
+    let editEmoji = list.emoji || 'checklist';
     const emojiBtn = document.createElement('button');
-    emojiBtn.textContent = editEmoji;
-    emojiBtn.style.cssText = 'font-size:1.3em; border:1px solid #ccc; border-radius:6px; background:#f9f9f9; cursor:pointer; padding:4px 8px; line-height:1;';
-    emojiBtn.title = '絵文字を変更';
+    // アイコン名 or 絵文字フォールバックで表示
+    if (isIconName(editEmoji)) {
+      emojiBtn.innerHTML = `<span class="material-icons" style="font-size:1.4em;">${editEmoji}</span>`;
+    } else {
+      emojiBtn.textContent = editEmoji;
+      emojiBtn.style.fontSize = '1.3em';
+    }
+    emojiBtn.style.cssText = (emojiBtn.style.cssText || '') + '; border:1px solid #ccc; border-radius:6px; background:#f9f9f9; cursor:pointer; padding:4px 8px; line-height:1;';
+    emojiBtn.title = 'アイコンを変更';
 
     const input = document.createElement('input');
     input.type = 'text';
@@ -1638,14 +1659,14 @@ input { -webkit-appearance: none; appearance: none; }
     inputRow.appendChild(input);
     editContainer.appendChild(inputRow);
 
-    // 絵文字ピッカー（初期非表示）
+    // アイコンピッカー（初期非表示）
     const pickerWrap = document.createElement('div');
     pickerWrap.style.cssText = 'display:none; border:1px solid #ddd; border-radius:8px; padding:6px; background:#fafafa; max-height:180px; overflow-y:auto;';
     const searchRow = document.createElement('div');
     searchRow.style.cssText = 'margin-bottom:4px;';
     const searchInput = document.createElement('input');
     searchInput.type = 'text';
-    searchInput.placeholder = '絵文字を検索...';
+    searchInput.placeholder = 'アイコンを検索（例: 買い物、掃除）';
     searchInput.style.cssText = 'width:100%; padding:4px 8px; border:1px solid #ddd; border-radius:4px; font-size:0.85em; box-sizing:border-box;';
     searchRow.appendChild(searchInput);
     pickerWrap.appendChild(searchRow);
@@ -1658,17 +1679,17 @@ input { -webkit-appearance: none; appearance: none; }
     function renderEditPicker(q) {
       pickerGrid.innerHTML = '';
       const qLow = (q || '').trim().toLowerCase();
-      const filtered = qLow ? LIST_EMOJIS.filter(o => o.k.includes(qLow) || o.e.includes(qLow)) : LIST_EMOJIS;
+      const filtered = qLow ? LIST_ICONS.filter(o => o.k.includes(qLow) || o.n.includes(qLow)) : LIST_ICONS;
       filtered.forEach(o => {
-        const eb = document.createElement('span');
-        eb.className = 'emoji-opt' + (o.e === editEmoji ? ' selected' : '');
-        eb.textContent = o.e;
+        const eb = document.createElement('button');
+        eb.className = 'icon-opt' + (o.n === editEmoji ? ' selected' : '');
+        eb.innerHTML = `<span class="material-icons">${o.n}</span>`;
         eb.title = o.k;
         eb.onclick = (ev) => {
           ev.stopPropagation();
-          editEmoji = o.e;
-          emojiBtn.textContent = o.e;
-          pickerGrid.querySelectorAll('.emoji-opt').forEach(b => b.classList.remove('selected'));
+          editEmoji = o.n;
+          emojiBtn.innerHTML = `<span class="material-icons" style="font-size:1.4em;">${o.n}</span>`;
+          pickerGrid.querySelectorAll('.icon-opt').forEach(b => b.classList.remove('selected'));
           eb.classList.add('selected');
         };
         pickerGrid.appendChild(eb);
@@ -1693,7 +1714,7 @@ input { -webkit-appearance: none; appearance: none; }
       const newName = input.value.trim();
       const updates = {};
       if (newName && newName !== list.name) updates.name = newName;
-      if (editEmoji !== (list.emoji || '📋')) updates.emoji = editEmoji;
+      if (editEmoji !== (list.emoji || 'checklist')) updates.emoji = editEmoji;
       if (Object.keys(updates).length > 0) {
         try { await updateDoc(doc(db, 'list_meta', list.id), updates); } catch (err) { console.error(err); }
       }
@@ -1762,7 +1783,7 @@ input { -webkit-appearance: none; appearance: none; }
 
   window.openCreateListModal = openCreateListModal;
   function openCreateListModal() {
-    _newListEmoji = '📋';
+    _newListEmoji = 'checklist';
     document.getElementById('new-list-name').value = '';
     document.getElementById('new-list-name-error').textContent = '';
     setNewListShared(true);
@@ -1791,16 +1812,16 @@ input { -webkit-appearance: none; appearance: none; }
     pickerEl.innerHTML = '';
     const q = (query || '').trim().toLowerCase();
     const filtered = q
-      ? LIST_EMOJIS.filter(o => o.k.includes(q) || o.e.includes(q))
-      : LIST_EMOJIS;
+      ? LIST_ICONS.filter(o => o.k.includes(q) || o.n.includes(q))
+      : LIST_ICONS;
     filtered.forEach(o => {
-      const btn = document.createElement('span');
-      btn.className = 'emoji-opt' + (o.e === _newListEmoji ? ' selected' : '');
-      btn.textContent = o.e;
+      const btn = document.createElement('button');
+      btn.className = 'icon-opt' + (o.n === _newListEmoji ? ' selected' : '');
+      btn.innerHTML = `<span class="material-icons">${o.n}</span>`;
       btn.title = o.k;
       btn.onclick = () => {
-        _newListEmoji = o.e;
-        pickerEl.querySelectorAll('.emoji-opt').forEach(b => b.classList.remove('selected'));
+        _newListEmoji = o.n;
+        pickerEl.querySelectorAll('.icon-opt').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
       };
       pickerEl.appendChild(btn);
@@ -1918,8 +1939,8 @@ input { -webkit-appearance: none; appearance: none; }
       <div id="new-list-name-error" style="color:#d32f2f; font-size:0.85em; min-height:18px; margin-top:4px;"></div>
     </div>
     <div style="margin-bottom:12px;">
-      <label style="font-size:0.9em; color:#666; display:block; margin-bottom:6px; font-weight:bold;">絵文字</label>
-      <input id="emoji-search-input" class="emoji-search" type="text" placeholder="キーワードで検索（例: 食べ物、旅行）" oninput="renderEmojiPicker(this.value)">
+      <label style="font-size:0.9em; color:#666; display:block; margin-bottom:6px; font-weight:bold;">アイコン</label>
+      <input id="emoji-search-input" class="emoji-search" type="text" placeholder="アイコンを検索（例: 買い物、掃除）" oninput="renderEmojiPicker(this.value)">
       <div id="emoji-picker-container" class="emoji-picker"></div>
     </div>
     <div style="margin-bottom:16px;">
