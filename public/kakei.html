@@ -48,6 +48,13 @@ input:focus, select:focus {
   box-shadow: 0 0 0 2px #1976d2, 0 4px 12px rgba(25, 118, 210, 0.2) !important;
   transform: translateY(-1px);
 }
+.history-del-btn { background: none; border: none; color: #bbb; font-size: 0.85em; cursor: pointer; padding: 2px 6px; }
+.history-del-btn:active { color: #d32f2f; }
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; justify-content:center; align-items:center; }
+.modal-overlay.open { display:flex; }
+.modal-box { background:#fff; border-radius:16px; padding:24px 20px 20px; max-width:420px; width:90%; max-height:85vh; overflow-y:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.18); }
+.modal-close-btn { position:absolute; right:10px; top:10px; background:none; border:none; cursor:pointer; font-size:1.2em; color:#888; }
+.modal-title { font-size:1.1em; font-weight:bold; color:#2c3e50; margin:0 0 16px 0; }
 
 </style>
 </head>
@@ -84,6 +91,8 @@ input:focus, select:focus {
   });
 
   let items = [];
+  const kakeiNamesSet = new Set();
+  let hiddenKakeiNames = JSON.parse(localStorage.getItem('kakei_hidden_names') || '[]');
   
   // Month selection variables
   window.currentMonthStr = new Date(new Date().getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 7); // init with current JST Month
@@ -189,6 +198,10 @@ input:focus, select:focus {
         const orderB = b.order !== undefined ? b.order : (b.createdAt?.toMillis() || 0);
         return orderA - orderB;
       });
+      // 内容名の自動補完候補を更新
+      kakeiNamesSet.clear();
+      items.forEach(it => { if (it.name) kakeiNamesSet.add(it.name); });
+      updateKakeiNameDatalist();
       render(activeElementId);
     });
 
@@ -405,6 +418,7 @@ input:focus, select:focus {
       const name = document.createElement('input');
       name.id = nameId;
       name.type = 'text';
+      name.setAttribute('list', 'kakei-name-history');
       name.placeholder = '内容';
       name.value = it.name || '';
       name.disabled = it.isSettled;
@@ -524,6 +538,76 @@ input:focus, select:focus {
   function format(n) {
     return '¥' + Math.round(n).toLocaleString();
   }
+
+  function updateKakeiNameDatalist() {
+    const dl = document.getElementById('kakei-name-history');
+    if (!dl) return;
+    dl.innerHTML = '';
+    Array.from(kakeiNamesSet).filter(n => !hiddenKakeiNames.includes(n)).sort().forEach(n => {
+      const opt = document.createElement('option');
+      opt.value = n;
+      dl.appendChild(opt);
+    });
+  }
+
+  window.openKakeiHistoryModal = function() {
+    document.getElementById('kakei-history-modal').classList.add('open');
+    renderKakeiHistoryModal();
+  };
+  window.closeKakeiHistoryModal = function() {
+    document.getElementById('kakei-history-modal').classList.remove('open');
+  };
+  window.renderKakeiHistoryModal = function() {
+    const list = document.getElementById('kakei-history-modal-list');
+    list.innerHTML = '';
+    const allNames = Array.from(kakeiNamesSet).sort();
+    if (allNames.length === 0) {
+      list.innerHTML = '<div style="color:#aaa; text-align:center; padding:16px;">履歴がありません</div>';
+      return;
+    }
+    allNames.forEach(name => {
+      const isHidden = hiddenKakeiNames.includes(name);
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;' + (isHidden ? ' opacity:0.4;' : '');
+      const span = document.createElement('span');
+      span.style.flex = '1';
+      span.textContent = name;
+      if (isHidden) {
+        const restoreBtn = document.createElement('button');
+        restoreBtn.className = 'history-del-btn';
+        restoreBtn.innerHTML = '<span class="material-icons" style="font-size:1em; color:#4caf50;">undo</span>';
+        restoreBtn.title = '補完候補に戻す';
+        restoreBtn.onclick = () => {
+          hiddenKakeiNames = hiddenKakeiNames.filter(n => n !== name);
+          localStorage.setItem('kakei_hidden_names', JSON.stringify(hiddenKakeiNames));
+          updateKakeiNameDatalist();
+          renderKakeiHistoryModal();
+        };
+        row.appendChild(span);
+        row.appendChild(restoreBtn);
+      } else {
+        const delBtn = document.createElement('button');
+        delBtn.className = 'history-del-btn';
+        delBtn.innerHTML = '<span class="material-icons" style="font-size:1em;">visibility_off</span>';
+        delBtn.title = '補完候補から非表示';
+        delBtn.onclick = () => {
+          hiddenKakeiNames.push(name);
+          localStorage.setItem('kakei_hidden_names', JSON.stringify(hiddenKakeiNames));
+          updateKakeiNameDatalist();
+          renderKakeiHistoryModal();
+        };
+        row.appendChild(span);
+        row.appendChild(delBtn);
+      }
+      list.appendChild(row);
+    });
+  };
+  window.clearAllKakeiHidden = function() {
+    hiddenKakeiNames = [];
+    localStorage.removeItem('kakei_hidden_names');
+    updateKakeiNameDatalist();
+    renderKakeiHistoryModal();
+  };
 
   window.exportJSON = () => {
     // 現在の精算額を計算
@@ -681,6 +765,7 @@ input:focus, select:focus {
         <button onclick="importJSON()"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">folder_open</span> 読込</button>
         <button onclick="exportJSON()"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">save</span> 保存</button>
         <button onclick="exportImage()"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">photo_camera</span> スクリーンショット</button>
+        <button onclick="openKakeiHistoryModal()" style="padding:8px; background:#eee; border:none; border-radius:4px; font-size:0.9em; cursor:pointer;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">history</span> 履歴</button>
       </div>
     </div>
   </div>
@@ -694,6 +779,17 @@ input:focus, select:focus {
 </main>
 
 <input type="file" id="fileInput" accept=".json" style="display:none" onchange="handleFileImport(event)" />
+<datalist id="kakei-name-history"></datalist>
+
+<!-- ===== 入力履歴管理モーダル ===== -->
+<div id="kakei-history-modal" class="modal-overlay">
+  <div class="modal-box">
+    <button class="modal-close-btn" onclick="closeKakeiHistoryModal()"><span class="material-icons">close</span></button>
+    <p class="modal-title"><span class="material-icons" style="vertical-align:middle;">history</span> 入力履歴（内容名）</p>
+    <button onclick="clearAllKakeiHidden()" style="width:100%; padding:9px; background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7; border-radius:6px; font-size:0.9em; font-weight:bold; cursor:pointer; margin-bottom:12px;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">visibility</span> 非表示を全てリセット</button>
+    <div id="kakei-history-modal-list" style="max-height:350px; overflow-y:auto;"></div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>

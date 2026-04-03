@@ -89,6 +89,13 @@ input:focus, select:focus {
   box-shadow: 0 0 0 2px #1976d2, 0 4px 12px rgba(25, 118, 210, 0.2) !important;
   transform: translateY(-1px);
 }
+.history-del-btn { background: none; border: none; color: #bbb; font-size: 0.85em; cursor: pointer; padding: 2px 6px; }
+.history-del-btn:active { color: #d32f2f; }
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; justify-content:center; align-items:center; }
+.modal-overlay.open { display:flex; }
+.modal-box { background:#fff; border-radius:16px; padding:24px 20px 20px; max-width:420px; width:90%; max-height:85vh; overflow-y:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.18); }
+.modal-close-btn { position:absolute; right:10px; top:10px; background:none; border:none; cursor:pointer; font-size:1.2em; color:#888; }
+.modal-title { font-size:1.1em; font-weight:bold; color:#2c3e50; margin:0 0 16px 0; }
 
 </style>
 </head>
@@ -113,6 +120,7 @@ input:focus, select:focus {
       <button onclick="document.getElementById('importFile').click()" style="padding:8px; border:none; border-radius:4px; font-weight:bold; cursor:pointer; background:#eee; font-size: 0.9em;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">folder_open</span> 読込</button>
       <button onclick="exportData()" style="padding:8px; border:none; border-radius:4px; font-weight:bold; cursor:pointer; background:#eee; font-size: 0.9em;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">save</span> 保存</button>
       <button onclick="openOcrModal()" style="padding:8px; border:none; border-radius:4px; font-weight:bold; cursor:pointer; background:#e8f5e9; border:1px solid #a5d6a7; font-size: 0.9em; color:#2e7d32;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">photo_camera</span> 読取</button>
+      <button onclick="openSokoneHistoryModal()" style="padding:8px; background:#eee; border:none; border-radius:4px; font-size:0.9em; cursor:pointer;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">history</span> 履歴</button>
       <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
     </div>
     
@@ -221,6 +229,9 @@ input:focus, select:focus {
   const storesSet = new Set();
   const unitsSet = new Set();
   const itemsSet = new Set();
+  // 非表示にした自動補完候補（localStorage管理）
+  let hiddenItems = JSON.parse(localStorage.getItem('sokone_hidden_items') || '[]');
+  let hiddenStores = JSON.parse(localStorage.getItem('sokone_hidden_stores') || '[]');
 
   onAuthStateChanged(auth, (user) => {
     if (user && ALLOWED_EMAILS.includes(user.email)) {
@@ -268,9 +279,9 @@ input:focus, select:focus {
     const unitDatalist = document.getElementById("unit-list");
     const itemDatalist = document.getElementById("item-list");
     
-    storeDatalist.innerHTML = Array.from(storesSet).map(s => `<option value="${escHtml(s)}">`).join('');
+    storeDatalist.innerHTML = Array.from(storesSet).filter(s => !hiddenStores.includes(s)).map(s => `<option value="${escHtml(s)}">`).join('');
     unitDatalist.innerHTML = Array.from(unitsSet).map(u => `<option value="${escHtml(u)}">`).join('');
-    itemDatalist.innerHTML = Array.from(itemsSet).map(i => `<option value="${escHtml(i)}">`).join('');
+    itemDatalist.innerHTML = Array.from(itemsSet).filter(i => !hiddenItems.includes(i)).map(i => `<option value="${escHtml(i)}">`).join('');
   }
 
   function renderList() {
@@ -1084,6 +1095,127 @@ input:focus, select:focus {
     alert(`${count}件を登録しました！`);
     closeOcrModal();
   };
+  // ===== 入力履歴管理モーダル =====
+  window.openSokoneHistoryModal = function() {
+    document.getElementById('sokone-history-modal').classList.add('open');
+    renderSokoneHistoryModal();
+  };
+  window.closeSokoneHistoryModal = function() {
+    document.getElementById('sokone-history-modal').classList.remove('open');
+  };
+  window.renderSokoneHistoryModal = function() {
+    const list = document.getElementById('sokone-history-modal-list');
+    list.innerHTML = '';
+    const allNames = Array.from(itemsSet).sort();
+    const allStores = Array.from(storesSet).sort();
+    if (allNames.length === 0 && allStores.length === 0) {
+      list.innerHTML = '<div style="color:#aaa; text-align:center; padding:16px;">履歴がありません</div>';
+      return;
+    }
+    if (allNames.length > 0) {
+      const hdr1 = document.createElement('div');
+      hdr1.style.cssText = 'font-weight:bold; font-size:0.9em; color:#666; padding:8px 0 4px; border-bottom:2px solid #e0e0e0;';
+      hdr1.innerHTML = '<span class="material-icons" style="font-size:0.85em;vertical-align:middle;">inventory_2</span> 商品名';
+      list.appendChild(hdr1);
+      allNames.forEach(name => {
+        const isHidden = hiddenItems.includes(name);
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;' + (isHidden ? ' opacity:0.4;' : '');
+        const span = document.createElement('span');
+        span.style.flex = '1';
+        span.textContent = name;
+        if (isHidden) {
+          const restoreBtn = document.createElement('button');
+          restoreBtn.className = 'history-del-btn';
+          restoreBtn.innerHTML = '<span class="material-icons" style="font-size:1em; color:#4caf50;">undo</span>';
+          restoreBtn.title = '補完候補に戻す';
+          restoreBtn.onclick = () => {
+            hiddenItems = hiddenItems.filter(n => n !== name);
+            localStorage.setItem('sokone_hidden_items', JSON.stringify(hiddenItems));
+            updateDatalists();
+            renderSokoneHistoryModal();
+          };
+          row.appendChild(span);
+          row.appendChild(restoreBtn);
+        } else {
+          const delBtn = document.createElement('button');
+          delBtn.className = 'history-del-btn';
+          delBtn.innerHTML = '<span class="material-icons" style="font-size:1em;">visibility_off</span>';
+          delBtn.title = '補完候補から非表示';
+          delBtn.onclick = () => {
+            hiddenItems.push(name);
+            localStorage.setItem('sokone_hidden_items', JSON.stringify(hiddenItems));
+            updateDatalists();
+            renderSokoneHistoryModal();
+          };
+          row.appendChild(span);
+          row.appendChild(delBtn);
+        }
+        list.appendChild(row);
+      });
+    }
+    if (allStores.length > 0) {
+      const hdr2 = document.createElement('div');
+      hdr2.style.cssText = 'font-weight:bold; font-size:0.9em; color:#666; padding:12px 0 4px; border-bottom:2px solid #e0e0e0;';
+      hdr2.innerHTML = '<span class="material-icons" style="font-size:0.85em;vertical-align:middle;">store</span> 店名';
+      list.appendChild(hdr2);
+      allStores.forEach(store => {
+        const isHidden = hiddenStores.includes(store);
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;' + (isHidden ? ' opacity:0.4;' : '');
+        const span = document.createElement('span');
+        span.style.flex = '1';
+        span.textContent = store;
+        if (isHidden) {
+          const restoreBtn = document.createElement('button');
+          restoreBtn.className = 'history-del-btn';
+          restoreBtn.innerHTML = '<span class="material-icons" style="font-size:1em; color:#4caf50;">undo</span>';
+          restoreBtn.title = '補完候補に戻す';
+          restoreBtn.onclick = () => {
+            hiddenStores = hiddenStores.filter(s => s !== store);
+            localStorage.setItem('sokone_hidden_stores', JSON.stringify(hiddenStores));
+            updateDatalists();
+            renderSokoneHistoryModal();
+          };
+          row.appendChild(span);
+          row.appendChild(restoreBtn);
+        } else {
+          const delBtn = document.createElement('button');
+          delBtn.className = 'history-del-btn';
+          delBtn.innerHTML = '<span class="material-icons" style="font-size:1em;">visibility_off</span>';
+          delBtn.title = '補完候補から非表示';
+          delBtn.onclick = () => {
+            hiddenStores.push(store);
+            localStorage.setItem('sokone_hidden_stores', JSON.stringify(hiddenStores));
+            updateDatalists();
+            renderSokoneHistoryModal();
+          };
+          row.appendChild(span);
+          row.appendChild(delBtn);
+        }
+        list.appendChild(row);
+      });
+    }
+  };
+  window.clearAllSokoneHidden = function() {
+    hiddenItems = [];
+    hiddenStores = [];
+    localStorage.removeItem('sokone_hidden_items');
+    localStorage.removeItem('sokone_hidden_stores');
+    updateDatalists();
+    renderSokoneHistoryModal();
+  };
 </script>
+
+<!-- ===== 入力履歴管理モーダル ===== -->
+<div id="sokone-history-modal" class="modal-overlay">
+  <div class="modal-box">
+    <button class="modal-close-btn" onclick="closeSokoneHistoryModal()"><span class="material-icons">close</span></button>
+    <p class="modal-title"><span class="material-icons" style="vertical-align:middle;">history</span> 入力履歴</p>
+    <button onclick="clearAllSokoneHidden()" style="width:100%; padding:9px; background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7; border-radius:6px; font-size:0.9em; font-weight:bold; cursor:pointer; margin-bottom:12px;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">visibility</span> 非表示を全てリセット</button>
+    <div id="sokone-history-modal-list" style="max-height:350px; overflow-y:auto;"></div>
+  </div>
+</div>
+
 </body>
 </html>

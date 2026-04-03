@@ -337,6 +337,10 @@ input { -webkit-appearance: none; appearance: none; }
           datalist.appendChild(option);
         }
       });
+      // 履歴モーダルが開いていたら再描画
+      if (document.getElementById('history-modal').classList.contains('open')) {
+        renderHistoryModal();
+      }
     });
 
     // 履歴モーダル操作
@@ -365,6 +369,7 @@ input { -webkit-appearance: none; appearance: none; }
         delBtn.className = 'history-del-btn';
         delBtn.innerHTML = '<span class="material-icons" style="font-size:1em;">delete</span>';
         delBtn.onclick = async () => {
+          row.style.opacity = '0.3';
           try { await deleteDoc(doc(db, 'shopping_history', h.id)); } catch (e) { console.error(e); }
         };
         row.appendChild(name);
