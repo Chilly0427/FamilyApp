@@ -61,8 +61,10 @@ main { padding: 16px; }
 /* 履歴候補削除ボタン */
 .history-del-btn { background: none; border: none; color: #bbb; font-size: 0.85em; cursor: pointer; padding: 2px 6px; }
 .history-del-btn:active { color: #d32f2f; }
+.del-btn { color:#d32f2f; background:#ffebee; padding:6px 12px; font-size:0.9em; border-radius:6px; font-weight:bold; border:none; transition:all 0.2s; }
+.del-btn:active { background:#ffcdd2; }
 /* カテゴリソートセレクト */
-.cat-sort-select { font-size: 0.8em; padding: 4px 8px; border-radius: 6px; border: 1px solid #ddd; background: #fff; color: #555; cursor: pointer; outline: none; }
+.cat-sort-select { padding: 8px; border-radius: 8px; border: 1px solid #cfd8dc; background: #fff; font-weight: bold; color: #2e7d32; cursor: pointer; outline: none; }
 
 /* --- Focus & Interaction Styles --- */
 input:focus, select:focus {
@@ -159,7 +161,7 @@ input { -webkit-appearance: none; appearance: none; }
     <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
       <input type="text" id="search-filter" placeholder="アイテムを検索..." style="flex:1; padding:10px 12px; border:1px solid #ccc; border-radius:8px; font-size:16px; box-sizing:border-box; background:#fff;">
       <select id="cat-sort-select" class="cat-sort-select" title="カテゴリの並び順">
-        <option value="manual">手動並び替え</option>
+        <option value="manual">手動並べ替え</option>
         <option value="name">名前順(自動)</option>
         <option value="recent">更新順(自動)</option>
       </select>
@@ -670,9 +672,9 @@ input { -webkit-appearance: none; appearance: none; }
       clearDoneBtn.onclick = (e) => { e.stopPropagation(); clearDoneInCategory(cat.id); };
       actionsWrap.appendChild(clearDoneBtn);
 
-      // カテゴリ削除ボタン（✖）
+      // カテゴリ削除ボタン
       const deleteCatBtn = document.createElement('button');
-      deleteCatBtn.className = 'cat-action-btn danger';
+      deleteCatBtn.className = 'del-btn';
       deleteCatBtn.innerHTML = '<span class="material-icons">close</span>';
       deleteCatBtn.title = 'カテゴリを削除';
       deleteCatBtn.onclick = (e) => { e.stopPropagation(); deleteCategory(cat.id, cat.name); };
@@ -850,13 +852,8 @@ input { -webkit-appearance: none; appearance: none; }
 
         const itemDelBtn = document.createElement('button');
         itemDelBtn.innerHTML = '<span class="material-icons">delete</span>';
-        itemDelBtn.className = 'item-del-btn';
-        itemDelBtn.style.color = '#aaa';
-        itemDelBtn.style.background = 'none';
-        itemDelBtn.style.border = 'none';
-        itemDelBtn.style.fontSize = '1.2em';
+        itemDelBtn.className = 'del-btn';
         itemDelBtn.style.cursor = 'pointer';
-        itemDelBtn.style.padding = '0 8px';
         itemDelBtn.style.zIndex = '1';
         itemDelBtn.onclick = (e) => { e.stopPropagation(); deleteItem(item.id); };
 
@@ -1127,7 +1124,7 @@ input { -webkit-appearance: none; appearance: none; }
     input.focus();
 
     // 編集中は削除ボタンを隠す（誤操作防止）
-    const delBtn = catDiv.querySelector('.delete-btn');
+    const delBtn = catDiv.querySelector('.del-btn');
     if (delBtn) delBtn.style.display = 'none';
 
     let committed = false;
@@ -1273,7 +1270,7 @@ input { -webkit-appearance: none; appearance: none; }
 
     // 隠すべきボタン
     const editBtn = row.querySelector('.item-edit-btn');
-    const delBtn = row.querySelector('.item-del-btn');
+    const delBtn = row.querySelector('.del-btn');
     if (editBtn) editBtn.style.display = 'none';
     // keep delBtn visible during editing
 
@@ -1586,8 +1583,9 @@ input { -webkit-appearance: none; appearance: none; }
       // 削除ボタン（defaultリストは不可）
       if (list.id !== 'default') {
         const delBtn = document.createElement('button');
+        delBtn.className = 'del-btn';
         delBtn.innerHTML = '<span class="material-icons" style="font-size:1.1em;">delete</span>';
-        delBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:#d32f2f;padding:4px 6px;';
+        delBtn.style.cursor = 'pointer';
         delBtn.onclick = () => openDeleteListModal(list);
         row.appendChild(delBtn);
       }
@@ -1616,17 +1614,88 @@ input { -webkit-appearance: none; appearance: none; }
 
   function startEditingListName(list, rowEl) {
     const nameSpan = rowEl.querySelector('span:first-child');
+    
+    // 編集コンテナを作成
+    const editContainer = document.createElement('div');
+    editContainer.style.cssText = 'flex:1; display:flex; flex-direction:column; gap:6px; min-width:0;';
+
+    // 名前入力行（絵文字ボタン + テキスト入力）
+    const inputRow = document.createElement('div');
+    inputRow.style.cssText = 'display:flex; gap:6px; align-items:center;';
+
+    let editEmoji = list.emoji || '📋';
+    const emojiBtn = document.createElement('button');
+    emojiBtn.textContent = editEmoji;
+    emojiBtn.style.cssText = 'font-size:1.3em; border:1px solid #ccc; border-radius:6px; background:#f9f9f9; cursor:pointer; padding:4px 8px; line-height:1;';
+    emojiBtn.title = '絵文字を変更';
+
     const input = document.createElement('input');
     input.type = 'text';
     input.value = list.name;
-    input.style.cssText = 'flex:1; padding:6px 8px; border:1px solid #ccc; border-radius:6px; font-size:0.95em; font-weight:bold; min-width:0; width:100%;';
-    nameSpan.replaceWith(input);
+    input.style.cssText = 'flex:1; padding:6px 8px; border:1px solid #ccc; border-radius:6px; font-size:0.95em; font-weight:bold; min-width:0;';
+
+    inputRow.appendChild(emojiBtn);
+    inputRow.appendChild(input);
+    editContainer.appendChild(inputRow);
+
+    // 絵文字ピッカー（初期非表示）
+    const pickerWrap = document.createElement('div');
+    pickerWrap.style.cssText = 'display:none; border:1px solid #ddd; border-radius:8px; padding:6px; background:#fafafa; max-height:180px; overflow-y:auto;';
+    const searchRow = document.createElement('div');
+    searchRow.style.cssText = 'margin-bottom:4px;';
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = '絵文字を検索...';
+    searchInput.style.cssText = 'width:100%; padding:4px 8px; border:1px solid #ddd; border-radius:4px; font-size:0.85em; box-sizing:border-box;';
+    searchRow.appendChild(searchInput);
+    pickerWrap.appendChild(searchRow);
+
+    const pickerGrid = document.createElement('div');
+    pickerGrid.style.cssText = 'display:flex; flex-wrap:wrap; gap:2px;';
+    pickerWrap.appendChild(pickerGrid);
+    editContainer.appendChild(pickerWrap);
+
+    function renderEditPicker(q) {
+      pickerGrid.innerHTML = '';
+      const qLow = (q || '').trim().toLowerCase();
+      const filtered = qLow ? LIST_EMOJIS.filter(o => o.k.includes(qLow) || o.e.includes(qLow)) : LIST_EMOJIS;
+      filtered.forEach(o => {
+        const eb = document.createElement('span');
+        eb.className = 'emoji-opt' + (o.e === editEmoji ? ' selected' : '');
+        eb.textContent = o.e;
+        eb.title = o.k;
+        eb.onclick = (ev) => {
+          ev.stopPropagation();
+          editEmoji = o.e;
+          emojiBtn.textContent = o.e;
+          pickerGrid.querySelectorAll('.emoji-opt').forEach(b => b.classList.remove('selected'));
+          eb.classList.add('selected');
+        };
+        pickerGrid.appendChild(eb);
+      });
+    }
+
+    emojiBtn.onclick = (ev) => {
+      ev.stopPropagation();
+      const show = pickerWrap.style.display === 'none';
+      pickerWrap.style.display = show ? 'block' : 'none';
+      if (show) { renderEditPicker(''); searchInput.value = ''; }
+    };
+    searchInput.oninput = () => renderEditPicker(searchInput.value);
+    searchInput.onclick = (ev) => ev.stopPropagation();
+
+    nameSpan.replaceWith(editContainer);
     input.focus();
 
     async function commit() {
+      if (editContainer._committed) return;
+      editContainer._committed = true;
       const newName = input.value.trim();
-      if (newName && newName !== list.name) {
-        try { await updateDoc(doc(db, 'list_meta', list.id), { name: newName }); } catch (err) { console.error(err); }
+      const updates = {};
+      if (newName && newName !== list.name) updates.name = newName;
+      if (editEmoji !== (list.emoji || '📋')) updates.emoji = editEmoji;
+      if (Object.keys(updates).length > 0) {
+        try { await updateDoc(doc(db, 'list_meta', list.id), updates); } catch (err) { console.error(err); }
       }
       renderListSettingsContent();
     }
@@ -1635,7 +1704,14 @@ input { -webkit-appearance: none; appearance: none; }
       if (e.key === 'Enter') { await commit(); }
       else if (e.key === 'Escape') renderListSettingsContent();
     });
-    input.addEventListener('blur', commit);
+    input.addEventListener('blur', (e) => {
+      // ピッカー内のクリックでblurが発生する場合はcommitしない
+      setTimeout(() => {
+        if (!editContainer.contains(document.activeElement) && pickerWrap.style.display === 'none') {
+          commit();
+        }
+      }, 150);
+    });
   }
 
   function openDeleteListModal(list) {
