@@ -388,11 +388,11 @@ input { -webkit-appearance: none; appearance: none; }
       });
       allLists.sort((a, b) => (a.order || 0) - (b.order || 0));
 
-      // defaultリストが存在しない場合は自動作成
-      if (!snapshot.metadata.fromCache && !allLists.find(l => l.id === 'default')) {
-        setDoc(doc(db, 'list_meta', 'default'), {
-          name: '買い物', emoji: 'shopping_cart', shared: true, ownerId: currentUserEmail, order: 0
-        }).catch(e => console.error('create default list failed', e));
+      // リストが0件の場合は自動でデフォルトリストを作成
+      if (!snapshot.metadata.fromCache && allLists.length === 0) {
+        addDoc(collection(db, 'list_meta'), {
+          name: '買い物', emoji: 'shopping_cart', shared: true, ownerId: currentUserEmail, order: 0, createdAt: serverTimestamp()
+        }).then(ref => { currentListId = ref.id; }).catch(e => console.error('create default list failed', e));
       }
 
       renderTabs();
@@ -408,7 +408,7 @@ input { -webkit-appearance: none; appearance: none; }
     const batch = writeBatch(db);
     defaults.forEach((name, index) => {
       const newRef = doc(collection(db, "shopping_categories"));
-      batch.set(newRef, { name, order: index, listId: 'default' });
+      batch.set(newRef, { name, order: index, listId: currentListId });
     });
     await batch.commit();
   }
@@ -1377,6 +1377,7 @@ input { -webkit-appearance: none; appearance: none; }
     {n:'pets',k:'ペット 動物'},{n:'local_florist',k:'花 植物 フラワー'},{n:'nature',k:'自然 公園 木'},{n:'eco',k:'エコ 環境 緑'},{n:'park',k:'公園'},
   ];
   let _newListEmoji = 'checklist';
+  let _editingListId = null; // null=新規作成, id=編集
 
   // アイコン名か絵文字かを判定（Material Icon名はASCII小文字+数字+アンダースコア）
   function isIconName(val) {
@@ -1410,14 +1411,10 @@ input { -webkit-appearance: none; appearance: none; }
     if (!tabsBar) return;
 
     const visibleLists = allLists.filter(l => l.shared || l.ownerId === currentUserEmail);
-    // default を先頭に、それ以外は order 順
-    visibleLists.sort((a, b) => {
-      if (a.id === 'default') return -1;
-      if (b.id === 'default') return 1;
-      return (a.order || 0) - (b.order || 0);
-    });
+    // order 順でソート
+    visibleLists.sort((a, b) => (a.order || 0) - (b.order || 0));
 
-    // currentListId が非表示リストなら default にフォールバック
+    // currentListId が非表示リストなら先頭にフォールバック
     if (visibleLists.length > 0 && !visibleLists.find(l => l.id === currentListId)) {
       currentListId = visibleLists[0].id;
     }
@@ -1532,11 +1529,7 @@ input { -webkit-appearance: none; appearance: none; }
 
   function renderListSettingsContent() {
     const visibleLists = allLists.filter(l => l.shared || l.ownerId === currentUserEmail);
-    visibleLists.sort((a, b) => {
-      if (a.id === 'default') return -1;
-      if (b.id === 'default') return 1;
-      return (a.order || 0) - (b.order || 0);
-    });
+    visibleLists.sort((a, b) => (a.order || 0) - (b.order || 0));
 
     const container = document.getElementById('list-settings-content');
     container.innerHTML = '';
@@ -1544,66 +1537,46 @@ input { -webkit-appearance: none; appearance: none; }
     visibleLists.forEach(list => {
       const row = document.createElement('div');
       row.className = 'list-meta-row';
-      row.style.flexWrap = 'wrap';
+      row.style.flexWrap = 'nowrap';
       row.dataset.listId = list.id;
 
-      // ドラッグハンドル（default以外）- 先頭に追加
-      if (list.id !== 'default') {
-        const dragHandle = document.createElement('span');
-        dragHandle.className = 'list-drag-handle';
-        dragHandle.innerHTML = '<span class="material-icons">drag_handle</span>';
-        dragHandle.style.cssText = 'color:#bbb; cursor:grab; padding:4px 6px; font-size:1.1em;';
-        dragHandle.title = 'ドラッグで並び替え';
-        row.appendChild(dragHandle);
-      }
+      // ドラッグハンドル
+      const dragHandle = document.createElement('span');
+      dragHandle.className = 'list-drag-handle';
+      dragHandle.innerHTML = '<span class="material-icons">drag_handle</span>';
+      dragHandle.style.cssText = 'color:#bbb; cursor:grab; padding:4px 6px; font-size:1.1em;';
+      dragHandle.title = 'ドラッグで並び替え';
+      row.appendChild(dragHandle);
 
-      // リスト名（タップで直接編集）
+      // アイコン＋リスト名（タップでモーダル編集）
       const nameSpan = document.createElement('span');
-      nameSpan.style.cssText = 'flex:1; font-weight:bold; font-size:1em; cursor:pointer; padding:4px 2px; border-bottom: 1px dashed transparent;';
+      nameSpan.style.cssText = 'flex:1; font-weight:bold; font-size:1em; padding:4px 2px; display:flex; align-items:center; gap:4px;';
       nameSpan.appendChild(createIconEl(list.emoji));
-      nameSpan.appendChild(document.createTextNode(' ' + list.name));
-      nameSpan.title = 'タップして名前変更';
-      if (list.id !== 'default') {
-        nameSpan.style.borderBottomColor = '#ccc';
-        nameSpan.onclick = () => startEditingListName(list, row);
+      nameSpan.appendChild(document.createTextNode(' ' + list.name));
+      if (!list.locked) {
+        nameSpan.style.cursor = 'pointer';
+        nameSpan.style.borderBottom = '1px dashed #ccc';
+        nameSpan.title = 'タップして編集';
+        nameSpan.onclick = () => openEditListModal(list);
+      } else {
+        nameSpan.style.cursor = 'default';
       }
       row.appendChild(nameSpan);
 
-      // 共有/個人 トグルボタン
-      const toggleWrap = document.createElement('div');
-      toggleWrap.className = 'shared-toggle';
-
-      const sharedBtn = document.createElement('button');
-      sharedBtn.className = 'shared-toggle-btn' + (list.shared ? ' active-shared' : '');
-      sharedBtn.innerHTML = '<span class="material-icons" style="font-size:0.85em;vertical-align:middle;">group</span> 共有';
-      const privateBtn = document.createElement('button');
-      privateBtn.className = 'shared-toggle-btn' + (!list.shared ? ' active-private' : '');
-      privateBtn.innerHTML = '<span class="material-icons" style="font-size:0.85em;vertical-align:middle;">lock</span> 個人';
-
-      if (list.id !== 'default') {
-        sharedBtn.onclick = async () => {
-          if (!list.shared) { try { await updateDoc(doc(db, 'list_meta', list.id), { shared: true }); } catch (e) { console.error(e); } }
-        };
-        privateBtn.onclick = async () => {
-          if (list.shared) { try { await updateDoc(doc(db, 'list_meta', list.id), { shared: false }); } catch (e) { console.error(e); } }
-        };
+      // ロック/アンロックボタン
+      const lockBtn = document.createElement('button');
+      lockBtn.style.cssText = 'background:none; border:none; cursor:pointer; padding:4px 6px;';
+      if (list.locked) {
+        lockBtn.innerHTML = '<span class="material-icons" style="font-size:1.1em; color:#f57c00;">lock</span>';
+        lockBtn.title = 'ロック中（タップで解除）';
       } else {
-        sharedBtn.style.opacity = '0.7'; sharedBtn.style.cursor = 'default';
-        privateBtn.style.opacity = '0.5'; privateBtn.style.cursor = 'default';
+        lockBtn.innerHTML = '<span class="material-icons" style="font-size:1.1em; color:#bbb;">lock_open</span>';
+        lockBtn.title = 'タップでロック';
       }
-      toggleWrap.appendChild(sharedBtn);
-      toggleWrap.appendChild(privateBtn);
-      row.appendChild(toggleWrap);
-
-      // 削除ボタン（defaultリストは不可）
-      if (list.id !== 'default') {
-        const delBtn = document.createElement('button');
-        delBtn.className = 'del-btn';
-        delBtn.innerHTML = '<span class="material-icons" style="font-size:1.1em;">delete</span>';
-        delBtn.style.cursor = 'pointer';
-        delBtn.onclick = () => openDeleteListModal(list);
-        row.appendChild(delBtn);
-      }
+      lockBtn.onclick = async () => {
+        try { await updateDoc(doc(db, 'list_meta', list.id), { locked: !list.locked }); } catch (e) { console.error(e); }
+      };
+      row.appendChild(lockBtn);
 
       container.appendChild(row);
     });
@@ -1618,120 +1591,12 @@ input { -webkit-appearance: none; appearance: none; }
         const batch = writeBatch(db);
         rows.forEach((row, index) => {
           const listId = row.dataset.listId;
-          if (listId && listId !== 'default') {
+          if (listId) {
             batch.update(doc(db, 'list_meta', listId), { order: index });
           }
         });
         await batch.commit().catch(e => console.error('list order update failed', e));
       }
-    });
-  }
-
-  function startEditingListName(list, rowEl) {
-    const nameSpan = rowEl.querySelector('span:first-child');
-    
-    // 編集コンテナを作成
-    const editContainer = document.createElement('div');
-    editContainer.style.cssText = 'flex:1; display:flex; flex-direction:column; gap:6px; min-width:0;';
-
-    // 名前入力行（絵文字ボタン + テキスト入力）
-    const inputRow = document.createElement('div');
-    inputRow.style.cssText = 'display:flex; gap:6px; align-items:center;';
-
-    let editEmoji = list.emoji || 'checklist';
-    const emojiBtn = document.createElement('button');
-    // アイコン名 or 絵文字フォールバックで表示
-    if (isIconName(editEmoji)) {
-      emojiBtn.innerHTML = `<span class="material-icons" style="font-size:1.4em;">${editEmoji}</span>`;
-    } else {
-      emojiBtn.textContent = editEmoji;
-      emojiBtn.style.fontSize = '1.3em';
-    }
-    emojiBtn.style.cssText = (emojiBtn.style.cssText || '') + '; border:1px solid #ccc; border-radius:6px; background:#f9f9f9; cursor:pointer; padding:4px 8px; line-height:1;';
-    emojiBtn.title = 'アイコンを変更';
-
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.value = list.name;
-    input.style.cssText = 'flex:1; padding:6px 8px; border:1px solid #ccc; border-radius:6px; font-size:0.95em; font-weight:bold; min-width:0;';
-
-    inputRow.appendChild(emojiBtn);
-    inputRow.appendChild(input);
-    editContainer.appendChild(inputRow);
-
-    // アイコンピッカー（初期非表示）
-    const pickerWrap = document.createElement('div');
-    pickerWrap.style.cssText = 'display:none; border:1px solid #ddd; border-radius:8px; padding:6px; background:#fafafa; max-height:180px; overflow-y:auto;';
-    const searchRow = document.createElement('div');
-    searchRow.style.cssText = 'margin-bottom:4px;';
-    const searchInput = document.createElement('input');
-    searchInput.type = 'text';
-    searchInput.placeholder = 'アイコンを検索（例: 買い物、掃除）';
-    searchInput.style.cssText = 'width:100%; padding:4px 8px; border:1px solid #ddd; border-radius:4px; font-size:0.85em; box-sizing:border-box;';
-    searchRow.appendChild(searchInput);
-    pickerWrap.appendChild(searchRow);
-
-    const pickerGrid = document.createElement('div');
-    pickerGrid.style.cssText = 'display:flex; flex-wrap:wrap; gap:2px;';
-    pickerWrap.appendChild(pickerGrid);
-    editContainer.appendChild(pickerWrap);
-
-    function renderEditPicker(q) {
-      pickerGrid.innerHTML = '';
-      const qLow = (q || '').trim().toLowerCase();
-      const filtered = qLow ? LIST_ICONS.filter(o => o.k.includes(qLow) || o.n.includes(qLow)) : LIST_ICONS;
-      filtered.forEach(o => {
-        const eb = document.createElement('button');
-        eb.className = 'icon-opt' + (o.n === editEmoji ? ' selected' : '');
-        eb.innerHTML = `<span class="material-icons">${o.n}</span>`;
-        eb.title = o.k;
-        eb.onclick = (ev) => {
-          ev.stopPropagation();
-          editEmoji = o.n;
-          emojiBtn.innerHTML = `<span class="material-icons" style="font-size:1.4em;">${o.n}</span>`;
-          pickerGrid.querySelectorAll('.icon-opt').forEach(b => b.classList.remove('selected'));
-          eb.classList.add('selected');
-        };
-        pickerGrid.appendChild(eb);
-      });
-    }
-
-    emojiBtn.onclick = (ev) => {
-      ev.stopPropagation();
-      const show = pickerWrap.style.display === 'none';
-      pickerWrap.style.display = show ? 'block' : 'none';
-      if (show) { renderEditPicker(''); searchInput.value = ''; }
-    };
-    searchInput.oninput = () => renderEditPicker(searchInput.value);
-    searchInput.onclick = (ev) => ev.stopPropagation();
-
-    nameSpan.replaceWith(editContainer);
-    input.focus();
-
-    async function commit() {
-      if (editContainer._committed) return;
-      editContainer._committed = true;
-      const newName = input.value.trim();
-      const updates = {};
-      if (newName && newName !== list.name) updates.name = newName;
-      if (editEmoji !== (list.emoji || 'checklist')) updates.emoji = editEmoji;
-      if (Object.keys(updates).length > 0) {
-        try { await updateDoc(doc(db, 'list_meta', list.id), updates); } catch (err) { console.error(err); }
-      }
-      renderListSettingsContent();
-    }
-
-    input.addEventListener('keydown', async (e) => {
-      if (e.key === 'Enter') { await commit(); }
-      else if (e.key === 'Escape') renderListSettingsContent();
-    });
-    input.addEventListener('blur', (e) => {
-      // ピッカー内のクリックでblurが発生する場合はcommitしない
-      setTimeout(() => {
-        if (!editContainer.contains(document.activeElement) && pickerWrap.style.display === 'none') {
-          commit();
-        }
-      }, 150);
     });
   }
 
@@ -1772,7 +1637,10 @@ input { -webkit-appearance: none; appearance: none; }
       batch.delete(doc(db, 'list_meta', id));
       await batch.commit();
 
-      if (currentListId === id) currentListId = 'default';
+      if (currentListId === id) {
+        const remaining = allLists.filter(l => l.id !== id);
+        currentListId = remaining.length > 0 ? remaining[0].id : 'default';
+      }
       closeDeleteListModal();
       closeListSettingsModal();
     } catch (err) {
@@ -1783,12 +1651,31 @@ input { -webkit-appearance: none; appearance: none; }
 
   window.openCreateListModal = openCreateListModal;
   function openCreateListModal() {
+    _editingListId = null;
     _newListEmoji = 'checklist';
     document.getElementById('new-list-name').value = '';
     document.getElementById('new-list-name-error').textContent = '';
     setNewListShared(true);
     renderEmojiPicker('');
     document.getElementById('emoji-search-input').value = '';
+    document.getElementById('list-modal-title').innerHTML = '<span class="material-icons" style="vertical-align:middle;">add_circle</span> 新しいリストを作成';
+    document.getElementById('list-modal-submit-btn').textContent = '作成する';
+    document.getElementById('list-modal-delete-btn').style.display = 'none';
+    document.getElementById('list-create-modal').classList.add('open');
+    setTimeout(() => document.getElementById('new-list-name').focus(), 100);
+  }
+
+  function openEditListModal(list) {
+    _editingListId = list.id;
+    _newListEmoji = list.emoji || 'checklist';
+    document.getElementById('new-list-name').value = list.name;
+    document.getElementById('new-list-name-error').textContent = '';
+    setNewListShared(!!list.shared);
+    renderEmojiPicker('');
+    document.getElementById('emoji-search-input').value = '';
+    document.getElementById('list-modal-title').innerHTML = '<span class="material-icons" style="vertical-align:middle;">edit</span> リストを編集';
+    document.getElementById('list-modal-submit-btn').textContent = '保存する';
+    document.getElementById('list-modal-delete-btn').style.display = '';
     document.getElementById('list-create-modal').classList.add('open');
     setTimeout(() => document.getElementById('new-list-name').focus(), 100);
   }
@@ -1830,6 +1717,15 @@ input { -webkit-appearance: none; appearance: none; }
 
   window.closeCreateListModal = function() {
     document.getElementById('list-create-modal').classList.remove('open');
+    _editingListId = null;
+  };
+
+  window.openDeleteListFromEditModal = function() {
+    if (!_editingListId) return;
+    const list = allLists.find(l => l.id === _editingListId);
+    if (!list) return;
+    closeCreateListModal();
+    openDeleteListModal(list);
   };
 
   window.createNewList = async function() {
@@ -1840,18 +1736,26 @@ input { -webkit-appearance: none; appearance: none; }
       return;
     }
     const shared = document.getElementById('new-list-shared-yes').dataset.active === '1';
-    const maxOrder = allLists.length > 0 ? Math.max(...allLists.map(l => l.order || 0)) : 0;
 
     try {
-      const docRef = await addDoc(collection(db, 'list_meta'), {
-        name, emoji: _newListEmoji, shared, ownerId: currentUserEmail,
-        order: maxOrder + 1, createdAt: serverTimestamp()
-      });
-      currentListId = docRef.id;
+      if (_editingListId) {
+        // 編集モード
+        await updateDoc(doc(db, 'list_meta', _editingListId), {
+          name, emoji: _newListEmoji, shared
+        });
+      } else {
+        // 新規作成モード
+        const maxOrder = allLists.length > 0 ? Math.max(...allLists.map(l => l.order || 0)) : 0;
+        const docRef = await addDoc(collection(db, 'list_meta'), {
+          name, emoji: _newListEmoji, shared, ownerId: currentUserEmail,
+          order: maxOrder + 1, createdAt: serverTimestamp()
+        });
+        currentListId = docRef.id;
+      }
       closeCreateListModal();
     } catch (err) {
       console.error(err);
-      alert('リストの作成に失敗しました');
+      alert(_editingListId ? 'リストの更新に失敗しました' : 'リストの作成に失敗しました');
     }
   };
 
@@ -1928,11 +1832,11 @@ input { -webkit-appearance: none; appearance: none; }
   </div>
 </div>
 
-<!-- ===== リスト作成モーダル ===== -->
+<!-- ===== リスト作成/編集モーダル ===== -->
 <div id="list-create-modal" class="modal-overlay">
   <div class="modal-box">
     <button class="modal-close-btn" onclick="closeCreateListModal()"><span class="material-icons">close</span></button>
-    <p class="modal-title"><span class="material-icons" style="vertical-align:middle;">add_circle</span> 新しいリストを作成</p>
+    <p id="list-modal-title" class="modal-title"><span class="material-icons" style="vertical-align:middle;">add_circle</span> 新しいリストを作成</p>
     <div style="margin-bottom:12px;">
       <label style="font-size:0.9em; color:#666; display:block; margin-bottom:6px; font-weight:bold;">リスト名</label>
       <input id="new-list-name" type="text" placeholder="例: 持ち物リスト" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:1em; box-sizing:border-box;">
@@ -1950,7 +1854,8 @@ input { -webkit-appearance: none; appearance: none; }
         <button type="button" id="new-list-shared-no" class="shared-toggle-btn" onclick="setNewListShared(false)"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">lock</span> 個人（自分だけ）</button>
       </div>
     </div>
-    <button onclick="createNewList()" style="width:100%; padding:12px; background:#1976d2; color:#fff; border:none; border-radius:8px; font-size:1em; font-weight:bold; cursor:pointer;">作成する</button>
+    <button id="list-modal-submit-btn" onclick="createNewList()" style="width:100%; padding:12px; background:#1976d2; color:#fff; border:none; border-radius:8px; font-size:1em; font-weight:bold; cursor:pointer;">作成する</button>
+    <button id="list-modal-delete-btn" onclick="openDeleteListFromEditModal()" style="display:none; width:100%; padding:10px; margin-top:10px; background:#ffebee; color:#d32f2f; border:1px solid #ef9a9a; border-radius:8px; font-size:0.95em; font-weight:bold; cursor:pointer;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">delete</span> このリストを削除</button>
   </div>
 </div>
 
