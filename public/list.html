@@ -140,6 +140,9 @@ input { -webkit-appearance: none; appearance: none; }
 .icon-opt .material-icons { font-size: 1.8em; display: block; }
 .icon-opt.selected { border-color: #1976d2; background: #e3f2fd; }
 .icon-opt:active { background: #bbdefb; }
+.undo-snackbar { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#323232; color:#fff; padding:12px 16px; border-radius:8px; display:flex; align-items:center; gap:12px; z-index:10000; box-shadow:0 4px 12px rgba(0,0,0,0.3); font-size:0.95em; transition:opacity 0.3s; opacity:0; pointer-events:none; max-width:90vw; }
+.undo-snackbar.show { opacity:1; pointer-events:auto; }
+.undo-snackbar button { background:none; border:none; color:#82b1ff; font-weight:bold; cursor:pointer; font-size:0.95em; padding:4px 8px; white-space:nowrap; }
 
 </style>
 </head>
@@ -215,6 +218,27 @@ input { -webkit-appearance: none; appearance: none; }
   let allLists = [];
   let currentListId = 'default';
   let currentUserEmail = '';
+
+  // --- Undo スナックバー ---
+  let _undoTimer = null;
+  function showUndoSnackbar(message, undoCallback, duration = 5000) {
+    const bar = document.getElementById('undo-snackbar');
+    const msg = document.getElementById('undo-snackbar-msg');
+    const btn = document.getElementById('undo-snackbar-btn');
+    msg.textContent = message;
+    if (_undoTimer) clearTimeout(_undoTimer);
+    bar.classList.add('show');
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    newBtn.id = 'undo-snackbar-btn';
+    newBtn.addEventListener('click', () => {
+      bar.classList.remove('show');
+      clearTimeout(_undoTimer);
+      undoCallback();
+    });
+    _undoTimer = setTimeout(() => { bar.classList.remove('show'); }, duration);
+  }
+
   // カテゴリの折りたたみ状態を localStorage に保存して再現する
   const COLLAPSED_KEY = 'kaimono.collapsedCats';
   try {
@@ -370,7 +394,14 @@ input { -webkit-appearance: none; appearance: none; }
         delBtn.innerHTML = '<span class="material-icons" style="font-size:1em;">delete</span>';
         delBtn.onclick = async () => {
           row.style.opacity = '0.3';
-          try { await deleteDoc(doc(db, 'shopping_history', h.id)); } catch (e) { console.error(e); }
+          const savedData = { ...h };
+          delete savedData.id;
+          try {
+            await deleteDoc(doc(db, 'shopping_history', h.id));
+            showUndoSnackbar('履歴を削除しました', async () => {
+              await setDoc(doc(db, 'shopping_history', h.id), savedData);
+            });
+          } catch (e) { console.error(e); }
         };
         row.appendChild(name);
         row.appendChild(delBtn);
@@ -379,10 +410,14 @@ input { -webkit-appearance: none; appearance: none; }
     };
     window.clearAllHistory = async function() {
       if (historyItems.length === 0) return;
+      const savedItems = historyItems.map(h => ({ id: h.id, data: (() => { const d = { ...h }; delete d.id; return d; })() }));
       const batch = writeBatch(db);
       historyItems.forEach(h => batch.delete(doc(db, 'shopping_history', h.id)));
       await batch.commit().catch(e => console.error('clearAllHistory failed', e));
       closeHistoryModal();
+      showUndoSnackbar(`履歴${savedItems.length}件を削除しました`, async () => {
+        for (const s of savedItems) await setDoc(doc(db, 'shopping_history', s.id), s.data);
+      });
     };
 
     // list_meta 取得（リスト管理）
@@ -1019,10 +1054,16 @@ input { -webkit-appearance: none; appearance: none; }
       return;
     }
     
-    if (!confirm(`カテゴリ「${name}」を削除しますか？`)) return;
-    
     try {
+      const cat = shoppingCategories.find(c => c.id === id);
+      const savedData = cat ? { ...cat } : null;
+      if (savedData) delete savedData.id;
       await deleteDoc(doc(db, "shopping_categories", id));
+      if (savedData) {
+        showUndoSnackbar(`カテゴリ「${name}」を削除しました`, async () => {
+          await setDoc(doc(db, "shopping_categories", id), savedData);
+        });
+      }
     } catch(e) {
       console.error(e);
     }
@@ -1051,17 +1092,19 @@ input { -webkit-appearance: none; appearance: none; }
   }
 
   async function clearDoneItems() {
-    if (!confirm('完了済みのアイテムをすべて削除しますか？')) return;
-    
     const doneItems = shoppingItems.filter(item => item.isDone);
     if(doneItems.length === 0) return;
     
+    const savedItems = doneItems.map(it => ({ id: it.id, data: (() => { const d = { ...it }; delete d.id; return d; })() }));
     try {
       const batch = writeBatch(db);
       doneItems.forEach(item => {
         batch.delete(doc(db, "shopping_list", item.id));
       });
       await batch.commit();
+      showUndoSnackbar(`完了済み${savedItems.length}件を削除しました`, async () => {
+        for (const s of savedItems) await setDoc(doc(db, "shopping_list", s.id), s.data);
+      });
     } catch(e) {
       console.error(e);
       alert('削除に失敗しました');
@@ -1072,17 +1115,15 @@ input { -webkit-appearance: none; appearance: none; }
   async function clearDoneInCategory(categoryId) {
     const category = shoppingCategories.find(c => c.id === categoryId);
     const categoryName = category ? category.name : null;
-    if (!confirm(`カテゴリ「${categoryName || ''}」の完了済みアイテムを削除しますか？`)) return;
 
     const doneItems = shoppingItems.filter(item => (item.categoryId === categoryId || (!item.categoryId && item.category === categoryName)) && item.isDone);
     if (doneItems.length === 0) return;
 
+    const savedItems = doneItems.map(it => ({ id: it.id, data: (() => { const d = { ...it }; delete d.id; return d; })() }));
     try {
       const batch = writeBatch(db);
-      // 完了済みの削除
       doneItems.forEach(item => batch.delete(doc(db, 'shopping_list', item.id)));
 
-      // 残った未完了アイテムの order を詰める
       const remaining = shoppingItems.filter(item => (item.categoryId === categoryId || (!item.categoryId && item.category === categoryName)) && !item.isDone);
       remaining.sort((a, b) => (a.order || 0) - (b.order || 0));
       remaining.forEach((it, idx) => {
@@ -1092,6 +1133,9 @@ input { -webkit-appearance: none; appearance: none; }
       });
 
       await batch.commit();
+      showUndoSnackbar(`完了済み${savedItems.length}件を削除しました`, async () => {
+        for (const s of savedItems) await setDoc(doc(db, 'shopping_list', s.id), s.data);
+      });
     } catch (e) {
       console.error(e);
       alert('削除に失敗しました');
@@ -1100,7 +1144,15 @@ input { -webkit-appearance: none; appearance: none; }
 
   async function deleteItem(id) {
     try {
+      const item = shoppingItems.find(i => i.id === id);
+      const savedData = item ? { ...item } : null;
+      if (savedData) delete savedData.id;
       await deleteDoc(doc(db, "shopping_list", id));
+      if (savedData) {
+        showUndoSnackbar('アイテムを削除しました', async () => {
+          await setDoc(doc(db, "shopping_list", id), savedData);
+        });
+      }
     } catch(e) {
       console.error(e);
     }
@@ -1885,6 +1937,11 @@ input { -webkit-appearance: none; appearance: none; }
     <button onclick="clearAllHistory()" style="width:100%; padding:9px; background:#ffebee; color:#d32f2f; border:1px solid #ef9a9a; border-radius:6px; font-size:0.9em; font-weight:bold; cursor:pointer; margin-bottom:12px;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">delete</span> 履歴を全削除</button>
     <div id="history-modal-list" style="max-height:280px; overflow-y:auto;"></div>
   </div>
+</div>
+
+<div id="undo-snackbar" class="undo-snackbar">
+  <span id="undo-snackbar-msg"></span>
+  <button id="undo-snackbar-btn">元に戻す</button>
 </div>
 
 </body>

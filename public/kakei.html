@@ -55,6 +55,9 @@ input:focus, select:focus {
 .modal-box { background:#fff; border-radius:16px; padding:24px 20px 20px; max-width:420px; width:90%; max-height:85vh; overflow-y:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.18); }
 .modal-close-btn { position:absolute; right:10px; top:10px; background:none; border:none; cursor:pointer; font-size:1.2em; color:#888; }
 .modal-title { font-size:1.1em; font-weight:bold; color:#2c3e50; margin:0 0 16px 0; }
+.undo-snackbar { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#323232; color:#fff; padding:12px 16px; border-radius:8px; display:flex; align-items:center; gap:12px; z-index:10000; box-shadow:0 4px 12px rgba(0,0,0,0.3); font-size:0.95em; transition:opacity 0.3s; opacity:0; pointer-events:none; max-width:90vw; }
+.undo-snackbar.show { opacity:1; pointer-events:auto; }
+.undo-snackbar button { background:none; border:none; color:#82b1ff; font-weight:bold; cursor:pointer; font-size:0.95em; padding:4px 8px; white-space:nowrap; }
 
 </style>
 </head>
@@ -93,6 +96,26 @@ input:focus, select:focus {
   let items = [];
   const kakeiNamesSet = new Set();
   let hiddenKakeiNames = JSON.parse(localStorage.getItem('kakei_hidden_names') || '[]');
+
+  // --- Undo スナックバー ---
+  let _undoTimer = null;
+  function showUndoSnackbar(message, undoCallback, duration = 5000) {
+    const bar = document.getElementById('undo-snackbar');
+    const msg = document.getElementById('undo-snackbar-msg');
+    const btn = document.getElementById('undo-snackbar-btn');
+    msg.textContent = message;
+    if (_undoTimer) clearTimeout(_undoTimer);
+    bar.classList.add('show');
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    newBtn.id = 'undo-snackbar-btn';
+    newBtn.addEventListener('click', () => {
+      bar.classList.remove('show');
+      clearTimeout(_undoTimer);
+      undoCallback();
+    });
+    _undoTimer = setTimeout(() => { bar.classList.remove('show'); }, duration);
+  }
   
   // Month selection variables
   window.currentMonthStr = new Date(new Date().getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 7); // init with current JST Month
@@ -227,20 +250,28 @@ input:focus, select:focus {
         isSettled: false,
         createdAt: serverTimestamp()
       });
-      // 追加後に最下部へスクロールし、内容欄にフォーカス
+      // 追加後に最下部へスクロールし、夫の金額欄にフォーカス
       setTimeout(() => {
         const rows = list.querySelectorAll('.row');
         if (rows.length > 0) {
           const lastRow = rows[rows.length - 1];
           lastRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          const nameInput = lastRow.querySelector('input[type="text"]');
-          if (nameInput) setTimeout(() => nameInput.focus(), 300);
+          const hInput = lastRow.querySelector('input[type="number"]');
+          if (hInput) setTimeout(() => hInput.focus(), 300);
         }
       }, 500);
     };
 
     window.removeRow = async (id) => {
+      const item = items.find(i => i.id === id);
+      const savedData = item ? { ...item } : null;
+      if (savedData) delete savedData.id;
       await deleteDoc(doc(db, "kakei_items", id));
+      if (savedData) {
+        showUndoSnackbar('アイテムを削除しました', async () => {
+          await setDoc(doc(db, "kakei_items", id), savedData);
+        });
+      }
     };
 
     window.toggleType = async (id, currentType) => {
@@ -287,12 +318,15 @@ input:focus, select:focus {
     };
 
     window.clearSettled = async () => {
-      if (confirm('「精算済」の項目を一括で削除しますか？')) {
-        const settledItems = items.filter(it => it.isSettled && it.date && it.date.startsWith(window.currentMonthStr));
-        for (const it of settledItems) {
-          await deleteDoc(doc(db, "kakei_items", it.id));
-        }
+      const settledItems = items.filter(it => it.isSettled && it.date && it.date.startsWith(window.currentMonthStr));
+      if (settledItems.length === 0) return;
+      const savedItems = settledItems.map(it => ({ id: it.id, data: (() => { const d = { ...it }; delete d.id; return d; })() }));
+      for (const it of settledItems) {
+        await deleteDoc(doc(db, "kakei_items", it.id));
       }
+      showUndoSnackbar(`精算済み${savedItems.length}件を削除しました`, async () => {
+        for (const s of savedItems) await setDoc(doc(db, "kakei_items", s.id), s.data);
+      });
     };
 
     ratioSlider.addEventListener('change', async (e) => {
@@ -426,15 +460,6 @@ input:focus, select:focus {
       name.onchange = e => { 
         updateItem(it.id, 'name', e.target.value); 
       };
-      // 名前欄がblurされた時、全フィールドが空なら自動削除
-      name.addEventListener('blur', () => {
-        setTimeout(() => {
-          const currentItem = items.find(i => i.id === it.id);
-          if (currentItem && !currentItem.name && !currentItem.h && !currentItem.w) {
-            removeRow(it.id);
-          }
-        }, 600);
-      });
 
       const del = document.createElement('button');
       del.className = 'del-btn';
@@ -447,6 +472,17 @@ input:focus, select:focus {
       secondRow.className = 'row-second';
       secondRow.append(dEl, name, del);
       div.appendChild(secondRow);
+
+      // 行全体からフォーカスが外れた時、全フィールドが空なら自動削除
+      div.addEventListener('focusout', (e) => {
+        setTimeout(() => {
+          if (div.contains(document.activeElement)) return;
+          const currentItem = items.find(i => i.id === it.id);
+          if (currentItem && !currentItem.name && !currentItem.h && !currentItem.w) {
+            removeRow(it.id);
+          }
+        }, 600);
+      });
 
       list.appendChild(div);
     });
@@ -802,5 +838,11 @@ input:focus, select:focus {
     });
   }
 </script>
+
+<div id="undo-snackbar" class="undo-snackbar">
+  <span id="undo-snackbar-msg"></span>
+  <button id="undo-snackbar-btn">元に戻す</button>
+</div>
+
 </body>
 </html>
