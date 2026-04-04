@@ -67,6 +67,17 @@ export function initGlobalNav(activePageName) {
     /* ボタン */
     [data-theme="dark"] button { background: #333 !important; color: #e0e0e0 !important; }
     [data-theme="dark"] button:hover { background: #444 !important; }
+
+    /* アイコン系ボタン・透明ボタンの背景を消す */
+    [data-theme="dark"] .del-btn,
+    [data-theme="dark"] .modal-close-btn,
+    [data-theme="dark"] .history-del-btn,
+    [data-theme="dark"] .dark-mode-toggle,
+    [data-theme="dark"] .cat-action-btn,
+    [data-theme="dark"] [style*="background:none"],
+    [data-theme="dark"] [style*="background: none"] { background: none !important; }
+    [data-theme="dark"] .del-btn:hover,
+    [data-theme="dark"] .modal-close-btn:hover { background: none !important; }
     [data-theme="dark"] .btn-add, [data-theme="dark"] .btn-add-list { background: #388e3c !important; color: #fff !important; }
     [data-theme="dark"] .btn-add:active, [data-theme="dark"] .btn-add-list:active { background: #2e7d32 !important; }
     [data-theme="dark"] .btn-primary { background: #1565c0 !important; color: #fff !important; }
