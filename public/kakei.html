@@ -318,6 +318,7 @@ input:focus, select:focus {
     };
 
     window.clearSettled = async () => {
+      if (!confirm('「精算済」の項目を一括で削除しますか？')) return;
       const settledItems = items.filter(it => it.isSettled && it.date && it.date.startsWith(window.currentMonthStr));
       if (settledItems.length === 0) return;
       const savedItems = settledItems.map(it => ({ id: it.id, data: (() => { const d = { ...it }; delete d.id; return d; })() }));

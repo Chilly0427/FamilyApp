@@ -697,6 +697,7 @@ input:focus, select:focus {
   };
 
   window.deleteGroup = async (groupName) => {
+    if (!confirm(`「${groupName}」の全価格データを削除しますか？`)) return;
     const isNew = groupName === "未分類の商品" ? "" : groupName;
     const targets = items.filter(i => (i.itemName || "") === isNew);
     if (targets.length === 0) return;
@@ -814,6 +815,7 @@ input:focus, select:focus {
   };
 
   window.deleteItem = async (id) => {
+    if (!confirm("この底値データを削除しますか？")) return;
     const item = items.find(i => i.id === id);
     const savedData = item ? { ...item } : null;
     if (savedData) delete savedData.id;

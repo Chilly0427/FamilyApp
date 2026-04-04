@@ -1054,6 +1054,8 @@ input { -webkit-appearance: none; appearance: none; }
       return;
     }
     
+    if (!confirm(`カテゴリ「${name}」を削除しますか？`)) return;
+    
     try {
       const cat = shoppingCategories.find(c => c.id === id);
       const savedData = cat ? { ...cat } : null;
@@ -1092,6 +1094,8 @@ input { -webkit-appearance: none; appearance: none; }
   }
 
   async function clearDoneItems() {
+    if (!confirm('完了済みのアイテムをすべて削除しますか？')) return;
+    
     const doneItems = shoppingItems.filter(item => item.isDone);
     if(doneItems.length === 0) return;
     
@@ -1115,6 +1119,7 @@ input { -webkit-appearance: none; appearance: none; }
   async function clearDoneInCategory(categoryId) {
     const category = shoppingCategories.find(c => c.id === categoryId);
     const categoryName = category ? category.name : null;
+    if (!confirm(`カテゴリ「${categoryName || ''}」の完了済みアイテムを削除しますか？`)) return;
 
     const doneItems = shoppingItems.filter(item => (item.categoryId === categoryId || (!item.categoryId && item.category === categoryName)) && item.isDone);
     if (doneItems.length === 0) return;
