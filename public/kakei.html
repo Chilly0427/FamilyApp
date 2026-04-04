@@ -60,6 +60,9 @@ input:focus, select:focus {
 .undo-snackbar button { background:none; border:none; color:#82b1ff; font-weight:bold; cursor:pointer; font-size:0.95em; padding:4px 8px; white-space:nowrap; }
 
 </style>
+<script>
+(function(){var t=localStorage.getItem('familyapp-theme');if(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches)t='dark';if(t==='dark')document.documentElement.setAttribute('data-theme','dark');})();
+</script>
 </head>
 <body style="display: none;">
 <div id="loading-overlay" style="position:fixed;inset:0;background:#fafafa;display:flex;align-items:center;justify-content:center;z-index:9999;">
@@ -646,6 +649,77 @@ input:focus, select:focus {
     renderKakeiHistoryModal();
   };
 
+  // ===== 月別集計 =====
+  window.openMonthlySummary = function() {
+    document.getElementById('monthly-summary-modal').classList.add('open');
+    renderMonthlySummary();
+  };
+  window.closeMonthlySummary = function() {
+    document.getElementById('monthly-summary-modal').classList.remove('open');
+  };
+  function renderMonthlySummary() {
+    const container = document.getElementById('monthly-summary-content');
+    const r = ratioSlider.value / 100;
+    const wifeRatio = 1 - r;
+
+    // 月ごとに集計
+    const monthMap = {};
+    items.forEach(it => {
+      if (!it.date) return;
+      const mo = it.date.slice(0, 7);
+      if (!monthMap[mo]) monthMap[mo] = { h: 0, w: 0, sharedH: 0, sharedW: 0, transH: 0, transW: 0, count: 0 };
+      const m = monthMap[mo];
+      m.h += (it.h || 0);
+      m.w += (it.w || 0);
+      m.count++;
+      if (it.type === 'shared') { m.sharedH += (it.h || 0); m.sharedW += (it.w || 0); }
+      else { m.transH += (it.h || 0); m.transW += (it.w || 0); }
+    });
+
+    const months = Object.keys(monthMap).sort().reverse();
+    if (months.length === 0) {
+      container.innerHTML = '<div style="color:#aaa; text-align:center; padding:16px;">データがありません</div>';
+      return;
+    }
+
+    // 棒グラフの最大値を決定
+    const maxTotal = Math.max(...months.map(mo => monthMap[mo].h + monthMap[mo].w), 1);
+
+    let html = '';
+    months.forEach(mo => {
+      const m = monthMap[mo];
+      const total = m.h + m.w;
+      const totalShared = m.sharedH + m.sharedW;
+      const diffShared = (totalShared * wifeRatio) - m.sharedW;
+      const diffTransfer = m.transH - m.transW;
+      const final = diffShared + diffTransfer;
+      const barW = Math.max((total / maxTotal) * 100, 2);
+      const label = window.formatMonthStr(mo);
+
+      let settlement = '';
+      if (final > 0) settlement = `<span style="color:#d32f2f;">妻→夫 ${format(final)}</span>`;
+      else if (final < 0) settlement = `<span style="color:#1976d2;">夫→妻 ${format(-final)}</span>`;
+      else settlement = '<span style="color:#4caf50;">±0</span>';
+
+      html += `<div style="margin-bottom:16px; cursor:pointer;" onclick="closeMonthlySummary(); window.currentMonthStr='${mo}'; window.setMonthDisplay(); render(); updateUIOnly();">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
+          <span style="font-weight:bold; font-size:0.95em;">${label}</span>
+          <span style="font-size:0.85em; color:#666;">${m.count}件</span>
+        </div>
+        <div style="display:flex; gap:4px; align-items:center;">
+          <div style="height:22px; border-radius:4px; display:flex; overflow:hidden; width:${barW}%;">
+            <div style="background:#42a5f5; height:100; width:${total > 0 ? (m.h / total * 100) : 50}%;" title="夫 ${format(m.h)}"></div>
+            <div style="background:#ef9a9a; height:100%; width:${total > 0 ? (m.w / total * 100) : 50}%;" title="妻 ${format(m.w)}"></div>
+          </div>
+          <span style="font-size:0.85em; white-space:nowrap;">${format(total)}</span>
+        </div>
+        <div style="font-size:0.8em; margin-top:2px;">精算: ${settlement}</div>
+      </div>`;
+    });
+
+    container.innerHTML = html;
+  }
+
   window.exportJSON = () => {
     // 現在の精算額を計算
     const r = ratioSlider.value / 100;
@@ -803,6 +877,7 @@ input:focus, select:focus {
         <button onclick="exportJSON()"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">save</span> 保存</button>
         <button onclick="exportImage()"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">photo_camera</span> スクリーンショット</button>
         <button onclick="openKakeiHistoryModal()" style="padding:8px; background:#eee; border:none; border-radius:4px; font-size:0.9em; cursor:pointer;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">history</span> 履歴</button>
+        <button onclick="openMonthlySummary()" style="padding:8px; background:#eee; border:none; border-radius:4px; font-size:0.9em; cursor:pointer;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">bar_chart</span> 月別集計</button>
       </div>
     </div>
   </div>
@@ -825,6 +900,15 @@ input:focus, select:focus {
     <p class="modal-title"><span class="material-icons" style="vertical-align:middle;">history</span> 入力履歴（内容名）</p>
     <button onclick="clearAllKakeiHidden()" style="width:100%; padding:9px; background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7; border-radius:6px; font-size:0.9em; font-weight:bold; cursor:pointer; margin-bottom:12px;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">visibility</span> 非表示を全てリセット</button>
     <div id="kakei-history-modal-list" style="max-height:350px; overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- ===== 月別集計モーダル ===== -->
+<div id="monthly-summary-modal" class="modal-overlay">
+  <div class="modal-box" style="max-width:500px;">
+    <button class="modal-close-btn" onclick="closeMonthlySummary()"><span class="material-icons">close</span></button>
+    <p class="modal-title"><span class="material-icons" style="vertical-align:middle;">bar_chart</span> 月別集計</p>
+    <div id="monthly-summary-content"></div>
   </div>
 </div>
 

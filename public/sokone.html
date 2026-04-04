@@ -101,6 +101,9 @@ input:focus, select:focus {
 .undo-snackbar button { background:none; border:none; color:#82b1ff; font-weight:bold; cursor:pointer; font-size:0.95em; padding:4px 8px; white-space:nowrap; }
 
 </style>
+<script>
+(function(){var t=localStorage.getItem('familyapp-theme');if(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches)t='dark';if(t==='dark')document.documentElement.setAttribute('data-theme','dark');})();
+</script>
 </head>
 <body style="display: none;">
 <div id="loading-overlay" style="position:fixed;inset:0;background:#f5f6f8;display:flex;align-items:center;justify-content:center;z-index:9999;">
@@ -535,6 +538,7 @@ input:focus, select:focus {
           <div class="expand-icon" onclick="toggleGroup('${gnEsc}')">${isExpanded ? '▲' : '▼'}</div>
         </div>
         <div class="group-content" style="display: ${isExpanded ? 'block' : 'none'};">
+          <div style="text-align:right; margin-bottom:4px;"><button onclick="openPriceChart('${gnEsc}')" style="background:none; border:none; cursor:pointer; color:#1976d2; font-size:0.85em; padding:4px 8px;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">show_chart</span> 価格推移</button></div>
           <div class="items-list"></div>
           <button class="btn-add-small" onclick="addItemToGroup('${gnEsc}')"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">add</span> サブ価格情報を追加</button>
         </div>
@@ -1289,6 +1293,105 @@ input:focus, select:focus {
     updateDatalists();
     renderSokoneHistoryModal();
   };
+
+  // ===== 価格推移グラフ =====
+  window.openPriceChart = function(groupName) {
+    document.getElementById('price-chart-title').textContent = groupName + ' 価格推移';
+    document.getElementById('price-chart-modal').classList.add('open');
+    renderPriceChart(groupName);
+  };
+  window.closePriceChart = function() {
+    document.getElementById('price-chart-modal').classList.remove('open');
+  };
+  function renderPriceChart(groupName) {
+    const container = document.getElementById('price-chart-content');
+    const groupItems = items.filter(it => it.itemName === groupName && it.price > 0);
+    if (groupItems.length === 0) {
+      container.innerHTML = '<div style="color:#aaa; text-align:center; padding:16px;">価格データがありません</div>';
+      return;
+    }
+
+    // 単価計算してデータポイント作成
+    const points = groupItems.map(it => {
+      const price = parseFloat(it.price) || 0;
+      const isTaxInc = it.isTaxIncluded !== false;
+      const qty = parseFloat(it.quantity) || 1;
+      const calcPrice = isTaxInc ? price : price * (1 + (it.taxRate || 8) / 100);
+      const unitPrice = calcPrice / qty;
+      let dateVal = it.recordedDate || '';
+      if (!dateVal && it.updatedAt && it.updatedAt.toDate) {
+        const d = it.updatedAt.toDate();
+        dateVal = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      }
+      return { date: dateVal, unitPrice, store: it.storeName || '不明', price };
+    }).filter(p => p.date).sort((a, b) => a.date.localeCompare(b.date));
+
+    if (points.length === 0) {
+      container.innerHTML = '<div style="color:#aaa; text-align:center; padding:16px;">日付付きデータがありません</div>';
+      return;
+    }
+
+    // 店舗ごとに色分け
+    const stores = [...new Set(points.map(p => p.store))];
+    const colors = ['#1976d2', '#d32f2f', '#4caf50', '#ff9800', '#9c27b0', '#00bcd4', '#795548', '#607d8b'];
+
+    // SVGチャート生成
+    const W = 440, H = 200, PAD_L = 50, PAD_R = 15, PAD_T = 15, PAD_B = 40;
+    const chartW = W - PAD_L - PAD_R, chartH = H - PAD_T - PAD_B;
+    const minP = Math.min(...points.map(p => p.unitPrice)) * 0.9;
+    const maxP = Math.max(...points.map(p => p.unitPrice)) * 1.1 || 1;
+    const allDates = [...new Set(points.map(p => p.date))].sort();
+    const dateToX = d => PAD_L + (allDates.indexOf(d) / Math.max(allDates.length - 1, 1)) * chartW;
+    const priceToY = p => PAD_T + chartH - ((p - minP) / (maxP - minP)) * chartH;
+
+    // Y軸目盛り（3段階）
+    let yLabels = '';
+    for (let i = 0; i <= 2; i++) {
+      const val = minP + (maxP - minP) * (i / 2);
+      const y = priceToY(val);
+      yLabels += `<line x1="${PAD_L}" y1="${y}" x2="${W - PAD_R}" y2="${y}" stroke="#e0e0e0" stroke-dasharray="3"/>`;
+      yLabels += `<text x="${PAD_L - 5}" y="${y + 4}" text-anchor="end" fill="#888" font-size="10">¥${Math.round(val)}</text>`;
+    }
+
+    // X軸（日付ラベル、最大5個）
+    let xLabels = '';
+    const step = Math.max(1, Math.floor(allDates.length / 5));
+    for (let i = 0; i < allDates.length; i += step) {
+      const x = dateToX(allDates[i]);
+      const label = allDates[i].slice(5); // MM-DD
+      xLabels += `<text x="${x}" y="${H - 5}" text-anchor="middle" fill="#888" font-size="10">${label}</text>`;
+    }
+
+    // 店舗ごとのライン＋ドット
+    let lines = '';
+    let dots = '';
+    stores.forEach((store, si) => {
+      const color = colors[si % colors.length];
+      const storePoints = points.filter(p => p.store === store).sort((a, b) => a.date.localeCompare(b.date));
+      if (storePoints.length > 1) {
+        const path = storePoints.map((p, i) => `${i === 0 ? 'M' : 'L'}${dateToX(p.date)},${priceToY(p.unitPrice)}`).join(' ');
+        lines += `<path d="${path}" fill="none" stroke="${color}" stroke-width="2" opacity="0.7"/>`;
+      }
+      storePoints.forEach(p => {
+        dots += `<circle cx="${dateToX(p.date)}" cy="${priceToY(p.unitPrice)}" r="4" fill="${color}" stroke="#fff" stroke-width="1.5"><title>${p.store} ${p.date}\n¥${Math.round(p.unitPrice)}</title></circle>`;
+      });
+    });
+
+    // 凡例
+    let legend = stores.map((store, si) => {
+      const color = colors[si % colors.length];
+      return `<span style="display:inline-flex; align-items:center; gap:3px; margin-right:10px; font-size:0.8em;"><span style="width:10px; height:10px; border-radius:50%; background:${color}; display:inline-block;"></span>${escHtml(store)}</span>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div style="overflow-x:auto;">
+        <svg viewBox="0 0 ${W} ${H}" style="width:100%; max-width:${W}px; height:auto;">
+          ${yLabels}${xLabels}${lines}${dots}
+        </svg>
+      </div>
+      <div style="margin-top:8px; text-align:center;">${legend}</div>
+    `;
+  }
 </script>
 
 <!-- ===== 入力履歴管理モーダル ===== -->
@@ -1298,6 +1401,15 @@ input:focus, select:focus {
     <p class="modal-title"><span class="material-icons" style="vertical-align:middle;">history</span> 入力履歴</p>
     <button onclick="clearAllSokoneHidden()" style="width:100%; padding:9px; background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7; border-radius:6px; font-size:0.9em; font-weight:bold; cursor:pointer; margin-bottom:12px;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">visibility</span> 非表示を全てリセット</button>
     <div id="sokone-history-modal-list" style="max-height:350px; overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- ===== 価格推移グラフモーダル ===== -->
+<div id="price-chart-modal" class="modal-overlay">
+  <div class="modal-box" style="max-width:500px;">
+    <button class="modal-close-btn" onclick="closePriceChart()"><span class="material-icons">close</span></button>
+    <p class="modal-title"><span class="material-icons" style="vertical-align:middle;">show_chart</span> <span id="price-chart-title">価格推移</span></p>
+    <div id="price-chart-content"></div>
   </div>
 </div>
 

@@ -18,7 +18,16 @@ main{padding:14px;display:grid;gap:12px}
 .card:hover{transform:translateY(-2px)}
 .title{font-size:1.1em;margin-bottom:6px}
 .desc{font-size:.9em;color:#555}
+[data-theme="dark"] body{background:#121212;color:#e0e0e0}
+[data-theme="dark"] header{background:#1e1e1e;border-bottom-color:#333;box-shadow:0 2px 8px rgba(0,0,0,0.3)}
+[data-theme="dark"] .card{background:#1e1e1e;color:#e0e0e0;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+[data-theme="dark"] .desc{color:#999}
+[data-theme="dark"] #login-screen{color:#e0e0e0}
+[data-theme="dark"] #login-btn{background:#333;color:#e0e0e0;border:1px solid #555}
 </style>
+<script>
+(function(){var t=localStorage.getItem('familyapp-theme');if(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches)t='dark';if(t==='dark')document.documentElement.setAttribute('data-theme','dark');})();
+</script>
 </head>
 <body>
   <div id="login-screen" style="display: none; padding: 40px 20px; text-align: center;">

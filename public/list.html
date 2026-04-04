@@ -148,6 +148,9 @@ input { -webkit-appearance: none; appearance: none; }
 .undo-snackbar button { background:none; border:none; color:#82b1ff; font-weight:bold; cursor:pointer; font-size:0.95em; padding:4px 8px; white-space:nowrap; }
 
 </style>
+<script>
+(function(){var t=localStorage.getItem('familyapp-theme');if(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches)t='dark';if(t==='dark')document.documentElement.setAttribute('data-theme','dark');})();
+</script>
 </head>
 <body style="display: none;">
 <div id="loading-overlay" style="position:fixed;inset:0;background:#f5f6f8;display:flex;align-items:center;justify-content:center;z-index:9999;">
@@ -423,6 +426,46 @@ input { -webkit-appearance: none; appearance: none; }
       showUndoSnackbar(`履歴${savedItems.length}件を削除しました`, async () => {
         for (const s of savedItems) await setDoc(doc(db, 'shopping_history', s.id), s.data);
       });
+    };
+
+    // ===== 底値帳連携 =====
+    window.openSokoneRegisterModal = function(itemName) {
+      document.getElementById('sokone-reg-name').value = itemName;
+      document.getElementById('sokone-reg-store').value = '';
+      document.getElementById('sokone-reg-price').value = '';
+      document.getElementById('sokone-reg-qty').value = '1';
+      document.getElementById('sokone-register-modal').classList.add('open');
+      setTimeout(() => document.getElementById('sokone-reg-store').focus(), 100);
+    };
+    window.closeSokoneRegisterModal = function() {
+      document.getElementById('sokone-register-modal').classList.remove('open');
+    };
+    window.submitSokoneRegister = async function() {
+      const name = document.getElementById('sokone-reg-name').value.trim();
+      const store = document.getElementById('sokone-reg-store').value.trim();
+      const price = parseFloat(document.getElementById('sokone-reg-price').value) || 0;
+      const qty = parseFloat(document.getElementById('sokone-reg-qty').value) || 1;
+      if (!name || price <= 0) { alert('商品名と価格を入力してください'); return; }
+      const today = new Date(new Date().getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      try {
+        await addDoc(collection(db, 'sokone_items'), {
+          itemName: name,
+          storeName: store,
+          price: price,
+          quantity: qty,
+          unit: '',
+          isTaxIncluded: true,
+          taxRate: 8,
+          isDiscount: false,
+          recordedDate: today,
+          updatedAt: serverTimestamp()
+        });
+        closeSokoneRegisterModal();
+        showUndoSnackbar(`「${name}」を底値帳に記録しました`, () => {});
+      } catch (err) {
+        console.error('sokone register failed', err);
+        alert('登録に失敗しました');
+      }
     };
 
     // list_meta 取得（リスト管理）
@@ -908,6 +951,14 @@ input { -webkit-appearance: none; appearance: none; }
         row.appendChild(handle);
         row.appendChild(checkIcon);
         row.appendChild(nameSpanContainer);
+        if (item.isDone && item.name) {
+          const sokoneBtn = document.createElement('button');
+          sokoneBtn.innerHTML = '<span class="material-icons" style="font-size:1em;vertical-align:middle;">local_offer</span>';
+          sokoneBtn.title = '底値帳に記録';
+          sokoneBtn.style.cssText = 'background:none; border:none; cursor:pointer; color:#4caf50; padding:4px 6px; font-size:0.85em;';
+          sokoneBtn.onclick = (e) => { e.stopPropagation(); openSokoneRegisterModal(item.name); };
+          row.appendChild(sokoneBtn);
+        }
         row.appendChild(itemDelBtn);
         itemList.appendChild(row);
 
@@ -1946,6 +1997,33 @@ input { -webkit-appearance: none; appearance: none; }
     <p class="modal-title"><span class="material-icons" style="vertical-align:middle;">history</span> 入力履歴</p>
     <button onclick="clearAllHistory()" style="width:100%; padding:9px; background:#ffebee; color:#d32f2f; border:1px solid #ef9a9a; border-radius:6px; font-size:0.9em; font-weight:bold; cursor:pointer; margin-bottom:12px;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">delete</span> 履歴を全削除</button>
     <div id="history-modal-list" style="max-height:280px; overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- ===== 底値帳登録モーダル ===== -->
+<div id="sokone-register-modal" class="modal-overlay">
+  <div class="modal-box" style="max-width:360px;">
+    <button class="modal-close-btn" onclick="closeSokoneRegisterModal()"><span class="material-icons">close</span></button>
+    <p class="modal-title"><span class="material-icons" style="vertical-align:middle;">local_offer</span> 底値帳に記録</p>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:0.85em; color:#666; display:block; margin-bottom:4px;">商品名</label>
+      <input type="text" id="sokone-reg-name" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:16px; box-sizing:border-box;" readonly>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:0.85em; color:#666; display:block; margin-bottom:4px;">店舗名</label>
+      <input type="text" id="sokone-reg-store" placeholder="例: スーパーA" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:16px; box-sizing:border-box;">
+    </div>
+    <div style="display:flex; gap:8px; margin-bottom:12px;">
+      <div style="flex:1;">
+        <label style="font-size:0.85em; color:#666; display:block; margin-bottom:4px;">価格（税込）</label>
+        <input type="number" id="sokone-reg-price" placeholder="0" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:16px; box-sizing:border-box;">
+      </div>
+      <div style="flex:1;">
+        <label style="font-size:0.85em; color:#666; display:block; margin-bottom:4px;">数量</label>
+        <input type="number" id="sokone-reg-qty" value="1" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:16px; box-sizing:border-box;">
+      </div>
+    </div>
+    <button onclick="submitSokoneRegister()" style="width:100%; padding:12px; background:#4caf50; color:#fff; border:none; border-radius:24px; font-size:1.05em; font-weight:bold; cursor:pointer;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">check</span> 登録する</button>
   </div>
 </div>
 
