@@ -63,6 +63,9 @@ main { padding: 16px; }
 .history-del-btn:active { color: #d32f2f; }
 .del-btn { color:#d32f2f; background:none; padding:6px 12px; font-size:0.9em; border-radius:6px; font-weight:bold; border:none; transition:all 0.2s; }
 .del-btn:active { color:#b71c1c; }
+.btn-add-list { background:#4caf50; color:#fff; font-weight:bold; padding:12px 24px; border-radius:24px; font-size:1.1em; box-shadow:0 2px 4px rgba(0,0,0,0.2); width:100%; box-sizing:border-box; border:none; cursor:pointer; }
+.btn-add-list:active { background:#388e3c; }
+@media(hover: hover) { .btn-add-list:hover { background:#43a047; } }
 /* カテゴリソートセレクト */
 .cat-sort-select { padding: 8px; border-radius: 8px; border: 1px solid #cfd8dc; background: #fff; font-weight: bold; color: #2e7d32; cursor: pointer; outline: none; }
 
@@ -170,7 +173,7 @@ input { -webkit-appearance: none; appearance: none; }
         <option value="recent">更新順(自動)</option>
       </select>
     </div>
-    <button id="add-category-top-btn" style="width:100%; padding:9px; background:#e8f5e9; color:#2e7d32; border:2px dashed #a5d6a7; border-radius:8px; font-size:0.9em; font-weight:bold; cursor:pointer;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">add</span> カテゴリを追加</button>
+    <button id="add-category-top-btn" class="btn-add-list"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">add</span> カテゴリを追加</button>
     <div style="display:flex; gap:6px; margin-top:8px;">
       <button onclick="importCurrentList()" style="padding:8px; background:#eee; border:none; border-radius:4px; font-size:0.9em; cursor:pointer;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">folder_open</span> 読込</button>
       <button onclick="exportCurrentList()" style="padding:8px; background:#eee; border:none; border-radius:4px; font-size:0.9em; cursor:pointer;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">save</span> 保存</button>
