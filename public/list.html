@@ -1735,7 +1735,7 @@ input { -webkit-appearance: none; appearance: none; }
       nameSpan.style.cssText = 'flex:1; font-weight:bold; font-size:1em; padding:4px 2px; display:flex; align-items:center; gap:4px;';
       nameSpan.appendChild(createIconEl(list.emoji));
       nameSpan.appendChild(document.createTextNode(' ' + list.name));
-      if (!list.locked) {
+      if (!isShoppingList(list.id) && !list.locked) {
         nameSpan.style.cursor = 'pointer';
         nameSpan.style.borderBottom = '1px dashed #ccc';
         nameSpan.title = 'タップして編集';
@@ -1745,20 +1745,22 @@ input { -webkit-appearance: none; appearance: none; }
       }
       row.appendChild(nameSpan);
 
-      // ロック/アンロックボタン
-      const lockBtn = document.createElement('button');
-      lockBtn.style.cssText = 'background:none; border:none; cursor:pointer; padding:4px 6px;';
-      if (list.locked) {
-        lockBtn.innerHTML = '<span class="material-icons" style="font-size:1.1em; color:#f57c00;">lock</span>';
-        lockBtn.title = 'ロック中（タップで解除）';
-      } else {
-        lockBtn.innerHTML = '<span class="material-icons" style="font-size:1.1em; color:#bbb;">lock_open</span>';
-        lockBtn.title = 'タップでロック';
+      // ロック/アンロックボタン（買い物リストは不要）
+      if (!isShoppingList(list.id)) {
+        const lockBtn = document.createElement('button');
+        lockBtn.style.cssText = 'background:none; border:none; cursor:pointer; padding:4px 6px;';
+        if (list.locked) {
+          lockBtn.innerHTML = '<span class="material-icons" style="font-size:1.1em; color:#f57c00;">lock</span>';
+          lockBtn.title = 'ロック中（タップで解除）';
+        } else {
+          lockBtn.innerHTML = '<span class="material-icons" style="font-size:1.1em; color:#bbb;">lock_open</span>';
+          lockBtn.title = 'タップでロック';
+        }
+        lockBtn.onclick = async () => {
+          try { await updateDoc(doc(db, 'list_meta', list.id), { locked: !list.locked }); } catch (e) { console.error(e); }
+        };
+        row.appendChild(lockBtn);
       }
-      lockBtn.onclick = async () => {
-        try { await updateDoc(doc(db, 'list_meta', list.id), { locked: !list.locked }); } catch (e) { console.error(e); }
-      };
-      row.appendChild(lockBtn);
 
       // 削除ボタン（買い物リストは削除不可）
       if (!isShoppingList(list.id)) {
