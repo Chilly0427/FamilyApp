@@ -173,7 +173,6 @@ input { -webkit-appearance: none; appearance: none; }
         <option value="recent">更新順(自動)</option>
       </select>
     </div>
-    <button id="add-category-top-btn" class="btn-add-list"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">add</span> カテゴリを追加</button>
     <div style="display:flex; gap:6px; margin-top:8px;">
       <button onclick="importCurrentList()" style="padding:8px; background:#eee; border:none; border-radius:4px; font-size:0.9em; cursor:pointer;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">folder_open</span> 読込</button>
       <button onclick="exportCurrentList()" style="padding:8px; background:#eee; border:none; border-radius:4px; font-size:0.9em; cursor:pointer;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">save</span> 保存</button>
@@ -187,6 +186,9 @@ input { -webkit-appearance: none; appearance: none; }
   <!-- 入力履歴の datalist（スクリプトが参照するため必須） -->
   <datalist id="item-history"></datalist>
 
+  <div style="margin:20px 0 8px;">
+    <button id="add-category-top-btn" class="btn-add-list"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">add</span> カテゴリを追加</button>
+  </div>
   <button id="clear-done-btn" class="btn-danger" style="display: none; margin-bottom: 16px;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">delete_sweep</span> 完了済みを一括削除</button>
 
 </main>
