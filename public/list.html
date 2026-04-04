@@ -66,6 +66,9 @@ main { padding: 16px; }
 .btn-add-list { background:#4caf50; color:#fff; font-weight:bold; padding:12px 24px; border-radius:24px; font-size:1.1em; box-shadow:0 2px 4px rgba(0,0,0,0.2); width:100%; box-sizing:border-box; border:none; cursor:pointer; }
 .btn-add-list:active { background:#388e3c; }
 @media(hover: hover) { .btn-add-list:hover { background:#43a047; } }
+.btn-add { background:#4caf50; color:#fff; font-weight:bold; padding:12px 24px; border-radius:24px; font-size:1.1em; box-shadow:0 2px 4px rgba(0,0,0,0.2); width:100%; box-sizing:border-box; border:none; cursor:pointer; }
+.btn-add:active { background:#388e3c; }
+@media(hover: hover) { .btn-add:hover { background:#43a047; } }
 /* カテゴリソートセレクト */
 .cat-sort-select { padding: 8px; border-radius: 8px; border: 1px solid #cfd8dc; background: #fff; font-weight: bold; color: #2e7d32; cursor: pointer; outline: none; }
 
@@ -228,6 +231,7 @@ input { -webkit-appearance: none; appearance: none; }
   // マルチリスト管理
   let allLists = [];
   let currentListId = 'default';
+  function isShoppingList(listId) { const def = allLists.find(l => l.isDefault); if (def) return listId === def.id; return allLists.length > 0 && listId === allLists[0].id; }
   let currentUserEmail = '';
 
   // --- Undo スナックバー ---
@@ -539,7 +543,7 @@ input { -webkit-appearance: none; appearance: none; }
       // リストが0件の場合は自動でデフォルトリストを作成
       if (!snapshot.metadata.fromCache && allLists.length === 0) {
         addDoc(collection(db, 'list_meta'), {
-          name: '買い物', emoji: 'shopping_cart', shared: true, ownerId: currentUserEmail, order: 0, createdAt: serverTimestamp()
+          name: '買い物', emoji: 'shopping_cart', shared: true, ownerId: currentUserEmail, order: 0, isDefault: true, createdAt: serverTimestamp()
         }).then(ref => { currentListId = ref.id; }).catch(e => console.error('create default list failed', e));
       }
 
@@ -1011,11 +1015,11 @@ input { -webkit-appearance: none; appearance: none; }
         row.appendChild(handle);
         row.appendChild(checkIcon);
         row.appendChild(nameSpanContainer);
-        if (item.isDone && item.name) {
+        if (item.isDone && item.name && isShoppingList(currentListId)) {
           const sokoneBtn = document.createElement('button');
-          sokoneBtn.innerHTML = '<span class="material-icons" style="font-size:1em;vertical-align:middle;">local_offer</span>';
+          sokoneBtn.innerHTML = '<span class="material-icons" style="font-size:1.2em;vertical-align:middle;">local_offer</span>';
           sokoneBtn.title = '底値帳に記録';
-          sokoneBtn.style.cssText = 'background:none; border:none; cursor:pointer; color:#4caf50; padding:4px 6px; font-size:0.85em;';
+          sokoneBtn.style.cssText = 'background:none; border:none; cursor:pointer; color:#4caf50; padding:6px 8px; font-size:1em;';
           sokoneBtn.onclick = (e) => { e.stopPropagation(); openSokoneRegisterModal(item.name); };
           row.appendChild(sokoneBtn);
         }
@@ -1756,6 +1760,16 @@ input { -webkit-appearance: none; appearance: none; }
       };
       row.appendChild(lockBtn);
 
+      // 削除ボタン（買い物リストは削除不可）
+      if (!isShoppingList(list.id)) {
+        const delBtn = document.createElement('button');
+        delBtn.style.cssText = 'background:none; border:none; cursor:pointer; padding:4px 6px;';
+        delBtn.innerHTML = '<span class="material-icons" style="font-size:1.1em; color:#e57373;">delete</span>';
+        delBtn.title = 'リストを削除';
+        delBtn.onclick = () => openDeleteListModal(list);
+        row.appendChild(delBtn);
+      }
+
       container.appendChild(row);
     });
 
@@ -1853,7 +1867,7 @@ input { -webkit-appearance: none; appearance: none; }
     document.getElementById('emoji-search-input').value = '';
     document.getElementById('list-modal-title').innerHTML = '<span class="material-icons" style="vertical-align:middle;">edit</span> リストを編集';
     document.getElementById('list-modal-submit-btn').textContent = '保存する';
-    document.getElementById('list-modal-delete-btn').style.display = '';
+    document.getElementById('list-modal-delete-btn').style.display = 'none';
     document.getElementById('list-create-modal').classList.add('open');
     setTimeout(() => document.getElementById('new-list-name').focus(), 100);
   }
@@ -1977,10 +1991,26 @@ input { -webkit-appearance: none; appearance: none; }
         try {
           const data = JSON.parse(ev.target.result);
           const items = Array.isArray(data) ? data : (data.items || []);
-          const batch = writeBatch(db);
           // カテゴリマップ (name→id) - 現在のリスト
           const catMap = {};
           shoppingCategories.filter(c => (c.listId||'default')===currentListId).forEach(c => { catMap[c.name] = c.id; });
+          // JSONにcategoriesがあれば存在しないカテゴリを先に作成
+          const importCats = Array.isArray(data.categories) ? data.categories : [];
+          if (importCats.length > 0) {
+            const existingOrders = shoppingCategories.filter(c => (c.listId||'default')===currentListId).map(c => c.order || 0);
+            let maxOrder = existingOrders.length > 0 ? Math.max(...existingOrders) : -1;
+            const catBatch = writeBatch(db);
+            let catAdded = 0;
+            for (const cat of importCats) {
+              if (!cat.name || catMap[cat.name]) continue;
+              const newRef = doc(collection(db, 'shopping_categories'));
+              catBatch.set(newRef, { name: cat.name, order: ++maxOrder, listId: currentListId });
+              catMap[cat.name] = newRef.id;
+              catAdded++;
+            }
+            if (catAdded > 0) await catBatch.commit();
+          }
+          const batch = writeBatch(db);
           let added = 0;
           for (const item of items) {
             if (!item.name) continue;
@@ -1991,8 +2021,8 @@ input { -webkit-appearance: none; appearance: none; }
             added++;
           }
           await batch.commit();
-          alert(`${added}件インポートしました`);
-        } catch (err) { console.error(err); alert('インポートに失敗しました: ' + err.message); }
+          showSnackbar(`${added}件インポートしました`);
+        } catch (err) { console.error(err); showSnackbar('インポート失敗: ' + err.message); }
       };
       reader.readAsText(file);
     };
