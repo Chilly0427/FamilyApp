@@ -539,13 +539,15 @@ input:focus, select:focus {
 
       // 行全体からフォーカスが外れた時、全フィールドが空なら自動削除
       div.addEventListener('focusout', (e) => {
+        // 同じ行内の別要素にフォーカスが移る場合はスキップ
+        if (e.relatedTarget && div.contains(e.relatedTarget)) return;
         setTimeout(() => {
           if (div.contains(document.activeElement)) return;
           const currentItem = items.find(i => i.id === it.id);
           if (currentItem && !currentItem.name && !currentItem.h && !currentItem.w) {
             removeRow(it.id);
           }
-        }, 600);
+        }, 1200);
       });
 
       list.appendChild(div);

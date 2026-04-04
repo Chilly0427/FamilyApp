@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>設定 - FamilyApp</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="/favicon-16x16.png" sizes="16x16" type="image/png">
+<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+<meta name="theme-color" content="#1976d2">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+body { font-family:'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif; margin:0; background:#f5f6f8; color:#333; }
+header { position:sticky; top:0; background:#fff; padding:16px; border-bottom:1px solid #e0e0e0; box-shadow:0 2px 8px rgba(0,0,0,0.05); z-index:10; }
+main { padding:16px; padding-bottom:100px; max-width:480px; margin:0 auto; }
+.section { background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,0.08); margin-bottom:16px; overflow:hidden; }
+.section-title { font-size:0.8em; color:#888; font-weight:bold; padding:12px 16px 4px; text-transform:uppercase; letter-spacing:0.5px; }
+.setting-item { display:flex; align-items:center; padding:14px 16px; border-bottom:1px solid #f0f0f0; gap:12px; cursor:pointer; transition:background 0.15s; }
+.setting-item:last-child { border-bottom:none; }
+.setting-item:active { background:#f5f5f5; }
+.setting-item .icon { color:#666; font-size:22px; flex-shrink:0; }
+.setting-item .label { flex:1; font-size:0.95em; }
+.setting-item .sublabel { font-size:0.8em; color:#999; margin-top:2px; }
+.setting-item .value { color:#999; font-size:0.85em; }
+.setting-item .arrow { color:#ccc; font-size:18px; }
+.theme-options { display:flex; gap:0; margin:4px 16px 14px; }
+.theme-btn { flex:1; padding:10px; border:1px solid #cfd8dc; background:#fff; color:#78909c; font-weight:bold; cursor:pointer; transition:all 0.2s; font-size:0.9em; }
+.theme-btn:first-child { border-radius:8px 0 0 8px; border-right:none; }
+.theme-btn:nth-child(2) { border-radius:0; }
+.theme-btn:last-child { border-radius:0 8px 8px 0; border-left:none; }
+.theme-btn.active { background:#1976d2; color:#fff; border-color:#1976d2; }
+.logout-btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:14px; background:#fff; border:1px solid #ffcdd2; border-radius:12px; color:#d32f2f; font-size:1em; font-weight:bold; cursor:pointer; transition:all 0.15s; }
+.logout-btn:active { background:#ffebee; }
+.version-info { text-align:center; color:#bbb; font-size:0.8em; padding:24px 16px 8px; }
+.license-section { padding:0 16px 14px; }
+.license-item { font-size:0.85em; color:#666; padding:6px 0; display:flex; justify-content:space-between; border-bottom:1px solid #f5f5f5; }
+.license-item:last-child { border-bottom:none; }
+.license-item .lib-name { font-weight:bold; color:#333; }
+.license-item .lib-license { color:#999; }
+</style>
+<script>
+(function(){var t=localStorage.getItem('familyapp-theme');if(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches)t='dark';if(t==='dark')document.documentElement.setAttribute('data-theme','dark');})();
+</script>
+</head>
+<body style="display:none;">
+<div id="loading-overlay" style="position:fixed;inset:0;background:#fafafa;display:flex;align-items:center;justify-content:center;z-index:9999;">
+  <div style="text-align:center;color:#888;"><div style="font-size:2em;margin-bottom:8px;"><span class="material-icons" style="font-size:2rem;">settings</span></div>読み込み中...</div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+  import { firebaseConfig, ALLOWED_EMAILS } from "./firebase-config.js";
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  onAuthStateChanged(auth, (user) => {
+    if (user && ALLOWED_EMAILS.includes(user.email)) {
+      document.body.style.display = 'block';
+      const lo = document.getElementById('loading-overlay'); if(lo) lo.style.display='none';
+      document.getElementById('user-email').textContent = user.email;
+      initSettings();
+    } else {
+      if (user) {
+        signOut(auth).then(() => { window.location.href = "index.html"; });
+      } else {
+        window.location.href = "index.html";
+      }
+    }
+  });
+
+  function initSettings() {
+    // テーマ切替
+    updateThemeButtons();
+
+    window.setTheme = (theme) => {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('familyapp-theme', theme);
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', theme === 'dark' ? '#1e1e1e' : '#1976d2');
+      updateThemeButtons();
+    };
+
+    window.clearAppCache = () => {
+      const keys = Object.keys(localStorage);
+      let count = 0;
+      keys.forEach(k => {
+        if (k.startsWith('familyapp-') || k.startsWith('kakei_') || k === 'lastOpenedPage') {
+          // テーマ設定は残す
+          if (k === 'familyapp-theme') return;
+          localStorage.removeItem(k);
+          count++;
+        }
+      });
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          names.forEach(name => caches.delete(name));
+        });
+      }
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          registrations.forEach(r => r.unregister());
+        });
+      }
+      const msg = document.getElementById('cache-clear-msg');
+      msg.textContent = `クリア完了（${count}件のローカル設定 + キャッシュ）`;
+      msg.style.display = 'block';
+      setTimeout(() => { msg.style.display = 'none'; }, 3000);
+    };
+
+    window.doLogout = async () => {
+      localStorage.removeItem('lastOpenedPage');
+      await signOut(auth);
+      window.location.href = "index.html";
+    };
+  }
+
+  function updateThemeButtons() {
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.theme === current);
+    });
+  }
+</script>
+
+<header>
+  <div style="display:flex; justify-content:space-between; align-items:center; position:relative;">
+    <h1 style="margin:0; font-size:1.25em; color:#2c3e50;"><span class="material-icons" style="vertical-align:middle;">settings</span> 設定</h1>
+    <div id="global-nav-placeholder"></div>
+  </div>
+  <script type="module">
+    import { initGlobalNav } from './nav.js?v=000311';
+    initGlobalNav('settings');
+  </script>
+</header>
+
+<main>
+  <!-- ユーザー情報 -->
+  <div class="section-title">ユーザー</div>
+  <div class="section">
+    <div class="setting-item" style="cursor:default;">
+      <span class="material-icons icon">account_circle</span>
+      <div class="label">
+        ログインアカウント
+        <div class="sublabel" id="user-email">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 表示設定 -->
+  <div class="section-title">表示</div>
+  <div class="section">
+    <div class="setting-item" style="cursor:default; flex-direction:column; align-items:stretch;">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+        <span class="material-icons icon">palette</span>
+        <div class="label">テーマ</div>
+      </div>
+      <div class="theme-options" style="margin:0;">
+        <button class="theme-btn" data-theme="light" onclick="setTheme('light')"><span class="material-icons" style="font-size:16px; vertical-align:middle;">light_mode</span> ライト</button>
+        <button class="theme-btn" data-theme="auto" onclick="localStorage.removeItem('familyapp-theme'); location.reload();">自動</button>
+        <button class="theme-btn" data-theme="dark" onclick="setTheme('dark')"><span class="material-icons" style="font-size:16px; vertical-align:middle;">dark_mode</span> ダーク</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- データ管理 -->
+  <div class="section-title">データ管理</div>
+  <div class="section">
+    <div class="setting-item" onclick="clearAppCache()">
+      <span class="material-icons icon">cached</span>
+      <div class="label">
+        キャッシュクリア
+        <div class="sublabel">ローカル設定やキャッシュを削除します</div>
+        <div id="cache-clear-msg" style="display:none; color:#4caf50; font-size:0.85em; margin-top:4px; font-weight:bold;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ログアウト -->
+  <div style="margin:20px 0;">
+    <button class="logout-btn" onclick="doLogout()">
+      <span class="material-icons">logout</span> ログアウト
+    </button>
+  </div>
+
+  <!-- アプリ情報 -->
+  <div class="section-title">アプリ情報</div>
+  <div class="section">
+    <div class="setting-item" style="cursor:default;">
+      <span class="material-icons icon">info</span>
+      <div class="label">
+        バージョン
+        <div class="sublabel">v2.1.0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ライセンス -->
+  <div class="section-title">ライセンス</div>
+  <div class="section">
+    <div class="license-section">
+      <div class="license-item"><span class="lib-name">Firebase JS SDK 10.9.0</span><span class="lib-license">Apache-2.0</span></div>
+      <div class="license-item"><span class="lib-name">SortableJS 1.15.7</span><span class="lib-license">MIT</span></div>
+      <div class="license-item"><span class="lib-name">html2canvas 1.4.1</span><span class="lib-license">MIT</span></div>
+      <div class="license-item"><span class="lib-name">Tesseract.js 5</span><span class="lib-license">Apache-2.0</span></div>
+      <div class="license-item"><span class="lib-name">Material Icons</span><span class="lib-license">Apache-2.0</span></div>
+    </div>
+  </div>
+
+  <div class="version-info">FamilyApp &copy; 2024-2026</div>
+</main>
+
+</body>
+</html>

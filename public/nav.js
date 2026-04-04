@@ -179,6 +179,43 @@ export function initGlobalNav(activePageName) {
     [data-theme="dark"] [style*="border-bottom:1px solid #eee"] { border-bottom-color: #333 !important; }
     [data-theme="dark"] [style*="border:1px solid #e0e0e0"] { border-color: #333 !important; }
     [data-theme="dark"] [style*="color: red"] { color: #ff5252 !important; }
+
+    /* kakei: 結果・精算セクション */
+    [data-theme="dark"] [style*="background:#ffebee"], [data-theme="dark"] [style*="background: #ffebee"] { background: #3e1a1a !important; }
+    [data-theme="dark"] [style*="background:#e3f2fd"], [data-theme="dark"] [style*="background: #e3f2fd"] { background: #1a2744 !important; }
+    [data-theme="dark"] [style*="color:#1976d2"], [data-theme="dark"] [style*="color: #1976d2"] { color: #64b5f6 !important; }
+    [data-theme="dark"] [style*="color:#d32f2f"], [data-theme="dark"] [style*="color: #d32f2f"] { color: #ef5350 !important; }
+    [data-theme="dark"] [style*="background:#f0f0f0"], [data-theme="dark"] [style*="background: #f0f0f0"] { background: #2a2a2a !important; }
+    [data-theme="dark"] [style*="border-top:1px solid #eee"] { border-top-color: #333 !important; }
+    [data-theme="dark"] [style*="border:1px solid #ddd"] { border-color: #444 !important; }
+    [data-theme="dark"] [style*="border:1px solid #cfd8dc"] { border-color: #444 !important; }
+    [data-theme="dark"] [style*="border:2px dashed #1976d2"] { border-color: #42a5f5 !important; }
+    [data-theme="dark"] [style*="border:2px dashed #7b1fa2"] { border-color: #ab47bc !important; }
+    [data-theme="dark"] [style*="background:#f3e5f5"], [data-theme="dark"] [style*="background: #f3e5f5"] { background: #2a1a2e !important; }
+    [data-theme="dark"] [style*="color:#7b1fa2"], [data-theme="dark"] [style*="color: #7b1fa2"] { color: #ce93d8 !important; }
+    [data-theme="dark"] [style*="border:1px solid #ffcdd2"] { border-color: #c62828 !important; }
+
+    /* sokone: 単価ラベル */
+    [data-theme="dark"] [style*="background:#fff8e1"], [data-theme="dark"] [style*="background: #fff8e1"] { background: #3e2e1a !important; }
+    [data-theme="dark"] [style*="border:1px dashed #ffb74d"] { border-color: #e65100 !important; }
+    [data-theme="dark"] [style*="background:#f1f8e9"], [data-theme="dark"] [style*="background: #f1f8e9"],
+    [data-theme="dark"] [style*="background:#e8f5e9"], [data-theme="dark"] [style*="background: #e8f5e9"] { background: #1b3a1b !important; }
+
+    /* 設定ページ */
+    [data-theme="dark"] .section { background: #1e1e1e !important; box-shadow: 0 1px 4px rgba(0,0,0,0.3) !important; }
+    [data-theme="dark"] .section-title { color: #888 !important; }
+    [data-theme="dark"] .setting-item { border-bottom-color: #333 !important; }
+    [data-theme="dark"] .setting-item:active { background: #2a2a2a !important; }
+    [data-theme="dark"] .setting-item .icon { color: #aaa !important; }
+    [data-theme="dark"] .setting-item .sublabel { color: #888 !important; }
+    [data-theme="dark"] .theme-btn { background: #2a2a2a !important; color: #999 !important; border-color: #444 !important; }
+    [data-theme="dark"] .theme-btn.active { background: #1565c0 !important; color: #fff !important; border-color: #1565c0 !important; }
+    [data-theme="dark"] .logout-btn { background: #1e1e1e !important; border-color: #c62828 !important; color: #ef5350 !important; }
+    [data-theme="dark"] .logout-btn:active { background: #3e1a1a !important; }
+    [data-theme="dark"] .license-item { border-bottom-color: #333 !important; }
+    [data-theme="dark"] .license-item .lib-name { color: #e0e0e0 !important; }
+    [data-theme="dark"] .license-item .lib-license { color: #888 !important; }
+    [data-theme="dark"] .version-info { color: #555 !important; }
   `;
 
   const css = `
@@ -280,14 +317,10 @@ export function initGlobalNav(activePageName) {
         <span class="icon material-icons">checklist</span>
         <span>リスト</span>
       </a>
-      <div id="dark-mode-btn" class="dark-mode-toggle">
-        <span id="dark-mode-icon" class="icon material-icons">${document.documentElement.getAttribute('data-theme') === 'dark' ? 'light_mode' : 'dark_mode'}</span>
-        <span>表示</span>
-      </div>
-      <div id="nav-logout-btn" class="nav-item" style="cursor:pointer;">
-        <span class="icon material-icons" style="color:#d32f2f;">logout</span>
-        <span>ログアウト</span>
-      </div>
+      <a href="settings.html" class="nav-item ${activePageName === 'settings' ? 'active' : ''}">
+        <span class="icon material-icons">settings</span>
+        <span>設定</span>
+      </a>
     </div>
     <button class="back-to-top-btn" id="back-to-top-btn" title="トップへ戻る"><span class="material-icons" style="font-size:20px;">arrow_upward</span></button>
   `;
