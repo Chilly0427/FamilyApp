@@ -50,8 +50,8 @@ button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px;
 .btn-add-small { font-size:1em; width:100%; border:2px dashed #a5d6a7; background:#f1f8e9; color:#2e7d32; font-weight:bold; padding:12px; border-radius:10px; margin-top:4px; transition:all 0.2s ease;}
 .btn-add-small:active { background:#e8f5e9; transform:scale(0.98); }
 
-.del-btn{color:#d32f2f; background:#ffebee; padding:6px 12px; font-size:0.9em; border-radius:6px; font-weight:bold; transition:all 0.2s;}
-.del-btn:active{background:#ffcdd2;}
+.del-btn{color:#d32f2f; background:none; padding:6px 12px; font-size:0.9em; border-radius:6px; font-weight:bold; transition:all 0.2s;}
+.del-btn:active{color:#b71c1c;}
 
 .drag-handle{color:#b0bec5; cursor:grab; text-align:center; font-size:1.4em; padding-right:12px;}
 
@@ -625,7 +625,7 @@ input:focus, select:focus {
               <span style="font-weight:bold; color:#4caf50; font-size:1.0em; min-width:54px;">🆕 登録</span>
               <input type="date" value="${draft.recordedDate}" onchange="updateDraft('${gnEsc}', 'recordedDate', this.value)" style="max-width:160px;">
             </div>
-            <button class="del-btn" style="padding:8px; font-size:0.9em; background:#fff; border:1px solid #d32f2f;" onclick="cancelDraft('${gnEsc}')">キャンセル</button>
+            <button class="del-btn" style="padding:8px; font-size:0.9em; border:1px solid #d32f2f;" onclick="cancelDraft('${gnEsc}')">キャンセル</button>
           </div>
 
           <div class="row-middle" style="margin-top:8px;">
