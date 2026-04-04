@@ -43,8 +43,8 @@ input[type=number], input[type=text], input[type=date]{width:100%;padding:10px 1
 
 button{padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:16px; -webkit-tap-highlight-color: transparent;}
 
-.btn-add{background:#4caf50;color:#fff;font-weight:bold;padding:16px 28px;border-radius:30px;font-size:1.1em;box-shadow:0 4px 12px rgba(76,175,80,0.3); width:100%; transition:all 0.2s ease;}
-.btn-add:active {background:#388e3c; transform:scale(0.98); box-shadow:0 2px 6px rgba(76,175,80,0.3);}
+.btn-add{background:#4caf50;color:#fff;font-weight:bold;padding:12px 24px;border-radius:24px;font-size:1.1em;box-shadow:0 2px 4px rgba(0,0,0,0.2); width:100%; box-sizing:border-box; transition:all 0.2s ease;}
+.btn-add:active {background:#388e3c; transform:scale(0.98); box-shadow:0 2px 4px rgba(0,0,0,0.2);}
 @media(hover: hover) { .btn-add:hover { background:#43a047; } }
 
 .btn-add-small { font-size:1em; width:100%; border:2px dashed #a5d6a7; background:#f1f8e9; color:#2e7d32; font-weight:bold; padding:12px; border-radius:10px; margin-top:4px; transition:all 0.2s ease;}
@@ -137,7 +137,7 @@ input:focus, select:focus {
   <input type="text" id="sokone-search" placeholder="商品を検索..." style="width:100%;padding:10px 14px;border:1px solid #cfd8dc;border-radius:10px;box-sizing:border-box;font-size:1em;margin-bottom:12px;background:#fff;">
   <div id="list"></div>
   <div style="text-align:center;margin:30px 0">
-    <button class="btn-add" onclick="addRow()"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">add</span> 新しい商品グループ</button>
+    <button class="btn-add" onclick="addRow()"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">add</span> 商品グループを追加</button>
   </div>
 
   </main>
@@ -146,7 +146,7 @@ input:focus, select:focus {
 <datalist id="unit-list"></datalist>
 <datalist id="item-list"></datalist>
 
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <!-- OCR モーダル -->

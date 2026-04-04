@@ -92,7 +92,7 @@ export function initGlobalNav(activePageName) {
     <div class="bottom-nav-container">
       <a href="kakei.html" class="nav-item ${activePageName === 'kakei' ? 'active' : ''}">
         <span class="icon material-icons">account_balance_wallet</span>
-        <span>家計簿</span>
+        <span>家計精算</span>
       </a>
       <a href="sokone.html" class="nav-item ${activePageName === 'sokone' ? 'active' : ''}">
         <span class="icon material-icons">local_offer</span>

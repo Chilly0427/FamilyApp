@@ -14,7 +14,7 @@ const urlsToCache = [
   '/favicon-32x32.png',
   '/favicon-16x16.png',
   '/favicon.ico',
-  'https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js'
+  'https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js'
 ];
 
 self.addEventListener('install', (event) => {
