@@ -96,9 +96,10 @@ input:focus, select:focus {
 .modal-box { background:#fff; border-radius:16px; padding:24px 20px 20px; max-width:420px; width:90%; max-height:85vh; overflow-y:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.18); }
 .modal-close-btn { position:absolute; right:10px; top:10px; background:none; border:none; cursor:pointer; font-size:1.2em; color:#888; }
 .modal-title { font-size:1.1em; font-weight:bold; color:#2c3e50; margin:0 0 16px 0; }
-.undo-snackbar { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#323232; color:#fff; padding:12px 16px; border-radius:8px; display:flex; align-items:center; gap:12px; z-index:10000; box-shadow:0 4px 12px rgba(0,0,0,0.3); font-size:0.95em; transition:opacity 0.3s; opacity:0; pointer-events:none; max-width:90vw; }
+.undo-snackbar { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#323232; color:#fff; padding:10px 14px; border-radius:8px; display:flex; align-items:center; gap:8px; z-index:10000; box-shadow:0 4px 12px rgba(0,0,0,0.3); font-size:0.85em; transition:opacity 0.3s; opacity:0; pointer-events:none; max-width:92vw; white-space:nowrap; overflow:hidden; }
 .undo-snackbar.show { opacity:1; pointer-events:auto; }
-.undo-snackbar button { background:none; border:none; color:#82b1ff; font-weight:bold; cursor:pointer; font-size:0.95em; padding:4px 8px; white-space:nowrap; }
+.undo-snackbar #undo-snackbar-msg { overflow:hidden; text-overflow:ellipsis; }
+.undo-snackbar button { background:none; border:none; color:#82b1ff; font-weight:bold; cursor:pointer; font-size:0.95em; padding:4px 8px; white-space:nowrap; flex-shrink:0; }
 
 </style>
 <script>
@@ -718,7 +719,7 @@ input:focus, select:focus {
     for (const it of targets) {
       await deleteDoc(doc(db, "sokone_items", it.id));
     }
-    showUndoSnackbar(`「${groupName}」を削除しました`, async () => {
+    showUndoSnackbar(`「${groupName}」を削除`, async () => {
       for (const s of savedItems) await setDoc(doc(db, "sokone_items", s.id), s.data);
     });
   };
@@ -834,7 +835,7 @@ input:focus, select:focus {
     if (savedData) delete savedData.id;
     await deleteDoc(doc(db, "sokone_items", id));
     if (savedData) {
-      showUndoSnackbar('底値データを削除しました', async () => {
+      showUndoSnackbar('底値データを削除', async () => {
         await setDoc(doc(db, "sokone_items", id), savedData);
       });
     }
