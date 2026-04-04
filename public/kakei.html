@@ -50,6 +50,8 @@ input:focus, select:focus {
 }
 .history-del-btn { background: none; border: none; color: #bbb; font-size: 0.85em; cursor: pointer; padding: 2px 6px; }
 .history-del-btn:active { color: #d32f2f; }
+.toggle-btn { padding:10px; border:1px solid #cfd8dc; background:#fff; color:#78909c; font-weight:bold; transition:all 0.2s; border-radius:8px; cursor:pointer; }
+.toggle-btn.active { background:#1976d2; color:#fff; border-color:#1976d2; }
 .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; justify-content:center; align-items:center; }
 .modal-overlay.open { display:flex; }
 .modal-box { background:#fff; border-radius:16px; padding:24px 20px 20px; max-width:420px; width:90%; max-height:85vh; overflow-y:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.18); }
@@ -99,6 +101,36 @@ input:focus, select:focus {
   let items = [];
   const kakeiNamesSet = new Set();
   let hiddenKakeiNames = JSON.parse(localStorage.getItem('kakei_hidden_names') || '[]');
+
+  // --- カテゴリマッピング ---
+  const GENRE_MAP = [
+    { label: '食費', keywords: ['スーパー','食品','食料','弁当','外食','レストラン','ランチ','カフェ','コンビニ','惣菜','飲料','菓子','パン','米','肉','魚','野菜','果物','牛乳','卵','寿司','ピザ','マクドナルド','マック','吉野家','ファミレス','うどん','ラーメン','そば','食べ'] },
+    { label: '日用品', keywords: ['ドラッグストア','洗剤','ティッシュ','トイレットペーパー','シャンプー','石鹸','歯ブラシ','歯磨き','掃除','雑貨','ラップ','ゴミ袋','消耗品','電池','100均','ダイソー','セリア','キャンドゥ'] },
+    { label: '光熱費', keywords: ['電気','ガス','水道','光熱','NHK','電力','灯油'] },
+    { label: '通信費', keywords: ['携帯','スマホ','通信','wifi','wi-fi','ネット','プロバイダ','電話'] },
+    { label: '交通費', keywords: ['電車','バス','タクシー','ガソリン','定期','駐車','高速','ETC','車検'] },
+    { label: '医療費', keywords: ['病院','薬','歯医者','クリニック','診療','薬局','歯科','眼科','皮膚科','接骨','処方','医療','通院'] },
+    { label: '衣服・美容', keywords: ['服','ユニクロ','GU','しまむら','クリーニング','靴','美容院','散髪','化粧品','コスメ','美容'] },
+    { label: '教育・子育て', keywords: ['塾','学校','教材','習い事','学費','保育','幼稚園','文房具','おむつ','ミルク'] },
+    { label: '娯楽', keywords: ['映画','ゲーム','本','旅行','ホテル','遊園地','温泉','カラオケ','サブスク','Netflix','アマプラ','Spotify','ライブ','音楽','チケット','CD','DVD','コンサート','フェス','漫画','雑誌','アニメ','ディズニー','USJ'] },
+    { label: '住居', keywords: ['家賃','マンション','管理費','修繕','家具','家電','IKEA','ニトリ'] },
+  ];
+  const GENRE_LABELS = GENRE_MAP.map(g => g.label).concat(['その他']);
+  const GENRE_COLORS = {
+    '食費': '#ef5350', '日用品': '#ab47bc', '光熱費': '#42a5f5', '通信費': '#26c6da',
+    '交通費': '#66bb6a', '医療費': '#ff7043', '衣服・美容': '#ec407a', '教育・子育て': '#ffa726',
+    '娯楽': '#5c6bc0', '住居': '#8d6e63', 'その他': '#bdbdbd'
+  };
+  function detectGenre(name) {
+    if (!name) return 'その他';
+    const lower = name.toLowerCase();
+    for (const g of GENRE_MAP) {
+      for (const kw of g.keywords) {
+        if (lower.includes(kw.toLowerCase())) return g.label;
+      }
+    }
+    return 'その他';
+  }
 
   // --- Undo スナックバー ---
   let _undoTimer = null;
@@ -249,6 +281,7 @@ input:focus, select:focus {
         h: 0,
         w: 0,
         name: '',
+        genre: 'その他',
         order: maxOrder + 1,
         isSettled: false,
         createdAt: serverTimestamp()
@@ -462,7 +495,34 @@ input:focus, select:focus {
       name.disabled = it.isSettled;
       name.style.flex = "1";
       name.onchange = e => { 
-        updateItem(it.id, 'name', e.target.value); 
+        updateItem(it.id, 'name', e.target.value);
+        // ジャンル自動判定（その他の場合のみ自動変更）
+        const currentGenre = it.genre || 'その他';
+        if (currentGenre === 'その他' || !currentGenre) {
+          const detected = detectGenre(e.target.value);
+          if (detected !== 'その他') {
+            it.genre = detected;
+            updateItem(it.id, 'genre', detected);
+            const sel = document.getElementById('genre_' + it.id);
+            if (sel) sel.value = detected;
+          }
+        }
+      };
+
+      const genreSelect = document.createElement('select');
+      genreSelect.id = 'genre_' + it.id;
+      genreSelect.style.cssText = 'padding:6px 4px; border:1px solid #ccc; border-radius:4px; font-size:14px; min-width:80px; max-width:100px; background:#fff; color:' + (GENRE_COLORS[it.genre || 'その他'] || '#bdbdbd') + '; font-weight:bold;';
+      genreSelect.disabled = it.isSettled;
+      GENRE_LABELS.forEach(label => {
+        const opt = document.createElement('option');
+        opt.value = label;
+        opt.textContent = label;
+        if (label === (it.genre || 'その他')) opt.selected = true;
+        genreSelect.appendChild(opt);
+      });
+      genreSelect.onchange = e => {
+        updateItem(it.id, 'genre', e.target.value);
+        genreSelect.style.color = GENRE_COLORS[e.target.value] || '#bdbdbd';
       };
 
       const del = document.createElement('button');
@@ -474,7 +534,7 @@ input:focus, select:focus {
       
       const secondRow = document.createElement('div');
       secondRow.className = 'row-second';
-      secondRow.append(dEl, name, del);
+      secondRow.append(dEl, name, genreSelect, del);
       div.appendChild(secondRow);
 
       // 行全体からフォーカスが外れた時、全フィールドが空なら自動削除
@@ -720,6 +780,71 @@ input:focus, select:focus {
     container.innerHTML = html;
   }
 
+  // ===== タブ切替 =====
+  window.switchSummaryTab = function(tab) {
+    document.getElementById('summary-tab-monthly').classList.toggle('active', tab === 'monthly');
+    document.getElementById('summary-tab-genre').classList.toggle('active', tab === 'genre');
+    document.getElementById('monthly-summary-content').style.display = tab === 'monthly' ? '' : 'none';
+    document.getElementById('genre-summary-content').style.display = tab === 'genre' ? '' : 'none';
+    if (tab === 'genre') renderGenreSummary();
+  };
+
+  // ===== カテゴリ別集計 =====
+  function renderGenreSummary() {
+    const container = document.getElementById('genre-summary-content');
+    // 全アイテムをジャンル別に集計
+    const genreMap = {};
+    GENRE_LABELS.forEach(g => { genreMap[g] = 0; });
+    items.forEach(it => {
+      const g = it.genre || detectGenre(it.name) || 'その他';
+      genreMap[g] = (genreMap[g] || 0) + (it.h || 0) + (it.w || 0);
+    });
+    // 0円のカテゴリを除外
+    const activeGenres = GENRE_LABELS.filter(g => genreMap[g] > 0);
+    const total = activeGenres.reduce((s, g) => s + genreMap[g], 0);
+    if (total === 0) {
+      container.innerHTML = '<div style="color:#aaa; text-align:center; padding:16px;">データがありません</div>';
+      return;
+    }
+
+    // SVG パイチャート
+    const size = 200, cx = 100, cy = 100, r = 80;
+    let startAngle = -Math.PI / 2;
+    let paths = '';
+    activeGenres.forEach(g => {
+      const ratio = genreMap[g] / total;
+      const endAngle = startAngle + ratio * 2 * Math.PI;
+      const largeArc = ratio > 0.5 ? 1 : 0;
+      const x1 = cx + r * Math.cos(startAngle), y1 = cy + r * Math.sin(startAngle);
+      const x2 = cx + r * Math.cos(endAngle), y2 = cy + r * Math.sin(endAngle);
+      if (ratio > 0.001) {
+        if (ratio >= 0.9999) {
+          paths += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${GENRE_COLORS[g]}" />`;
+        } else {
+          paths += `<path d="M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${largeArc} 1 ${x2},${y2} Z" fill="${GENRE_COLORS[g]}"><title>${g}: ${format(genreMap[g])} (${Math.round(ratio * 100)}%)</title></path>`;
+        }
+      }
+      startAngle = endAngle;
+    });
+
+    let legendHtml = '';
+    activeGenres.sort((a, b) => genreMap[b] - genreMap[a]).forEach(g => {
+      const pct = Math.round(genreMap[g] / total * 100);
+      legendHtml += `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #f0f0f0;">
+        <div style="display:flex; align-items:center; gap:8px;"><span style="display:inline-block; width:14px; height:14px; border-radius:3px; background:${GENRE_COLORS[g]};"></span><span style="font-size:0.9em;">${g}</span></div>
+        <div style="font-size:0.9em; font-weight:bold;">${format(genreMap[g])} <span style="color:#999; font-weight:normal;">(${pct}%)</span></div>
+      </div>`;
+    });
+
+    container.innerHTML = `
+      <div style="text-align:center; margin-bottom:16px;">
+        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${paths}</svg>
+        <div style="font-size:0.9em; color:#666; margin-top:4px;">合計: ${format(total)}</div>
+      </div>
+      <div>${legendHtml}</div>
+    `;
+  }
+
   window.exportJSON = () => {
     // 現在の精算額を計算
     const r = ratioSlider.value / 100;
@@ -837,6 +962,196 @@ input:focus, select:focus {
     };
     reader.readAsText(f);
   };
+
+  // ===== レシートOCR =====
+  let _kakeiOcrPayer = 'h';
+
+  window.openKakeiOcrModal = () => {
+    const modal = document.getElementById('kakei-ocr-modal');
+    modal.style.display = 'flex';
+    document.getElementById('kakei-ocr-upload').style.display = 'block';
+    document.getElementById('kakei-ocr-preview').style.display = 'none';
+    document.getElementById('kakei-ocr-progress').style.display = 'none';
+    document.getElementById('kakei-ocr-result').style.display = 'none';
+    document.getElementById('kakei-ocr-camera').value = '';
+    document.getElementById('kakei-ocr-gallery').value = '';
+    // ジャンル select を構築
+    const sel = document.getElementById('kakei-ocr-genre');
+    sel.innerHTML = '';
+    GENRE_LABELS.forEach(label => {
+      const opt = document.createElement('option');
+      opt.value = label;
+      opt.textContent = label;
+      if (label === 'その他') opt.selected = true;
+      sel.appendChild(opt);
+    });
+    // 支払者リセット
+    _kakeiOcrPayer = 'h';
+    document.getElementById('kakei-ocr-payer-h').classList.add('active');
+    document.getElementById('kakei-ocr-payer-w').classList.remove('active');
+    // ダークモード対応
+    const theme = document.documentElement.getAttribute('data-theme');
+    const box = modal.querySelector('.modal-box');
+    if (theme === 'dark' && box) {
+      box.style.background = '#23272e';
+      box.style.color = '#e0e0e0';
+    } else if (box) {
+      box.style.background = '';
+      box.style.color = '';
+    }
+  };
+
+  window.closeKakeiOcrModal = () => {
+    document.getElementById('kakei-ocr-modal').style.display = 'none';
+  };
+
+  window.setKakeiOcrPayer = (who) => {
+    _kakeiOcrPayer = who;
+    document.getElementById('kakei-ocr-payer-h').classList.toggle('active', who === 'h');
+    document.getElementById('kakei-ocr-payer-w').classList.toggle('active', who === 'w');
+  };
+
+  window.handleKakeiOcrFile = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // プレビュー表示
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      document.getElementById('kakei-ocr-preview-img').src = e.target.result;
+      document.getElementById('kakei-ocr-preview').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+
+    // OCR実行
+    document.getElementById('kakei-ocr-progress').style.display = 'block';
+    document.getElementById('kakei-ocr-result').style.display = 'none';
+    document.getElementById('kakei-ocr-progress-text').textContent = '解析中...';
+    document.getElementById('kakei-ocr-progress-bar').style.width = '0%';
+
+    try {
+      const worker = await Tesseract.createWorker('jpn', 1, {
+        logger: (m) => {
+          if (m.status === 'recognizing text') {
+            const pct = Math.round((m.progress || 0) * 100);
+            document.getElementById('kakei-ocr-progress-bar').style.width = pct + '%';
+            document.getElementById('kakei-ocr-progress-text').textContent = `解析中... ${pct}%`;
+          }
+        }
+      });
+
+      const { data } = await worker.recognize(file);
+      await worker.terminate();
+
+      document.getElementById('kakei-ocr-progress').style.display = 'none';
+
+      // レシート解析
+      const result = parseKakeiReceipt(data.text);
+      document.getElementById('kakei-ocr-name').value = result.storeName;
+      document.getElementById('kakei-ocr-amount').value = result.total || '';
+      // ジャンル自動判定
+      const genre = detectGenre(result.storeName);
+      document.getElementById('kakei-ocr-genre').value = genre;
+      document.getElementById('kakei-ocr-result').style.display = 'block';
+    } catch (err) {
+      console.error('OCR error:', err);
+      document.getElementById('kakei-ocr-progress').style.display = 'none';
+      document.getElementById('kakei-ocr-progress-text').textContent = 'エラーが発生しました';
+    }
+  };
+
+  function parseKakeiReceipt(text) {
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    let storeName = '';
+    let total = 0;
+
+    // 店名検出: 先頭数行で店名パターンを含む行
+    const storeRe = /店|ストア|マート|スーパー|ドラッグ|コンビニ|イオン|コストコ|業務|西友|ライフ|マックスバリュ|ドンキ|ダイソー|セブン|ローソン|ファミリー|ミニストップ|ヤオコー|オーケー|サミット|ウエルシア|マツキヨ|ツルハ|スギ薬局|薬局|モール|百貨店|デパート/;
+    for (let i = 0; i < Math.min(lines.length, 7); i++) {
+      if (storeRe.test(lines[i])) {
+        storeName = lines[i].replace(/[☆★◆◇■□▲△▽▼●○\s]+/g, ' ').trim();
+        break;
+      }
+    }
+    if (!storeName && lines.length > 0) {
+      const firstNonNum = lines.find(l => !/^\d+$/.test(l) && !/^\d{4}[\/\-]/.test(l));
+      if (firstNonNum) storeName = firstNonNum.replace(/[☆★◆◇■□▲△▽▼]+/g, '').trim();
+    }
+
+    // 合計金額検出: 「合計」「お買上」「合算」等を含む行の金額を優先
+    const totalRe = /(?:合計|お買上|お買い上げ|総合計|合算|税込合計|お支払|請求)\D*[¥\\￥]?\s*([\d,，]+)\s*円?/;
+    // 小計を含むがNOT 値引/ポイント/お釣り
+    const subtotalRe = /(?:小計)\D*[¥\\￥]?\s*([\d,，]+)\s*円?/;
+
+    for (const line of lines) {
+      // ノイズ除外
+      if (/お釣|つり|お預|預り|現金|クレジット|カード|ポイント|値引|割引/.test(line)) continue;
+      const m = line.match(totalRe);
+      if (m) {
+        const val = parseInt(m[1].replace(/[,，]/g, ''), 10);
+        if (val > 0 && val < 9999999) total = val;
+      }
+    }
+
+    // 合計が見つからなければ小計を使用
+    if (!total) {
+      for (const line of lines) {
+        if (/お釣|つり|お預|預り|現金|クレジット|カード|ポイント|値引|割引/.test(line)) continue;
+        const m = line.match(subtotalRe);
+        if (m) {
+          const val = parseInt(m[1].replace(/[,，]/g, ''), 10);
+          if (val > 0 && val < 9999999) total = val;
+        }
+      }
+    }
+
+    // それでも見つからなければ、末尾付近の大きな数値を探す
+    if (!total) {
+      const priceRe = /[¥\\￥]\s*([\d,，]+)|(\d{2,7})\s*円/;
+      for (let i = lines.length - 1; i >= Math.max(0, lines.length - 10); i--) {
+        if (/お釣|つり|お預|預り|現金|クレジット|カード|ポイント|値引|割引/.test(lines[i])) continue;
+        const m = lines[i].match(priceRe);
+        if (m) {
+          const val = parseInt((m[1] || m[2]).replace(/[,，]/g, ''), 10);
+          if (val > total && val < 9999999) total = val;
+        }
+      }
+    }
+
+    return { storeName, total };
+  }
+
+  window.importKakeiOcrResult = async () => {
+    const name = document.getElementById('kakei-ocr-name').value.trim();
+    const amount = parseInt(document.getElementById('kakei-ocr-amount').value, 10) || 0;
+    const genre = document.getElementById('kakei-ocr-genre').value || 'その他';
+
+    if (!name && !amount) return;
+
+    const today = new Date();
+    const todayJst = new Date(today.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const isCurrentMonth = todayJst.startsWith(window.currentMonthStr);
+    const jstDate = isCurrentMonth ? todayJst : window.currentMonthStr + '-01';
+    let maxOrder = 0;
+    if (items.length > 0) {
+      maxOrder = Math.max(...items.map(i => i.order || 0));
+    }
+
+    const newDocRef = doc(collection(db, "kakei_items"));
+    await setDoc(newDocRef, {
+      type: 'shared',
+      date: jstDate,
+      h: _kakeiOcrPayer === 'h' ? amount : 0,
+      w: _kakeiOcrPayer === 'w' ? amount : 0,
+      name: name,
+      genre: genre,
+      order: maxOrder + 1,
+      isSettled: false,
+      createdAt: serverTimestamp()
+    });
+
+    closeKakeiOcrModal();
+  };
 </script>
 
 <header>
@@ -885,8 +1200,9 @@ input:focus, select:focus {
 
 <main>
   <div id="list"></div>
-  <div style="margin:20px 0">
-    <button class="btn-add" onclick="addRow()"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">add</span> 項目を追加</button>
+  <div style="margin:20px 0; display:flex; gap:8px;">
+    <button class="btn-add" onclick="addRow()" style="flex:1;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">add</span> 項目を追加</button>
+    <button onclick="openKakeiOcrModal()" style="background:#1976d2; color:#fff; font-weight:bold; padding:12px 16px; border-radius:24px; font-size:1.1em; box-shadow:0 2px 4px rgba(0,0,0,0.2); border:none; cursor:pointer; white-space:nowrap;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">receipt_long</span> レシート読取</button>
   </div>
 </main>
 
@@ -907,13 +1223,83 @@ input:focus, select:focus {
 <div id="monthly-summary-modal" class="modal-overlay">
   <div class="modal-box" style="max-width:500px;">
     <button class="modal-close-btn" onclick="closeMonthlySummary()"><span class="material-icons">close</span></button>
-    <p class="modal-title"><span class="material-icons" style="vertical-align:middle;">bar_chart</span> 月別集計</p>
+    <p class="modal-title"><span class="material-icons" style="vertical-align:middle;">bar_chart</span> 集計</p>
+    <div style="display:flex; gap:0; margin-bottom:16px;">
+      <button id="summary-tab-monthly" class="toggle-btn active" onclick="switchSummaryTab('monthly')" style="flex:1; border-radius:8px 0 0 8px; border-right:none; padding:8px;">月別</button>
+      <button id="summary-tab-genre" class="toggle-btn" onclick="switchSummaryTab('genre')" style="flex:1; border-radius:0 8px 8px 0; border-left:none; padding:8px;">カテゴリ別</button>
+    </div>
     <div id="monthly-summary-content"></div>
+    <div id="genre-summary-content" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- ===== レシートOCRモーダル ===== -->
+<div id="kakei-ocr-modal" class="modal-overlay">
+  <div class="modal-box" style="max-width:440px;">
+    <button class="modal-close-btn" onclick="closeKakeiOcrModal()"><span class="material-icons">close</span></button>
+    <p class="modal-title"><span class="material-icons" style="vertical-align:middle;">receipt_long</span> レシート読取</p>
+
+    <!-- アップロードエリア -->
+    <div id="kakei-ocr-upload">
+      <div style="display:flex; gap:8px; margin-bottom:12px;">
+        <button onclick="document.getElementById('kakei-ocr-camera').click()" style="flex:1; padding:14px; background:#e3f2fd; border:2px dashed #1976d2; border-radius:12px; cursor:pointer; font-size:0.95em; color:#1976d2; font-weight:bold;">
+          <span class="material-icons" style="font-size:1.5em; display:block; margin-bottom:4px;">photo_camera</span>カメラで撮影
+        </button>
+        <button onclick="document.getElementById('kakei-ocr-gallery').click()" style="flex:1; padding:14px; background:#f3e5f5; border:2px dashed #7b1fa2; border-radius:12px; cursor:pointer; font-size:0.95em; color:#7b1fa2; font-weight:bold;">
+          <span class="material-icons" style="font-size:1.5em; display:block; margin-bottom:4px;">photo_library</span>ギャラリー
+        </button>
+      </div>
+    </div>
+
+    <!-- プレビュー -->
+    <div id="kakei-ocr-preview" style="display:none; margin-bottom:12px; text-align:center;">
+      <img id="kakei-ocr-preview-img" style="max-width:100%; max-height:200px; border-radius:8px; border:1px solid #e0e0e0;" />
+    </div>
+
+    <!-- 進捗バー -->
+    <div id="kakei-ocr-progress" style="display:none; margin-bottom:12px;">
+      <div style="background:#e0e0e0; border-radius:8px; height:8px; overflow:hidden;">
+        <div id="kakei-ocr-progress-bar" style="background:#1976d2; height:100%; width:0%; transition:width 0.3s;"></div>
+      </div>
+      <p id="kakei-ocr-progress-text" style="text-align:center; font-size:0.85em; color:#666; margin:4px 0 0;">解析中...</p>
+    </div>
+
+    <!-- 結果フォーム -->
+    <div id="kakei-ocr-result" style="display:none;">
+      <div style="margin-bottom:12px;">
+        <label style="font-size:0.85em; color:#666; font-weight:bold;">内容（店名）</label>
+        <input type="text" id="kakei-ocr-name" placeholder="店名・内容" style="width:100%; padding:10px; border:1px solid #cfd8dc; border-radius:8px; font-size:1em; box-sizing:border-box; margin-top:4px;" />
+      </div>
+      <div style="display:flex; gap:8px; margin-bottom:12px;">
+        <div style="flex:1;">
+          <label style="font-size:0.85em; color:#666; font-weight:bold;">金額</label>
+          <div style="display:flex; align-items:center; gap:4px; margin-top:4px;">
+            <input type="number" id="kakei-ocr-amount" placeholder="0" style="flex:1; padding:10px; border:1px solid #cfd8dc; border-radius:8px; font-size:1em; text-align:right;" />
+            <span style="color:#666;">円</span>
+          </div>
+        </div>
+        <div style="flex:1;">
+          <label style="font-size:0.85em; color:#666; font-weight:bold;">ジャンル</label>
+          <select id="kakei-ocr-genre" style="width:100%; padding:10px; border:1px solid #cfd8dc; border-radius:8px; font-size:1em; margin-top:4px;"></select>
+        </div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:0.85em; color:#666; font-weight:bold;">支払者</label>
+        <div style="display:flex; gap:0; margin-top:4px;">
+          <button id="kakei-ocr-payer-h" class="toggle-btn active" onclick="setKakeiOcrPayer('h')" style="flex:1; border-radius:8px 0 0 8px; border-right:none; padding:10px;">夫</button>
+          <button id="kakei-ocr-payer-w" class="toggle-btn" onclick="setKakeiOcrPayer('w')" style="flex:1; border-radius:0 8px 8px 0; border-left:none; padding:10px;">妻</button>
+        </div>
+      </div>
+      <button onclick="importKakeiOcrResult()" class="btn-add" style="margin-top:4px;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">check</span> 家計に登録</button>
+    </div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<input type="file" id="kakei-ocr-camera" accept="image/*" capture="environment" style="display:none" onchange="handleKakeiOcrFile(event)" />
+<input type="file" id="kakei-ocr-gallery" accept="image/*" style="display:none" onchange="handleKakeiOcrFile(event)" />
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

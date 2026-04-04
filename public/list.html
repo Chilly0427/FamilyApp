@@ -77,6 +77,8 @@ input:focus, select:focus {
   outline: none !important;
   transition: all 0.2s ease;
 }
+.toggle-btn { padding:10px; border:1px solid #cfd8dc; background:#fff; color:#78909c; font-weight:bold; transition:all 0.2s; border-radius:8px; cursor:pointer; }
+.toggle-btn.active { background:#1976d2; color:#fff; border-color:#1976d2; }
 .row, .item-row, .input-section, .group-container {
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
@@ -205,7 +207,7 @@ input { -webkit-appearance: none; appearance: none; }
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
   import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
   import { 
-    getFirestore, collection, onSnapshot, doc, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, orderBy, query, limit
+    getFirestore, collection, onSnapshot, doc, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, orderBy, query, limit, getDocs
   } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
   import { firebaseConfig, ALLOWED_EMAILS } from "./firebase-config.js";
 
@@ -429,22 +431,79 @@ input { -webkit-appearance: none; appearance: none; }
     };
 
     // ===== 底値帳連携 =====
-    window.openSokoneRegisterModal = function(itemName) {
+    let _sokoneCache = { items: [], groups: new Map(), stores: new Set(), units: new Set() };
+    let _sokoneTaxInc = true;
+    let _sokoneTaxRate = 8;
+
+    async function loadSokoneData() {
+      const snap = await getDocs(collection(db, 'sokone_items'));
+      _sokoneCache.items = [];
+      _sokoneCache.groups.clear();
+      _sokoneCache.stores.clear();
+      _sokoneCache.units.clear();
+      ['g','ml','個','本','枚','パック','匹','玉'].forEach(u => _sokoneCache.units.add(u));
+      snap.forEach(d => {
+        const data = d.data();
+        _sokoneCache.items.push(data);
+        if (data.itemName) {
+          if (!_sokoneCache.groups.has(data.itemName)) _sokoneCache.groups.set(data.itemName, data.unit || '');
+        }
+        if (data.storeName) _sokoneCache.stores.add(data.storeName);
+        if (data.unit) _sokoneCache.units.add(data.unit);
+      });
+      // datalist 更新
+      const esc = s => s.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+      document.getElementById('sokone-group-list').innerHTML = Array.from(_sokoneCache.groups.keys()).map(n => `<option value="${esc(n)}">`).join('');
+      document.getElementById('sokone-store-list').innerHTML = Array.from(_sokoneCache.stores).map(s => `<option value="${esc(s)}">`).join('');
+      document.getElementById('sokone-unit-list').innerHTML = Array.from(_sokoneCache.units).map(u => `<option value="${esc(u)}">`).join('');
+    }
+
+    function updateSokoneTaxUI() {
+      document.getElementById('sokone-tax-inc-btn').classList.toggle('active', _sokoneTaxInc);
+      document.getElementById('sokone-tax-exc-btn').classList.toggle('active', !_sokoneTaxInc);
+      document.getElementById('sokone-tax-rate-area').style.display = _sokoneTaxInc ? 'none' : 'flex';
+      document.getElementById('sokone-tax8-btn').classList.toggle('active', _sokoneTaxRate === 8);
+      document.getElementById('sokone-tax10-btn').classList.toggle('active', _sokoneTaxRate === 10);
+    }
+
+    function onSokoneNameChange() {
+      const name = document.getElementById('sokone-reg-name').value.trim();
+      const unitArea = document.getElementById('sokone-unit-area');
+      if (_sokoneCache.groups.has(name)) {
+        const u = _sokoneCache.groups.get(name);
+        unitArea.innerHTML = `<span style="font-weight:bold; color:#78909c; font-size:1.1em;">${u || '(未設定)'}</span>`;
+        unitArea.dataset.fixedUnit = u;
+      } else {
+        unitArea.innerHTML = `<input type="text" id="sokone-reg-unit" list="sokone-unit-list" placeholder="例: g, ml, 個" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:16px; box-sizing:border-box;">`;
+        delete unitArea.dataset.fixedUnit;
+      }
+    }
+
+    window.openSokoneRegisterModal = async function(itemName) {
       document.getElementById('sokone-reg-name').value = itemName;
       document.getElementById('sokone-reg-store').value = '';
       document.getElementById('sokone-reg-price').value = '';
       document.getElementById('sokone-reg-qty').value = '1';
+      _sokoneTaxInc = true;
+      _sokoneTaxRate = 8;
+      updateSokoneTaxUI();
       document.getElementById('sokone-register-modal').classList.add('open');
+      await loadSokoneData();
+      onSokoneNameChange();
       setTimeout(() => document.getElementById('sokone-reg-store').focus(), 100);
     };
     window.closeSokoneRegisterModal = function() {
       document.getElementById('sokone-register-modal').classList.remove('open');
     };
+    window.setSokoneTaxInc = function(v) { _sokoneTaxInc = v; updateSokoneTaxUI(); };
+    window.setSokoneTaxRate = function(v) { _sokoneTaxRate = v; updateSokoneTaxUI(); };
     window.submitSokoneRegister = async function() {
       const name = document.getElementById('sokone-reg-name').value.trim();
       const store = document.getElementById('sokone-reg-store').value.trim();
       const price = parseFloat(document.getElementById('sokone-reg-price').value) || 0;
       const qty = parseFloat(document.getElementById('sokone-reg-qty').value) || 1;
+      const unitArea = document.getElementById('sokone-unit-area');
+      const unit = unitArea.dataset.fixedUnit !== undefined ? unitArea.dataset.fixedUnit : (document.getElementById('sokone-reg-unit')?.value?.trim() || '');
       if (!name || price <= 0) { alert('商品名と価格を入力してください'); return; }
       const today = new Date(new Date().getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
       try {
@@ -453,9 +512,9 @@ input { -webkit-appearance: none; appearance: none; }
           storeName: store,
           price: price,
           quantity: qty,
-          unit: '',
-          isTaxIncluded: true,
-          taxRate: 8,
+          unit: unit,
+          isTaxIncluded: _sokoneTaxInc,
+          taxRate: _sokoneTaxRate,
           isDiscount: false,
           recordedDate: today,
           updatedAt: serverTimestamp()
@@ -2000,30 +2059,57 @@ input { -webkit-appearance: none; appearance: none; }
   </div>
 </div>
 
+<!-- datalists for sokone registration -->
+<datalist id="sokone-group-list"></datalist>
+<datalist id="sokone-store-list"></datalist>
+<datalist id="sokone-unit-list"></datalist>
+
 <!-- ===== 底値帳登録モーダル ===== -->
 <div id="sokone-register-modal" class="modal-overlay">
-  <div class="modal-box" style="max-width:360px;">
+  <div class="modal-box" style="max-width:400px;">
     <button class="modal-close-btn" onclick="closeSokoneRegisterModal()"><span class="material-icons">close</span></button>
     <p class="modal-title"><span class="material-icons" style="vertical-align:middle;">local_offer</span> 底値帳に記録</p>
+
     <div style="margin-bottom:12px;">
-      <label style="font-size:0.85em; color:#666; display:block; margin-bottom:4px;">商品名</label>
-      <input type="text" id="sokone-reg-name" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:16px; box-sizing:border-box;" readonly>
+      <label style="font-size:0.85em; color:#666; font-weight:bold; display:block; margin-bottom:4px;">商品グループ</label>
+      <input type="text" id="sokone-reg-name" list="sokone-group-list" placeholder="商品名を入力（候補から選択可）" oninput="onSokoneNameChange()" onchange="onSokoneNameChange()" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:16px; box-sizing:border-box;">
     </div>
+
     <div style="margin-bottom:12px;">
-      <label style="font-size:0.85em; color:#666; display:block; margin-bottom:4px;">店舗名</label>
-      <input type="text" id="sokone-reg-store" placeholder="例: スーパーA" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:16px; box-sizing:border-box;">
+      <label style="font-size:0.85em; color:#666; font-weight:bold; display:block; margin-bottom:4px;">店舗名</label>
+      <input type="text" id="sokone-reg-store" list="sokone-store-list" placeholder="例: コストコ" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:16px; box-sizing:border-box;">
     </div>
-    <div style="display:flex; gap:8px; margin-bottom:12px;">
+
+    <div style="margin-bottom:12px;">
+      <label style="font-size:0.85em; color:#666; font-weight:bold; display:block; margin-bottom:4px;">価格</label>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="number" id="sokone-reg-price" placeholder="0" inputmode="numeric" style="flex:2; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:16px; box-sizing:border-box; text-align:right; font-weight:bold;">
+        <span style="font-weight:bold; color:#666;">円</span>
+      </div>
+      <div style="display:flex; gap:0; margin-top:6px;">
+        <button id="sokone-tax-inc-btn" class="toggle-btn active" onclick="setSokoneTaxInc(true)" style="flex:1; border-radius:8px 0 0 8px; border-right:none; padding:8px 4px;">税込</button>
+        <button id="sokone-tax-exc-btn" class="toggle-btn" onclick="setSokoneTaxInc(false)" style="flex:1; border-radius:0 8px 8px 0; border-left:none; padding:8px 4px;">税抜</button>
+        <div id="sokone-tax-rate-area" style="display:none; margin-left:8px;">
+          <button id="sokone-tax8-btn" class="toggle-btn active" onclick="setSokoneTaxRate(8)" style="border-radius:8px 0 0 8px; border-right:none; padding:8px 6px; font-size:0.85em;">8%</button>
+          <button id="sokone-tax10-btn" class="toggle-btn" onclick="setSokoneTaxRate(10)" style="border-radius:0 8px 8px 0; border-left:none; padding:8px 6px; font-size:0.85em;">10%</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:8px; margin-bottom:16px;">
       <div style="flex:1;">
-        <label style="font-size:0.85em; color:#666; display:block; margin-bottom:4px;">価格（税込）</label>
-        <input type="number" id="sokone-reg-price" placeholder="0" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:16px; box-sizing:border-box;">
+        <label style="font-size:0.85em; color:#666; font-weight:bold; display:block; margin-bottom:4px;">容量</label>
+        <input type="number" id="sokone-reg-qty" step="0.1" value="1" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:16px; box-sizing:border-box; text-align:right;">
       </div>
       <div style="flex:1;">
-        <label style="font-size:0.85em; color:#666; display:block; margin-bottom:4px;">数量</label>
-        <input type="number" id="sokone-reg-qty" value="1" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:16px; box-sizing:border-box;">
+        <label style="font-size:0.85em; color:#666; font-weight:bold; display:block; margin-bottom:4px;">単位</label>
+        <div id="sokone-unit-area">
+          <input type="text" id="sokone-reg-unit" list="sokone-unit-list" placeholder="例: g, ml, 個" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:16px; box-sizing:border-box;">
+        </div>
       </div>
     </div>
-    <button onclick="submitSokoneRegister()" style="width:100%; padding:12px; background:#4caf50; color:#fff; border:none; border-radius:24px; font-size:1.05em; font-weight:bold; cursor:pointer;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">check</span> 登録する</button>
+
+    <button onclick="submitSokoneRegister()" class="btn-add" style="width:100%;"><span class="material-icons" style="font-size:0.9em;vertical-align:middle;">check_circle</span> 記録する</button>
   </div>
 </div>
 
