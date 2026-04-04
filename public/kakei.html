@@ -794,57 +794,105 @@ input:focus, select:focus {
   // ===== カテゴリ別集計 =====
   function renderGenreSummary() {
     const container = document.getElementById('genre-summary-content');
-    // 全アイテムをジャンル別に集計
-    const genreMap = {};
-    GENRE_LABELS.forEach(g => { genreMap[g] = 0; });
+
+    // 月の一覧を取得（データがある月のみ）
+    const monthSet = new Set();
     items.forEach(it => {
-      const g = it.genre || detectGenre(it.name) || 'その他';
-      genreMap[g] = (genreMap[g] || 0) + (it.h || 0) + (it.w || 0);
+      if (it.date) monthSet.add(it.date.slice(0, 7));
     });
-    // 0円のカテゴリを除外
-    const activeGenres = GENRE_LABELS.filter(g => genreMap[g] > 0);
-    const total = activeGenres.reduce((s, g) => s + genreMap[g], 0);
-    if (total === 0) {
+    const months = [...monthSet].sort().reverse();
+    if (months.length === 0) {
       container.innerHTML = '<div style="color:#aaa; text-align:center; padding:16px;">データがありません</div>';
       return;
     }
 
-    // SVG パイチャート
-    const size = 200, cx = 100, cy = 100, r = 80;
-    let startAngle = -Math.PI / 2;
-    let paths = '';
-    activeGenres.forEach(g => {
-      const ratio = genreMap[g] / total;
-      const endAngle = startAngle + ratio * 2 * Math.PI;
-      const largeArc = ratio > 0.5 ? 1 : 0;
-      const x1 = cx + r * Math.cos(startAngle), y1 = cy + r * Math.sin(startAngle);
-      const x2 = cx + r * Math.cos(endAngle), y2 = cy + r * Math.sin(endAngle);
-      if (ratio > 0.001) {
-        if (ratio >= 0.9999) {
-          paths += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${GENRE_COLORS[g]}" />`;
-        } else {
-          paths += `<path d="M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${largeArc} 1 ${x2},${y2} Z" fill="${GENRE_COLORS[g]}"><title>${g}: ${format(genreMap[g])} (${Math.round(ratio * 100)}%)</title></path>`;
-        }
+    // 現在表示中の月をデフォルトに
+    let selectedMonth = window.currentMonthStr || months[0];
+    if (!monthSet.has(selectedMonth)) selectedMonth = months[0];
+
+    function renderForMonth(month) {
+      const genreMap = {};
+      GENRE_LABELS.forEach(g => { genreMap[g] = 0; });
+      items.filter(it => it.date && it.date.startsWith(month)).forEach(it => {
+        const g = it.genre || detectGenre(it.name) || 'その他';
+        genreMap[g] = (genreMap[g] || 0) + (it.h || 0) + (it.w || 0);
+      });
+      const activeGenres = GENRE_LABELS.filter(g => genreMap[g] > 0);
+      const total = activeGenres.reduce((s, g) => s + genreMap[g], 0);
+
+      let chartHtml = '';
+      if (total === 0) {
+        chartHtml = '<div style="color:#aaa; text-align:center; padding:16px;">この月のデータはありません</div>';
+      } else {
+        // SVG パイチャート
+        const size = 200, cx = 100, cy = 100, r = 80;
+        let startAngle = -Math.PI / 2;
+        let paths = '';
+        activeGenres.forEach(g => {
+          const ratio = genreMap[g] / total;
+          const endAngle = startAngle + ratio * 2 * Math.PI;
+          const largeArc = ratio > 0.5 ? 1 : 0;
+          const x1 = cx + r * Math.cos(startAngle), y1 = cy + r * Math.sin(startAngle);
+          const x2 = cx + r * Math.cos(endAngle), y2 = cy + r * Math.sin(endAngle);
+          if (ratio > 0.001) {
+            if (ratio >= 0.9999) {
+              paths += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${GENRE_COLORS[g]}" />`;
+            } else {
+              paths += `<path d="M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${largeArc} 1 ${x2},${y2} Z" fill="${GENRE_COLORS[g]}"><title>${g}: ${format(genreMap[g])} (${Math.round(ratio * 100)}%)</title></path>`;
+            }
+          }
+          startAngle = endAngle;
+        });
+
+        let legendHtml = '';
+        activeGenres.sort((a, b) => genreMap[b] - genreMap[a]).forEach(g => {
+          const pct = Math.round(genreMap[g] / total * 100);
+          legendHtml += `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #f0f0f0;">
+            <div style="display:flex; align-items:center; gap:8px;"><span style="display:inline-block; width:14px; height:14px; border-radius:3px; background:${GENRE_COLORS[g]};"></span><span style="font-size:0.9em;">${g}</span></div>
+            <div style="font-size:0.9em; font-weight:bold;">${format(genreMap[g])} <span style="color:#999; font-weight:normal;">(${pct}%)</span></div>
+          </div>`;
+        });
+
+        chartHtml = `
+          <div style="text-align:center; margin-bottom:16px;">
+            <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${paths}</svg>
+            <div style="font-size:0.9em; color:#666; margin-top:4px;">合計: ${format(total)}</div>
+          </div>
+          <div>${legendHtml}</div>
+        `;
       }
-      startAngle = endAngle;
-    });
+      document.getElementById('genre-chart-area').innerHTML = chartHtml;
+    }
 
-    let legendHtml = '';
-    activeGenres.sort((a, b) => genreMap[b] - genreMap[a]).forEach(g => {
-      const pct = Math.round(genreMap[g] / total * 100);
-      legendHtml += `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #f0f0f0;">
-        <div style="display:flex; align-items:center; gap:8px;"><span style="display:inline-block; width:14px; height:14px; border-radius:3px; background:${GENRE_COLORS[g]};"></span><span style="font-size:0.9em;">${g}</span></div>
-        <div style="font-size:0.9em; font-weight:bold;">${format(genreMap[g])} <span style="color:#999; font-weight:normal;">(${pct}%)</span></div>
-      </div>`;
-    });
-
+    // 月選択UI + チャートエリア
+    const [y, m] = selectedMonth.split('-');
     container.innerHTML = `
-      <div style="text-align:center; margin-bottom:16px;">
-        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${paths}</svg>
-        <div style="font-size:0.9em; color:#666; margin-top:4px;">合計: ${format(total)}</div>
+      <div style="display:flex; justify-content:center; align-items:center; gap:8px; margin-bottom:16px; font-size:1.1em; font-weight:bold;">
+        <span id="genre-prev-month" style="cursor:pointer; padding:8px 14px; background:#f0f0f0; border-radius:8px; user-select:none;">◁</span>
+        <span id="genre-month-label" style="min-width:100px; text-align:center;">${y}年${parseInt(m)}月</span>
+        <span id="genre-next-month" style="cursor:pointer; padding:8px 14px; background:#f0f0f0; border-radius:8px; user-select:none;">▷</span>
       </div>
-      <div>${legendHtml}</div>
+      <div id="genre-chart-area"></div>
     `;
+
+    let currentIdx = months.indexOf(selectedMonth);
+    if (currentIdx < 0) currentIdx = 0;
+
+    function updateMonth() {
+      const mon = months[currentIdx];
+      const [yy, mm] = mon.split('-');
+      document.getElementById('genre-month-label').textContent = `${yy}年${parseInt(mm)}月`;
+      renderForMonth(mon);
+    }
+
+    document.getElementById('genre-prev-month').onclick = () => {
+      if (currentIdx < months.length - 1) { currentIdx++; updateMonth(); }
+    };
+    document.getElementById('genre-next-month').onclick = () => {
+      if (currentIdx > 0) { currentIdx--; updateMonth(); }
+    };
+
+    renderForMonth(selectedMonth);
   }
 
   window.exportJSON = () => {
