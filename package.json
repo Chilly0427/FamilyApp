@@ -1,0 +1,16 @@
+{
+  "name": "familyapp",
+  "private": true,
+  "engines": {
+    "node": "20 || 22 || 24"
+  },
+  "scripts": {
+    "firebase": "firebase",
+    "login": "firebase login",
+    "serve": "firebase emulators:start --only hosting",
+    "deploy": "firebase deploy --only hosting"
+  },
+  "devDependencies": {
+    "firebase-tools": "^14.22.0"
+  }
+}
